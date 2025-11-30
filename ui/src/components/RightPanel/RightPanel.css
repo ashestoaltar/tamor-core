@@ -1,0 +1,66 @@
+.right-panel h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.mode-card {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.mode-title {
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.mode-title span {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.mode-summary {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin-bottom: 4px;
+}
+
+.mode-when {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.mode-when .label {
+  color: var(--accent-soft);
+}
+
+.memory-insight h3 {
+  margin: 12px 0 8px 0;
+  font-size: 0.95rem;
+  color: var(--accent-soft);
+}
+
+.insight-item {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 10px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+}
+
+.insight-content {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.insight-meta {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+

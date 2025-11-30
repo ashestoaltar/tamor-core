@@ -1,0 +1,31 @@
+# Python
+api/venv/
+__pycache__/
+*.pyc
+
+# Node
+ui/node_modules/
+ui/dist/
+
+# Environment / secrets
+.env
+api/.env
+
+# Databases and embeddings
+api/memory/*.db
+api/embeddings/*
+memory/*.db
+memory/*backup*.db
+
+# Logs
+logs/
+*.log
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Archive stash (optional, if you don’t want to commit it)
+archive/

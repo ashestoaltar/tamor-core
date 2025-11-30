@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    category TEXT,
+    content TEXT,
+    embedding BLOB
+);

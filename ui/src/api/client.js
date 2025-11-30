@@ -1,0 +1,57 @@
+// src/api/client.js
+
+function resolveApiBase() {
+  if (typeof window === "undefined") {
+    // server-side / build-time fallback
+    return "http://localhost:5055/api";
+  }
+
+  const origin = window.location.origin; // e.g. https://tamor.ashestoaltar.com or http://tamor-core:5173
+
+  // If we're on Vite dev (port 5173), talk to Flask on 5055
+  if (origin.includes(":5173")) {
+    return origin.replace(":5173", ":5055") + "/api";
+  }
+
+  // Otherwise (Cloudflare/production), UI + API are on same origin
+  return origin + "/api";
+}
+
+const API_BASE = resolveApiBase();
+
+
+export async function apiFetch(path, options = {}) {
+  const url = `${API_BASE}${path}`;
+
+  const resp = await fetch(url, {
+    // Merge defaults with caller options
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    credentials: "include", // IMPORTANT: send cookies for auth
+    body:
+      options.body !== undefined
+        ? typeof options.body === "string"
+          ? options.body
+          : JSON.stringify(options.body)
+        : undefined,
+  });
+
+  const text = await resp.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    data = { raw: text };
+  }
+
+  if (!resp.ok) {
+    // surface error info
+    const msg = data?.error || resp.statusText || "API error";
+    throw new Error(msg);
+  }
+
+  return data;
+}
