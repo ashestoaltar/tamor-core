@@ -1,31 +1,44 @@
-# Python
-api/venv/
+# --- Python cache / build ---
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
 
-# Node
-ui/node_modules/
-ui/dist/
+# --- Virtual envs ---
+venv/
+.api_venv/
+.env/
+api/venv/
 
-# Environment / secrets
+# --- Env files / secrets ---
 .env
 api/.env
 
-# Databases and embeddings
-api/memory/*.db
-api/embeddings/*
-memory/*.db
-memory/*backup*.db
+# --- SQLite DBs & memory ---
+api/memory/
+memory/
+archive/db/
+archive/api/tamor_backup_before_phase7.db
 
-# Logs
+# --- Uploads & embeddings ---
+api/uploads/
+api/embeddings/
+
+# --- Logs ---
 logs/
 *.log
+archive/logs/
 
-# OS/editor junk
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
+# --- Node / frontend build ---
+ui/node_modules/
+ui/dist/
+ui/.vite/
+archive/ui_old_2025-11-29/node_modules/
+archive/ui/node_modules/
 
-# Archive stash (optional, if you don’t want to commit it)
-archive/
+# --- Zips / archives ---
+*.zip
+tamor

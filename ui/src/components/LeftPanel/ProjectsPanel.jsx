@@ -14,43 +14,35 @@ function formatDateLabel(value) {
 export default function ProjectsPanel({
   activeConversationId,
   onSelectConversation,
-  refreshToken,
-  onNewConversation,
   onDeleteConversation,
+  refreshToken,
+  currentProjectId,
+  setCurrentProjectId,
+  onNewConversation,
 }) {
   const [projects, setProjects] = useState([]);
   const [convos, setConvos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [expandedProjects, setExpandedProjects] = useState({});
   const [unassignedExpanded, setUnassignedExpanded] = useState(true);
 
+  const [editingConvId, setEditingConvId] = useState(null);
+  const [editingConvTitle, setEditingConvTitle] = useState("");
+  const [savingConvId, setSavingConvId] = useState(null);
+
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editingProjectName, setEditingProjectName] = useState("");
   const [savingProject, setSavingProject] = useState(false);
-
-  const [editingConvId, setEditingConvId] = useState(null);
-  const [editingConvTitle, setEditingConvTitle] = useState("");
-  const [savingConv, setSavingConv] = useState(false);
-  const [deletingConvId, setDeletingConvId] = useState(null);
   const [deletingProjectId, setDeletingProjectId] = useState(null);
 
-    async function loadAll() {
+  async function loadAll() {
     setLoading(true);
     try {
-      // Fetch projects + conversations independently so one failing
-      // doesn't blow away the other.
-      const projPromise = apiFetch("/projects").catch((err) => {
-        console.error("Failed to load projects:", err);
-        return { projects: [] };
-      });
-
-      const convPromise = apiFetch("/conversations").catch((err) => {
-        console.error("Failed to load conversations:", err);
-        return { conversations: [] };
-      });
-
-      const [projData, convData] = await Promise.all([projPromise, convPromise]);
+      const [projData, convData] = await Promise.all([
+        apiFetch("/projects"),
+        apiFetch("/conversations"),
+      ]);
 
       const projList = projData.projects || [];
       const convList = convData.conversations || convData || [];
@@ -74,7 +66,6 @@ export default function ProjectsPanel({
     }
   }
 
-
   useEffect(() => {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,21 +74,27 @@ export default function ProjectsPanel({
   // ---- Project actions ----
 
   const handleNewProject = async () => {
-    const name = window.prompt("Project name:");
-    if (!name || !name.trim()) return;
+    const name = window.prompt("Project name?");
+    if (!name) return;
 
     try {
+      setSavingProject(true);
       const data = await apiFetch("/projects", {
         method: "POST",
-        body: { name: name.trim() },
+        body: { name },
       });
-      setProjects((prev) => [
-        { id: data.id, name: data.name, created_at: null, updated_at: null },
+
+      const created = data.project || data;
+      setProjects((prev) => [...prev, created]);
+
+      setExpandedProjects((prev) => ({
         ...prev,
-      ]);
-      setExpandedProjects((prev) => ({ ...prev, [data.id]: true }));
+        [created.id]: true,
+      }));
     } catch (err) {
       console.error("Failed to create project:", err);
+    } finally {
+      setSavingProject(false);
     }
   };
 
@@ -111,17 +108,17 @@ export default function ProjectsPanel({
     setEditingProjectName("");
   };
 
-  const saveEditProject = async () => {
-    if (!editingProjectId || !editingProjectName.trim()) {
-      cancelEditProject();
-      return;
-    }
+  const saveProjectName = async () => {
+    const trimmed = editingProjectName.trim();
+    if (!trimmed || !editingProjectId) return;
+
     try {
       setSavingProject(true);
       const data = await apiFetch(`/projects/${editingProjectId}`, {
-        method: "PATCH",
-        body: { name: editingProjectName.trim() },
+        method: "PUT",
+        body: { name: trimmed },
       });
+
       setProjects((prev) =>
         prev.map((p) =>
           p.id === editingProjectId ? { ...p, name: data.name } : p
@@ -136,31 +133,26 @@ export default function ProjectsPanel({
   };
 
   const deleteProject = async (projectId) => {
-    if (
-      !window.confirm(
-        "Delete this project? Its conversations will become Unassigned."
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm("Delete this project and its associations?")) return;
+
     try {
       setDeletingProjectId(projectId);
       await apiFetch(`/projects/${projectId}`, {
         method: "DELETE",
       });
-      // Remove project from list
+
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
-      // Unassign conversations locally
+
+      // Any conversations that belonged to this project become unassigned
       setConvos((prev) =>
         prev.map((c) =>
           c.project_id === projectId ? { ...c, project_id: null } : c
         )
       );
-      setExpandedProjects((prev) => {
-        const copy = { ...prev };
-        delete copy[projectId];
-        return copy;
-      });
+
+      if (currentProjectId === projectId) {
+        setCurrentProjectId(null);
+      }
     } catch (err) {
       console.error("Failed to delete project:", err);
     } finally {
@@ -191,63 +183,45 @@ export default function ProjectsPanel({
     setEditingConvTitle("");
   };
 
-  const saveEditConversation = async () => {
-    if (!editingConvId || !editingConvTitle.trim()) {
-      cancelEditConversation();
-      return;
-    }
+  const saveConversationTitle = async (convId) => {
+    const trimmed = editingConvTitle.trim();
+    if (!trimmed) return;
+
     try {
-      setSavingConv(true);
-      const data = await apiFetch(`/conversations/${editingConvId}`, {
-        method: "PATCH",
-        body: { title: editingConvTitle.trim() },
+      setSavingConvId(convId);
+      const data = await apiFetch(`/conversations/${convId}`, {
+        method: "PUT",
+        body: { title: trimmed },
       });
+
       setConvos((prev) =>
         prev.map((c) =>
-          c.id === editingConvId ? { ...c, title: data.title } : c
+          c.id === convId ? { ...c, title: data.title || trimmed } : c
         )
       );
       cancelEditConversation();
     } catch (err) {
       console.error("Failed to rename conversation:", err);
     } finally {
-      setSavingConv(false);
+      setSavingConvId(null);
     }
   };
 
-  const deleteConversation = async (convId) => {
-    if (!window.confirm("Delete this conversation? This cannot be undone.")) {
-      return;
-    }
-    try {
-      setDeletingConvId(convId);
-      await apiFetch(`/conversations/${convId}`, {
-        method: "DELETE",
-      });
-      setConvos((prev) => prev.filter((c) => c.id !== convId));
-      if (onDeleteConversation) {
-        onDeleteConversation(convId);
-      }
-    } catch (err) {
-      console.error("Failed to delete conversation:", err);
-    } finally {
-      setDeletingConvId(null);
-    }
-  };
-
-  const moveConversation = async (convId, projectIdValue) => {
-    // projectIdValue is string from <select>, we convert ""->null or numeric
-    const project_id =
-      projectIdValue === "" ? null : parseInt(projectIdValue, 10);
+  const moveConversation = async (convId, newProjectId) => {
+    const project_id = newProjectId === "" ? null : Number(newProjectId);
 
     try {
-      await apiFetch(`/conversations/${convId}/project`, {
-        method: "PATCH",
+      const data = await apiFetch(`/conversations/${convId}`, {
+        method: "PUT",
         body: { project_id },
       });
+
+      const updatedProjectId =
+        data.project_id !== undefined ? data.project_id : project_id;
+
       setConvos((prev) =>
         prev.map((c) =>
-          c.id === convId ? { ...c, project_id: project_id } : c
+          c.id === convId ? { ...c, project_id: updatedProjectId } : c
         )
       );
     } catch (err) {
@@ -263,15 +237,16 @@ export default function ProjectsPanel({
     if (c.project_id == null) {
       unassigned.push(c);
     } else {
-      if (!byProject[c.project_id]) byProject[c.project_id] = [];
+      if (!byProject[c.project_id]) {
+        byProject[c.project_id] = [];
+      }
       byProject[c.project_id].push(c);
     }
   }
 
   const renderConversationRow = (c) => {
     const isActive = c.id === activeConversationId;
-    const isEditing = c.id === editingConvId;
-
+    const isEditing = editingConvId === c.id;
     const updatedLabel = formatDateLabel(c.updated_at);
 
     return (
@@ -290,27 +265,29 @@ export default function ProjectsPanel({
               onChange={(e) => setEditingConvTitle(e.target.value)}
               onClick={(e) => e.stopPropagation()}
             />
-            <button
-              className="conversation-edit-save"
-              type="button"
-              disabled={savingConv}
-              onClick={(e) => {
-                e.stopPropagation();
-                saveEditConversation();
-              }}
-            >
-              Save
-            </button>
-            <button
-              className="conversation-edit-cancel"
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                cancelEditConversation();
-              }}
-            >
-              Cancel
-            </button>
+            <div className="conversation-edit-controls">
+              <button
+                className="conversation-save-btn"
+                type="button"
+                disabled={savingConvId === c.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveConversationTitle(c.id);
+                }}
+              >
+                {savingConvId === c.id ? "Saving…" : "Save"}
+              </button>
+              <button
+                className="conversation-cancel-btn"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cancelEditConversation();
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         ) : (
           <div className="conversation-main-row">
@@ -344,10 +321,9 @@ export default function ProjectsPanel({
               <button
                 className="conversation-delete-btn"
                 type="button"
-                disabled={deletingConvId === c.id}
                 onClick={(e) => {
                   e.stopPropagation();
-                  deleteConversation(c.id);
+                  onDeleteConversation && onDeleteConversation(c.id);
                 }}
               >
                 🗑
@@ -392,46 +368,23 @@ export default function ProjectsPanel({
 
       {!loading && (
         <>
-          {/* Unassigned section */}
-          <div className="project-section">
-            <div
-              className="project-header"
-              onClick={toggleUnassignedExpanded}
-            >
-              <span className="project-toggle">
-                {unassignedExpanded ? "▼" : "▶"}
-              </span>
-              <span className="project-name">Unassigned</span>
-              <span className="project-count">
-                {unassigned.length} conversation
-                {unassigned.length === 1 ? "" : "s"}
-              </span>
-            </div>
-            {unassignedExpanded && unassigned.length > 0 && (
-              <div className="project-conversations">
-                {unassigned.map(renderConversationRow)}
-              </div>
-            )}
-            {unassignedExpanded && unassigned.length === 0 && (
-              <div className="memory-empty small">
-                No unassigned conversations.
-              </div>
-            )}
-          </div>
-
-          {/* Projects sections */}
           {projects.map((p) => {
             const projectConvos = byProject[p.id] || [];
             const expanded = expandedProjects[p.id] ?? true;
 
             const isEditingProj = p.id === editingProjectId;
-            const updatedLabel = formatDateLabel(p.updated_at);
 
             return (
               <div className="project-section" key={p.id}>
                 <div
-                  className="project-header"
-                  onClick={() => toggleProjectExpanded(p.id)}
+                  className={
+                    "project-header" +
+                    (currentProjectId === p.id ? " current-workspace" : "")
+                  }
+                  onClick={() => {
+                    toggleProjectExpanded(p.id);
+                    setCurrentProjectId(p.id);
+                  }}
                 >
                   <span className="project-toggle">
                     {expanded ? "▼" : "▶"}
@@ -453,10 +406,10 @@ export default function ProjectsPanel({
                         disabled={savingProject}
                         onClick={(e) => {
                           e.stopPropagation();
-                          saveEditProject();
+                          saveProjectName();
                         }}
                       >
-                        Save
+                        {savingProject ? "Saving…" : "Save"}
                       </button>
                       <button
                         className="project-edit-cancel"
@@ -477,7 +430,7 @@ export default function ProjectsPanel({
                         {projectConvos.length === 1 ? "" : "s"}
                       </span>
                       <button
-                        className="project-rename-btn"
+                        className="project-edit-save"
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -499,10 +452,6 @@ export default function ProjectsPanel({
                       </button>
                     </>
                   )}
-
-                  {updatedLabel && !isEditingProj && (
-                    <span className="project-updated">{updatedLabel}</span>
-                  )}
                 </div>
 
                 {expanded && projectConvos.length > 0 && (
@@ -510,6 +459,7 @@ export default function ProjectsPanel({
                     {projectConvos.map(renderConversationRow)}
                   </div>
                 )}
+
                 {expanded && projectConvos.length === 0 && (
                   <div className="memory-empty small">
                     No conversations in this project yet.
@@ -518,8 +468,42 @@ export default function ProjectsPanel({
               </div>
             );
           })}
+
+          {/* Unassigned section */}
+          <div className="project-section">
+            <div
+              className={
+                "project-header" +
+                (currentProjectId === null ? " current-workspace" : "")
+              }
+              onClick={() => {
+                toggleUnassignedExpanded();
+                setCurrentProjectId(null);
+              }}
+            >
+              <span className="project-toggle">
+                {unassignedExpanded ? "▼" : "▶"}
+              </span>
+              <span className="project-name">Unassigned</span>
+              <span className="project-count">
+                {unassigned.length} conversation
+                {unassigned.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            {unassignedExpanded && unassigned.length > 0 && (
+              <div className="project-conversations">
+                {unassigned.map(renderConversationRow)}
+              </div>
+            )}
+            {unassignedExpanded && unassigned.length === 0 && (
+              <div className="memory-empty small">
+                No unassigned conversations.
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
   );
 }
+

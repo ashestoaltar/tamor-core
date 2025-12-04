@@ -15,40 +15,156 @@
   gap: 0.75rem;
 }
 
-/* Base message bubble */
-.msg {
-  max-width: 900px;           /* prevent super-wide lines */
-  border-radius: 14px;
-  padding: 0.9rem 1rem;
-  line-height: 1.6;
+/* Base message bubble layout */
+.chat-message {
+  display: flex;
+  max-width: 100%;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  border-radius: 12px;
+  padding: 0.6rem 0.85rem;
   font-size: 0.95rem;
-  margin-bottom: 0.25rem;
+  line-height: 1.4;
 }
 
-/* Assistant vs user colors (dark theme) */
-.msg.assistant {
-  align-self: flex-start;
-  background: #151a22;
-  border: 1px solid #303744;
+/* User bubble */
+.chat-message.user {
+  justify-content: flex-end;
 }
 
-.msg.user {
-  align-self: flex-end;
-  background: #1d2835;
-  border: 1px solid #3b4a5a;
+.chat-message.user .chat-bubble {
+  background: var(--accent);
+  color: var(--bg);
+  border-bottom-right-radius: 4px;
 }
 
-/* Markdown content inside messages */
-.msg-content {
-  color: #e5e7eb;  /* light gray text */
+/* Tamor bubble */
+.chat-message.tamor .chat-bubble {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border-subtle);
+  border-bottom-left-radius: 4px;
 }
 
-/* Paragraph spacing */
-.msg-content p {
+/* Input area (structural border is in dark.css) */
+.input-area {
+  display: flex;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.input-area textarea,
+.input-area input {
+  flex: 1;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  resize: vertical;
+  min-height: 48px;
+  max-height: 160px;
+}
+
+.input-area button {
+  background-color: var(--accent-soft);
+  border: none;
+  color: #041016;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* Store button */
+.store-btn {
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  background-color: var(--accent);
+  border: none;
+  color: #000;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Mode indicator (top of chat) */
+.mode-indicator {
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+}
+
+.mode-indicator strong {
+  color: var(--accent);
+}
+
+.mode-indicator span {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+/* Placeholder text */
+.chat-placeholder {
+  margin-top: 2rem;
+  max-width: 540px;
+  color: #9ca3af;
+}
+
+.chat-placeholder h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.chat-placeholder p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.chat-placeholder ul {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.chat-placeholder li {
   margin: 0.35rem 0;
 }
 
-/* Headings */
+/* Markdown content tweaks inside bubbles */
+.msg-content {
+  font-size: 0.95rem;
+}
+
+.msg-content p {
+  margin: 0.2rem 0;
+}
+
+.msg-content code {
+  font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.85rem;
+  background-color: rgba(15, 23, 42, 0.85);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.msg-content pre {
+  margin: 0.5rem 0;
+  padding: 0.6rem 0.75rem;
+  background-color: rgba(15, 23, 42, 0.85);
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+.msg-content pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Headers inside messages */
 .msg-content h1,
 .msg-content h2,
 .msg-content h3,
@@ -162,4 +278,82 @@
   font-style: italic;
   color: #6b7280;
 }
+
+.chat-message {
+  display: flex;
+  margin: 6px 0;
+}
+
+.chat-message.user {
+  justify-content: flex-end;
+}
+
+.chat-message.tamor {
+  justify-content: flex-start;
+}
+
+.chat-message-bubble {
+  max-width: 70%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* You = right bubble */
+.chat-message.user .chat-message-bubble {
+  background: var(--accent);
+  color: var(--bg);
+  border-bottom-right-radius: 3px;
+}
+
+/* Tamor = left bubble */
+.chat-message.tamor .chat-message-bubble {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border-subtle);
+  border-bottom-left-radius: 3px;
+}
+
+/* ===== Chat Bubble Layout ===== */
+
+.chat-message {
+  display: flex;
+  margin: 8px 0;
+}
+
+/* User → right side */
+.chat-message.user {
+  justify-content: flex-end;
+}
+
+/* Tamor → left side */
+.chat-message.tamor {
+  justify-content: flex-start;
+}
+
+/* The bubble wrapper */
+.chat-bubble {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* User bubble */
+.chat-message.user .chat-bubble {
+  background: var(--accent);
+  color: var(--bg);
+  border-bottom-right-radius: 4px;
+}
+
+/* Tamor bubble */
+.chat-message.tamor .chat-bubble {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border-subtle);
+  border-bottom-left-radius: 4px;
+}
+
 

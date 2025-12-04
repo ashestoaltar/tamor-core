@@ -1,0 +1,360 @@
+/* ===========================
+   COLOR THEME & VARIABLES
+   =========================== */
+
+:root {
+  --bg: #020617;              /* overall background */
+  --bg-elevated: #02091a;     /* cards / panels */
+  --bg-soft: #020617;
+  --border-subtle: #111827;
+  --border-strong: #1f2937;
+
+  --text: #e5e7eb;
+  --text-soft: #9ca3af;
+  --text-muted: #6b7280;
+
+  --accent: #fbbf24;          /* amber gold */
+  --accent-soft: #f59e0b;
+  --accent-strong: #f97316;
+
+  --pill-memory: #0f172a;
+  --pill-outline: #1f2937;
+
+  --danger: #f87171;
+}
+
+/* Global background & text for safety */
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ===========================
+   MAIN APP LAYOUT (3 PANELS)
+   =========================== */
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+/* ---------- LEFT PANEL (Memory + Modes) ---------- */
+
+.left-panel {
+  width: 22%;
+  min-width: 230px;
+  max-width: 320px;
+  padding: 0.6rem 0.5rem;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg);
+  box-sizing: border-box;
+}
+
+/* Optional: make left content scrollable if tall */
+.left-panel > * {
+  max-height: calc(100vh - 1.2rem);
+  overflow: hidden;
+}
+
+/* ---------- CENTER PANEL (Chat) ---------- */
+
+.chat-panel-wrapper {
+  flex: 1.4;
+  min-width: 420px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg);
+  box-sizing: border-box;
+}
+
+/* Where your ChatPanel root div likely lives */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Mode indicator (top strip above messages) */
+.mode-indicator {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+/* ---------- Messages region ---------- */
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* One message bubble */
+.msg {
+  max-width: 80%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Alignment */
+.msg.user {
+  align-self: flex-end;
+  background: #0f172a;
+}
+
+.msg.assistant {
+  align-self: flex-start;
+  background: var(--bg-elevated);
+}
+
+/* Inner markdown content */
+.msg-content {
+  color: var(--text);
+}
+
+/* Store button on each msg */
+.store-btn {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent-soft);
+  background: transparent;
+  color: var(--accent);
+}
+
+/* ---------- Chat placeholder (no messages yet) ---------- */
+
+.chat-placeholder {
+  margin-top: 2rem;
+  max-width: 540px;
+  color: var(--text-soft);
+}
+
+.chat-placeholder h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+}
+
+.chat-placeholder p {
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.chat-placeholder-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ---------- Input area ---------- */
+
+.input-area {
+  border-top: 1px solid var(--border-subtle);
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.input-area input[type="text"] {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.input-area input::placeholder {
+  color: var(--text-muted);
+}
+
+.input-area button {
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--accent-soft);
+  background: var(--accent);
+  color: #111827;
+  font-weight: 600;
+}
+
+/* ---------- RIGHT PANEL (Insights) ---------- */
+
+.right-panel {
+  width: 24%;
+  min-width: 260px;
+  max-width: 360px;
+  padding: 0.6rem 0.6rem;
+  background: var(--bg);
+  box-sizing: border-box;
+}
+
+/* Optional: scroll if insights grow tall */
+.right-panel > * {
+  max-height: calc(100vh - 1.2rem);
+  overflow-y: auto;
+}
+
+/* Basic card style in right panel */
+.insights-card {
+  background: var(--bg-elevated);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* ===========================
+   LEFT PANEL: MEMORY / MODES
+   =========================== */
+
+/* Header: TAMOR title, subtitle */
+.app-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.app-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Memory section container */
+.memory-section-title {
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+/* Memory list scroll area */
+.memory-list {
+  max-height: calc(100vh - 210px);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+/* Individual memory card */
+.memory-card {
+  background: var(--bg-elevated);
+  border-radius: 0.65rem;
+  border: 1px solid var(--border-subtle);
+  padding: 0.45rem 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  cursor: default;
+  position: relative;
+}
+
+/* Category pill on memory card */
+.memory-category-pill {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--pill-memory);
+  border: 1px solid var(--pill-outline);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+  margin-bottom: 0.25rem;
+}
+
+/* Memory delete icon/button */
+.memory-delete-btn {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--danger);
+  font-size: 0.75rem;
+}
+
+/* Modes list */
+.modes-list {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mode-item {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  color: var(--text-soft);
+}
+
+.mode-item.active {
+  color: var(--accent);
+  background: #02091a;
+}
+
+/* ===========================
+   BASIC RESPONSIVENESS
+   =========================== */
+
+/* Tablet-ish: compress side panels slightly */
+@media (max-width: 1200px) {
+  .left-panel {
+    width: 24%;
+    min-width: 210px;
+  }
+
+  .right-panel {
+    width: 26%;
+    min-width: 230px;
+  }
+}
+
+/* Narrow screens: stack right panel below center for now */
+@media (max-width: 900px) {
+  .app-container {
+    flex-direction: column;
+  }
+
+  .left-panel {
+    width: 100%;
+    max-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .chat-panel-wrapper {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .right-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+

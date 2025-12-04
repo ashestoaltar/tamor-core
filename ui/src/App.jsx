@@ -11,7 +11,6 @@ import LoginPanel from "./components/LoginPanel";
 function App() {
   const { user, users, loading, login, logout } = useAuth();
 
-
   const [lastMemoryMatches, setLastMemoryMatches] = useState([]);
   const [memoryRefreshToken, setMemoryRefreshToken] = useState(0);
   const [activeMode, setActiveMode] = useState("Scholar");
@@ -22,7 +21,10 @@ function App() {
   // Which conversation is active?
   const [activeConversationId, setActiveConversationId] = useState(null);
 
-  // When this increments, LeftPanel reloads conversation list
+  // Which project is currently selected in the workspace?
+  const [currentProjectId, setCurrentProjectId] = useState(null);
+
+  // When this increments, side panels reload conversation lists / stats
   const [conversationRefreshToken, setConversationRefreshToken] = useState(0);
 
   const handleNewConversation = () => {
@@ -40,7 +42,7 @@ function App() {
     if (activeConversationId === deletedId) {
       setActiveConversationId(null);
     }
-    // Also bump refresh token so LeftPanel reloads from server
+    // Also bump refresh token so LeftPanel / RightPanel reload from server
     setConversationRefreshToken((prev) => prev + 1);
   };
 
@@ -56,27 +58,40 @@ function App() {
             </span>
           </div>
           <div className="app-header-mode">
-            Mode: <span>{activeMode}</span>
+            <span>Loading…</span>
           </div>
+          <div className="app-header-user" />
         </header>
         <main className="app-main">
-          <div className="panel-row">
-            <div className="loading-screen">Checking session…</div>
+          <div className="auth-panel-wrapper">
+            <div className="auth-panel-card">Checking session…</div>
           </div>
         </main>
       </div>
     );
   }
 
-  // If no user yet, show login/register UI only
+  // If not logged in, show login panel only
   if (!user) {
-    return <LoginPanel />;
+    return (
+      <div className="app-shell">
+        <header className="app-header">
+          <div className="app-header-left">
+            <span className="app-header-logo">TAMOR</span>
+            <span className="app-header-subtitle">
+              Wholeness • Light • Insight
+            </span>
+          </div>
+        </header>
+        <main className="app-main auth-only">
+          <LoginPanel users={users} onLogin={login} />
+        </main>
+      </div>
+    );
   }
 
-  // Once logged in, show the normal Tamor layout
   return (
     <div className="app-shell">
-      {/* Header */}
       <header className="app-header">
         <div className="app-header-left">
           <span className="app-header-logo">TAMOR</span>
@@ -85,22 +100,31 @@ function App() {
           </span>
         </div>
 
-        <div className="app-header-center">
-          Mode: <span>{activeMode}</span>
+        <div className="app-header-mode">
+          <span>Mode:</span>
+          <select
+            value={activeMode}
+            onChange={(e) => setActiveMode(e.target.value)}
+          >
+            <option value="Scholar">Scholar</option>
+            <option value="Forge">Forge</option>
+            <option value="Path">Path</option>
+            <option value="Anchor">Anchor</option>
+            <option value="Creative">Creative</option>
+            <option value="System">System</option>
+          </select>
         </div>
 
-        <div className="app-header-right">
-          <span className="user-greeting">Shalom,</span>
+        <div className="app-header-user">
+          <span className="user-greeting-label">Shalom,</span>
 
-          {users && users.length > 0 ? (
+          {users && users.length > 1 ? (
             <select
-              className="user-select"
-              value={user?.username || ""}
+              value={user.username}
               onChange={(e) => {
-                const username = e.target.value;
-                if (username) {
-                  // Backend ignores password now, so empty string is fine
-                  login(username, "");
+                const selectedUsername = e.target.value;
+                if (selectedUsername !== user.username) {
+                  login(selectedUsername);
                 }
               }}
             >
@@ -120,7 +144,6 @@ function App() {
             Logout
           </button>
         </div>
-
       </header>
 
       <main className={`app-main view-${mobileView}`}>
@@ -136,7 +159,7 @@ function App() {
             className={mobileView === "left" ? "active" : ""}
             onClick={() => setMobileView("left")}
           >
-            Conversations
+            Projects
           </button>
           <button
             className={mobileView === "right" ? "active" : ""}
@@ -158,6 +181,9 @@ function App() {
               conversationRefreshToken={conversationRefreshToken}
               onNewConversation={handleNewConversation}
               onDeleteConversation={handleDeleteConversation}
+              // workspace project selection
+              currentProjectId={currentProjectId}
+              setCurrentProjectId={setCurrentProjectId}
             />
           </div>
 
@@ -169,6 +195,9 @@ function App() {
               activeConversationId={activeConversationId}
               setActiveConversationId={setActiveConversationId}
               onConversationsChanged={handleConversationsChanged}
+              conversationRefreshToken={conversationRefreshToken}
+              // attach new conversations to the current project
+              currentProjectId={currentProjectId}
             />
           </div>
 
@@ -176,6 +205,10 @@ function App() {
             <RightPanel
               lastMemoryMatches={lastMemoryMatches}
               activeMode={activeMode}
+              currentProjectId={currentProjectId}
+              conversationRefreshToken={conversationRefreshToken}
+              activeConversationId={activeConversationId}
+              onConversationsChanged={handleConversationsChanged}
             />
           </div>
         </div>

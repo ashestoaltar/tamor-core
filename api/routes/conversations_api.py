@@ -146,20 +146,20 @@ def update_conversation_project(conv_id):
         return jsonify({"error": "not_authenticated"}), 401
 
     data = request.json or {}
-    project_id = data.get("project_id", None)
+    raw_project_id = data.get("project_id", None)
+
+    # Normalize project_id:
+    # - null / "" / "null" -> None (Unassigned)
+    # - otherwise try to cast to int
+    project_id = None
+    if raw_project_id not in (None, "", "null"):
+        try:
+            project_id = int(raw_project_id)
+        except (TypeError, ValueError):
+            return jsonify({"error": "invalid_project_id"}), 400
 
     conn = get_db()
     cur = conn.cursor()
-
-    # If project_id is not None, ensure the project belongs to this user
-    if project_id is not None:
-        cur.execute(
-          "SELECT id FROM projects WHERE id = ? AND user_id = ?",
-          (project_id, user_id),
-        )
-        if not cur.fetchone():
-            conn.close()
-            return jsonify({"error": "project_not_found"}), 404
 
     # Ensure conversation belongs to this user
     cur.execute(
@@ -170,10 +170,11 @@ def update_conversation_project(conv_id):
         conn.close()
         return jsonify({"error": "conversation_not_found"}), 404
 
+    # Just set project_id; the frontend only ever sends IDs from /projects
     cur.execute(
         """
         UPDATE conversations
-        SET project_id = ?
+        SET project_id = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ? AND user_id = ?
         """,
         (project_id, conv_id, user_id),
@@ -181,6 +182,47 @@ def update_conversation_project(conv_id):
     if cur.rowcount == 0:
         conn.close()
         return jsonify({"error": "update_failed"}), 400
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"id": conv_id, "project_id": project_id})
+
+        
+@conversations_bp.get("/conversations/search")
+def search_conversations():
+    """
+    Simple search over conversations (title only) for the current user.
+    Query: /api/conversations/search?q=term
+    """
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "not_authenticated"}), 401
+
+    query = (request.args.get("q") or "").strip()
+    if not query:
+        return jsonify({"conversations": []})
+
+    like = f"%{query}%"
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, title, project_id, mode, created_at, updated_at
+        FROM conversations
+        WHERE user_id = ?
+          AND title LIKE ?
+        ORDER BY updated_at DESC
+        LIMIT 50
+        """,
+        (user_id, like),
+    )
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    return jsonify({"conversations": rows})
+
 
     conn.commit()
     conn.close()
