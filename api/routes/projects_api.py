@@ -1,10 +1,18 @@
-# routes/projects_api.py
 from flask import Blueprint, jsonify, session, request
 
 from utils.db import get_db
 from core.config import TMDB_CACHE
 from services.playlists import list_playlist, remove_movie_from_playlist
 from services.tmdb_service import tmdb_lookup_movie
+from services.file_semantic_service import (
+    semantic_search_project_files,
+    summarize_project_files,
+)
+from services.knowledge_graph import (
+    extract_symbols_for_project,
+    query_symbol,
+)
+
 
 # Blueprint for all project-related routes (and playlist helpers)
 projects_bp = Blueprint("projects_api", __name__, url_prefix="/api")
@@ -210,6 +218,260 @@ def project_conversations(project_id):
 
 
 # ---------------------------------------------------------------------------
+# Project-wide semantic file search
+# ---------------------------------------------------------------------------
+
+
+@projects_bp.post("/projects/<int:project_id>/files/semantic-search")
+def project_files_semantic_search(project_id: int):
+    """
+    Run a semantic search over all text-like files in a project.
+
+    Request JSON:
+      {
+        "query": "Where do we set the louver spacing?",
+        "top_k": 8   # optional
+      }
+
+    Response JSON:
+      {
+        "project_id": 1,
+        "query": "...",
+        "results": [ { chunk hit ... }, ... ],
+        "answer": "LLM-grounded explanation..."
+      }
+    """
+    user_id, err = _ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    query = (data.get("query") or "").strip()
+    if not query:
+        return jsonify({"error": "query_required"}), 400
+
+    raw_top_k = data.get("top_k")
+    try:
+        top_k = int(raw_top_k) if raw_top_k is not None else 8
+    except (TypeError, ValueError):
+        top_k = 8
+
+    # Verify project ownership
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    proj = cur.fetchone()
+    conn.close()
+    if not proj:
+        return jsonify({"error": "not_found"}), 404
+
+    try:
+        result = semantic_search_project_files(
+            project_id=project_id,
+            user_id=user_id,
+            query=query,
+            top_k=top_k,
+            include_answer=True,
+        )
+    except Exception as e:
+        print("Error during semantic file search:", e)
+        return jsonify({"error": "semantic_search_failed", "detail": str(e)}), 500
+
+    return jsonify(
+        {
+            "project_id": project_id,
+            "query": query,
+            "results": result.get("results", []),
+            "answer": result.get("answer"),
+        }
+    )
+
+
+@projects_bp.post("/projects/<int:project_id>/summarize")
+def project_summarize(project_id: int):
+    """
+    Summarize all indexed file content in a project.
+
+    Request JSON:
+      {
+        "prompt": "High-level overview focusing on constraints and config keys"
+      }
+
+    Response JSON:
+      {
+        "project_id": 1,
+        "prompt": "…",
+        "summary": "Markdown/text summary from LLM"
+      }
+    """
+    user_id, err = _ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    prompt = (data.get("prompt") or "").strip()
+
+    # Verify project ownership
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    proj = cur.fetchone()
+    conn.close()
+    if not proj:
+        return jsonify({"error": "not_found"}), 404
+
+    try:
+        summary = summarize_project_files(
+            project_id=project_id,
+            user_id=user_id,
+            prompt=prompt or None,
+        )
+    except Exception as e:
+        print("Error during project summarization:", e)
+        return jsonify({"error": "summarize_failed", "detail": str(e)}), 500
+
+    return jsonify(
+        {
+            "project_id": project_id,
+            "prompt": prompt or None,
+            "summary": summary,
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 2.3 – Knowledge graph: extract + search symbols
+# ---------------------------------------------------------------------------
+
+
+@projects_bp.post("/projects/<int:project_id>/knowledge/extract")
+def project_knowledge_extract(project_id: int):
+    """
+    Extract symbols / config keys / parameters from all text-like files
+    in this project and store them in file_symbols.
+
+    Response JSON (example):
+      {
+        "project_id": 1,
+        "files_scanned": 5,
+        "files_with_symbols": 3,
+        "symbols_written": 42
+      }
+    """
+    user_id, err = _ensure_user()
+    if err:
+        return err
+
+    # Verify project ownership
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    proj = cur.fetchone()
+    conn.close()
+    if not proj:
+        return jsonify({"error": "not_found"}), 404
+
+    try:
+        stats = extract_symbols_for_project(project_id=project_id, user_id=user_id)
+    except Exception as e:
+        print("Error during knowledge extraction:", e)
+        return jsonify({"error": "knowledge_extract_failed", "detail": str(e)}), 500
+
+    # Ensure project_id is always present in the payload we return
+    if "project_id" not in stats:
+        stats["project_id"] = project_id
+
+    return jsonify(stats)
+
+
+@projects_bp.post("/projects/<int:project_id>/knowledge/search")
+def project_knowledge_search(project_id: int):
+    """
+    Fuzzy search for symbols / config keys within a project's extracted symbols.
+
+    Request JSON:
+      {
+        "symbol": "WidthMM",
+        "top_k": 25   # optional
+      }
+
+    Response JSON:
+      {
+        "project_id": 1,
+        "query": "WidthMM",
+        "hits": [
+          {
+            "id": ...,
+            "project_id": ...,
+            "file_id": ...,
+            "symbol": "WidthMM",
+            "line_number": 42,
+            "snippet": "WidthMM = 3650",
+            "filename": "config.json",
+            "mime_type": "application/json",
+            "score": 0.91
+          },
+          ...
+        ]
+      }
+    """
+    user_id, err = _ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    symbol = (data.get("symbol") or data.get("query") or "").strip()
+    if not symbol:
+        return jsonify({"error": "symbol_required"}), 400
+
+    raw_top_k = data.get("top_k")
+    try:
+        top_k = int(raw_top_k) if raw_top_k is not None else 25
+    except (TypeError, ValueError):
+        top_k = 25
+
+    # Verify project ownership
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    proj = cur.fetchone()
+    conn.close()
+    if not proj:
+        return jsonify({"error": "not_found"}), 404
+
+    try:
+        result = query_symbol(
+            project_id=project_id,
+            user_id=user_id,
+            symbol=symbol,
+            top_k=top_k,
+        )
+    except Exception as e:
+        print("Error during knowledge search:", e)
+        return jsonify({"error": "knowledge_search_failed", "detail": str(e)}), 500
+
+    return jsonify(
+        {
+            "project_id": project_id,
+            "query": result.get("query", symbol),
+            "hits": result.get("results", []),
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
 # Project notes
 # ---------------------------------------------------------------------------
 
@@ -341,7 +603,9 @@ def _enrich_movie_item(item: dict) -> dict:
         enriched = TMDB_CACHE[our_id].copy()
     elif our_id:
         try:
-            tmdb_bits = tmdb_lookup_movie(item.get("tmdb_query") or item.get("name") or "")
+            tmdb_bits = tmdb_lookup_movie(
+                item.get("tmdb_query") or item.get("name") or ""
+            )
             enriched = tmdb_bits.copy()
             if enriched:
                 TMDB_CACHE[our_id] = enriched

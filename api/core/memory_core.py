@@ -1,4 +1,3 @@
-# core/memory_core.py
 import sqlite3
 import numpy as np
 
@@ -8,6 +7,19 @@ from .config import MEMORY_DB, model
 def embed(text: str) -> bytes:
     vec = model.encode([text])[0]
     return vec.astype(np.float32).tobytes()
+
+
+def embed_many(texts: list[str]) -> list[bytes]:
+    """
+    Embed many texts at once and return a list of BLOBs suitable for SQLite.
+    """
+    if not texts:
+        return []
+    vecs = model.encode(texts)
+    blobs: list[bytes] = []
+    for vec in vecs:
+        blobs.append(vec.astype(np.float32).tobytes())
+    return blobs
 
 
 def search_memories(query: str, limit: int = 5):
@@ -142,3 +154,4 @@ def auto_store_memory_if_relevant(text: str, mode: str, source: str = "user") ->
     )
     conn.commit()
     conn.close()
+

@@ -1,672 +1,491 @@
-.right-panel h2 {
-  margin-top: 0;
-  margin-bottom: 12px;
-  color: var(--accent);
-  font-size: 1rem;
-}
-
-/* Workspace / project dashboard */
-
-.workspace-card {
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 14px;
-}
-
-.workspace-header {
+/* Root container for the whole right panel */
+.RightPanelRoot {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  margin-bottom: 6px;
+  padding: 0.75rem 0.75rem 0.75rem 0.75rem;
+  border-left: 1px solid var(--border-subtle);
+  background: transparent;
+  box-sizing: border-box;
 }
 
-.workspace-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-}
-
-.workspace-name {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--accent);
-}
-
-.workspace-stats {
-  display: flex;
-  gap: 16px;
-  margin-top: 4px;
-  margin-bottom: 6px;
-}
-
-.workspace-stats .stat-number {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.workspace-stats .stat-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.workspace-meta {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.workspace-meta.workspace-error {
-  color: #ff9b9b;
-}
-
-.workspace-recent {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 6px;
-  margin-top: 4px;
-}
-
-.workspace-recent-title {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-
-.workspace-recent ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.workspace-recent li {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  padding: 2px 0;
-  color: var(--text-soft);
-}
-
-.workspace-recent .recent-date {
-  color: var(--text-muted);
-  margin-left: 8px;
-}
-
-/* Mode card */
-
-.mode-card {
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 14px;
-}
-
-.mode-title {
-  font-size: 0.9rem;
-  margin-bottom: 4px;
-  color: var(--text);
-}
-
-.mode-title span {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.mode-summary {
-  font-size: 0.85rem;
-  color: var(--text-soft);
-  margin-bottom: 4px;
-}
-
-.mode-when {
-  font-size: 0.8rem;
-  color: var(--text-soft);
-}
-
-.mode-when .label {
-  color: var(--accent-soft);
-}
-
-/* Memory insights */
-
-.memory-insight h3 {
-  margin: 12px 0 8px 0;
-  font-size: 0.95rem;
-  color: var(--accent-soft);
-}
-
-.insight-item {
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  padding: 10px;
-  margin-bottom: 12px;
-  border-radius: 8px;
-}
-
-.insight-content {
-  color: var(--text);
-  font-size: 0.85rem;
-}
-
-.insight-meta {
-  margin-top: 6px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.workspace-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.workspace-project-name {
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.workspace-mode-pill {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.workspace-mode-pill span {
-  font-weight: 600;
-}
-
-.workspace-meta {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 10px;
-}
-
-.workspace-meta-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.workspace-meta-value {
-  font-size: 0.9rem;
-  color: var(--text);
-}
-
-.workspace-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.workspace-stat-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.workspace-stat-value {
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.workspace-recent-title {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-}
-
-.workspace-recent-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.workspace-recent-item {
-  padding: 6px 0;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.workspace-recent-item:last-child {
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.workspace-recent-title-text {
-  font-size: 0.9rem;
-}
-
-.workspace-recent-timestamp {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.workspace-loading,
-.workspace-error,
-.workspace-empty,
-.workspace-recent-empty {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-/* Project notes section */
-.rp-header {
-  margin-bottom: 12px;
-}
-
-.rp-header-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.rp-pill {
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-size: 0.75rem;
-  border: 1px solid var(--border-subtle);
-  background-color: var(--bg-elevated);
-  color: var(--text-muted);
-}
-
-.rp-mode-pill {
-  font-weight: 500;
-}
-
-.rp-project-pill {
-  opacity: 0.9;
-}
-
-.rp-header-sub {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.project-notes-card {
-  margin-bottom: 16px;
-}
-
-.project-notes-header {
+/* Top-level tab strip */
+.rp-tabs {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
-.project-notes-actions button {
-  margin-left: 6px;
+.rp-tab {
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
   padding: 4px 10px;
-  font-size: 0.75rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  background-color: var(--bg-elevated);
-  color: var(--text-primary);
+  border-radius: 999px;
+  font-size: 0.8rem;
   cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.project-notes-actions button:disabled {
+.rp-tab:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.rp-tab.active {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Scrollable body area */
+.rp-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.3rem;
+}
+
+/* Generic section container */
+.rp-section {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 10px 8px;
+  margin-bottom: 10px;
+}
+
+.rp-section-title {
+  margin: 0 0 4px 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+}
+
+.rp-section-subtitle {
+  margin: 4px 0 4px;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+/* Common helpers */
+.rp-divider {
+  height: 1px;
+  margin: 8px 0;
+  background: var(--border-subtle);
+}
+
+.rp-help-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 2px 0 4px;
+}
+
+/* Inputs & selects */
+.rp-input,
+.rp-select,
+.rp-notes-textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: #050813;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+
+.rp-input::placeholder,
+.rp-notes-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.rp-select {
+  padding-right: 24px;
+}
+
+.rp-notes-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Buttons */
+.rp-button {
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.rp-button:hover:not(:disabled) {
+  background: rgba(255, 178, 60, 0.18);
+  color: #ffd18a;
+}
+
+.rp-button:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.project-notes-textarea {
-  width: 100%;
-  min-height: 140px;
-  resize: vertical;
-  padding: 8px;
-  border-radius: 6px;
+.rp-button.subtle {
+  border-color: var(--border-subtle);
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.rp-button.subtle:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.rp-button.subtle.danger {
+  border-color: rgba(255, 120, 120, 0.6);
+  color: rgba(255, 160, 160, 0.9);
+}
+
+.rp-button.subtle.danger:hover:not(:disabled) {
+  background: rgba(255, 120, 120, 0.1);
+  color: rgba(255, 190, 190, 1);
+}
+
+/* Small icon-only buttons */
+.rp-icon-button {
+  border-radius: 999px;
   border: 1px solid var(--border-subtle);
-  background-color: var(--bg-input, #111319);
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  line-height: 1.4;
-}
-
-.project-notes-textarea::placeholder {
-  color: var(--text-muted);
-}
-
-.project-notes-status {
-  margin-top: 4px;
+  background: transparent;
+  color: var(--text-soft);
   font-size: 0.75rem;
-  color: var(--text-muted);
+  padding: 2px 7px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
-.project-notes-error {
-  margin-bottom: 6px;
-  font-size: 0.8rem;
-  color: var(--danger, #ff6b6b);
+.rp-icon-button:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
 }
 
-.project-notes-empty {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+/* Status text */
+.rp-status-text {
+  font-size: 0.78rem;
+  color: var(--text-soft);
 }
 
-/* Memory insights tweak */
-.workspace-insights-card {
-  margin-top: 8px;
+.rp-status-text.error {
+  color: rgba(255, 130, 130, 0.95);
 }
 
-.workspace-insights-sub {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-bottom: 6px;
+.rp-status-text.success {
+  color: rgba(140, 255, 180, 0.95);
 }
 
-.workspace-insights-list {
+/* Notes footer row */
+.rp-notes-actions {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Memory list */
+.rp-memory-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 4px;
+}
+
+.rp-memory-item {
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rp-memory-text {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.rp-memory-tags {
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rp-tag {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+}
+
+/* Playlist tab */
+.rp-playlist-body {
+  margin-top: 6px;
+}
+
+.rp-playlist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 6px;
+}
+
+.rp-playlist-overview {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.rp-playlist-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.rp-playlist-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.rp-playlist-grid {
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 8px;
 }
 
-.insight-item {
-  padding: 6px 8px;
-  border-radius: 6px;
+.rp-playlist-card {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  padding: 6px;
   border: 1px solid var(--border-subtle);
-  background-color: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.insight-content {
+.rp-poster-wrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #02030a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rp-poster-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.rp-inline-preview-title {
   font-size: 0.8rem;
-  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--text-soft);
+  margin: 4px 0 0;
 }
 
-.insight-meta {
+.rp-inline-preview-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.rp-inline-preview-text {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  margin-top: 2px;
+}
+
+/* File list / search / preview */
+.rp-search-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.rp-search-results {
+  margin-top: 4px;
+}
+
+.rp-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rp-file-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rp-file-thumb {
+  font-size: 1.1rem;
+}
+
+.rp-file-icon {
+  font-size: 1rem;
+  margin-top: 1px;
+}
+
+.rp-file-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.rp-file-name {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rp-file-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.rp-file-meta-small {
   font-size: 0.7rem;
   color: var(--text-muted);
 }
 
-/* --- Playlist: compact, scrollable with thumbnails --- */
-
-/* Header + selector */
-.playlist-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.rp-file-text {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  white-space: pre-wrap;
+  margin-top: 1px;
 }
 
-.playlist-header {
+.rp-file-actions {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Inline preview card (inside Files tab) */
+.rp-inline-preview {
+  margin-top: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px;
+}
+
+.rp-inline-preview-header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
   margin-bottom: 4px;
 }
 
-.playlist-header-main h2 {
-  margin-bottom: 2px;
-}
-
-.playlist-sub {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.playlist-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.75rem;
-}
-
-.playlist-selector label {
-  color: var(--text-muted);
-}
-
-.playlist-selector select {
-  background-color: var(--bg-elevated);
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  padding: 3px 8px;
-  color: var(--text-primary);
-  font-size: 0.8rem;
-}
-
-/* Scrollable list */
-.playlist-list {
-  max-height: 260px;              /* small viewport, whole list scrolls */
-  overflow-y: auto;
-  padding-right: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  list-style: none;
-  margin: 0;
-  padding-left: 0;
-}
-
-.playlist-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.playlist-list::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
-  border-radius: 10px;
-}
-
-.playlist-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  background-color: var(--bg-elevated);
-}
-
-/* Poster + text as compact row */
-.playlist-main {
-  display: flex;
-  gap: 8px;
-  font-size: 0.85rem;
-  min-width: 0;
-}
-
-/* Small thumbnail – force override global img rules */
-.playlist-poster {
-  width: 42px !important;
-  height: 63px !important;
-  border-radius: 4px;
-  object-fit: cover;
+.rp-inline-preview-image-wrap {
   flex-shrink: 0;
+  margin-right: 6px;
 }
 
-.playlist-poster.placeholder {
+.rp-inline-preview-image {
+  display: block;
+  width: 48px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+/* Project summary / file preview text */
+.rp-summary-preview,
+.rp-project-summary-preview,
+.rp-file-preview-body {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  white-space: pre-wrap;
+}
+
+/* File preview container */
+.rp-file-preview {
+  margin-top: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.rp-file-preview-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background-color: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rp-file-preview-title {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.rp-file-preview-body {
+  padding: 6px 8px;
+}
+
+/* Knowledge tab (symbols) */
+.rp-symbol-row {
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 4px;
+}
+
+.rp-symbol-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.78rem;
+  color: var(--text-soft);
+}
+
+.rp-symbol-snippet {
+  font-size: 0.78rem;
   color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.9rem;
+  white-space: pre-wrap;
+  margin-top: 2px;
 }
 
-/* Text block */
-.playlist-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.playlist-title-row {
+.rp-symbol-actions {
+  margin-top: 4px;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  align-items: baseline;
+  gap: 0.4rem;
 }
 
-.playlist-title {
-  font-weight: 500;
+/* Divider used between sub-sections inside one card */
+.rp-card-divider {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--border-subtle);
 }
-
-.playlist-year {
-  color: var(--text-muted);
-}
-
-/* Overview: clamp to 2 lines so it doesn’t take over panel */
-.playlist-overview {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Actions: Play + Remove stacked */
-.playlist-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-left: 8px;
-}
-
-/* Play in Stremio button */
-.playlist-play-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: 1px solid #4d8dff;
-  background-color: rgba(77, 141, 255, 0.12);
-  color: #4d8dff;
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  transition: 0.15s ease;
-}
-
-.playlist-play-btn:hover:not(:disabled) {
-  background-color: rgba(77, 141, 255, 0.2);
-  border-color: #3378ff;
-}
-
-.playlist-play-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* Trash-can remove button */
-.playlist-remove-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 77, 77, 0.6);
-  background-color: rgba(255, 77, 77, 0.1);
-  cursor: pointer;
-  padding: 0;
-  transition: 0.15s ease;
-  color: #ff6b6b;
-}
-
-.playlist-remove-btn:hover {
-  background-color: rgba(255, 77, 77, 0.18);
-  border-color: #ff4d4d;
-  color: #ff7f7f;
-}
-
-.playlist-remove-btn:active {
-  transform: scale(0.92);
-  background-color: rgba(255, 77, 77, 0.22);
-}
-
-.playlist-remove-icon {
-  width: 14px;
-  height: 14px;
-  pointer-events: none;
-}
-
-/* Status text */
-.playlist-status,
-.playlist-empty,
-.playlist-error {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.playlist-error {
-  color: #ff6b6b;
-}
-
-.playlist-status-inline {
-  margin-top: 4px;
-}
-
-/* FINAL OVERRIDES: make sure playlist stays compact */
-
-.right-panel .playlist-list {
-  max-height: 260px !important;
-  overflow-y: auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-  list-style: none !important;
-  margin: 0 !important;
-  padding-left: 0 !important;
-  padding-right: 4px !important;
-}
-
-.right-panel .playlist-item {
-  display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  padding: 6px 8px !important;
-  border-radius: 6px !important;
-  border: 1px solid var(--border-subtle) !important;
-  background-color: var(--bg-elevated) !important;
-}
-
-.right-panel .playlist-main {
-  display: flex !important;
-  gap: 8px !important;
-  font-size: 0.85rem !important;
-  min-width: 0 !important;
-}
-
-/* Thumbnail – force override ANY img rules */
-.right-panel img.playlist-poster {
-  width: 42px !important;
-  height: 63px !important;
-  border-radius: 4px !important;
-  object-fit: cover !important;
-  flex-shrink: 0 !important;
-  display: block !important;
-}
-
-.right-panel .playlist-poster.placeholder {
-  width: 42px !important;
-  height: 63px !important;
-}
-
-/* Overview: keep it short */
-.right-panel .playlist-overview {
-  font-size: 0.75rem !important;
-  color: var(--text-muted) !important;
-  display: -webkit-box !important;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden !important;
-}
-
-/* Actions column */
-.right-panel .playlist-actions {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 4px !important;
-  margin-left: 8px !important;
-}
-
-
-
 

@@ -59,6 +59,43 @@ def _ensure_project_files_table():
     conn.close()
 
 
+def _ensure_message_file_refs_table():
+    """
+    Create message_file_refs table if it does not already exist.
+
+    This mirrors the standalone migration script, but keeps runtime
+    robust even if the migration hasn't been run yet.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS message_file_refs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id INTEGER NOT NULL,
+            file_id INTEGER NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(message_id) REFERENCES messages(id),
+            FOREIGN KEY(file_id) REFERENCES project_files(id)
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_message_file_refs_message_id
+        ON message_file_refs(message_id)
+        """
+    )
+    cur.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_message_file_refs_file_id
+        ON message_file_refs(file_id)
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
 def _get_upload_root():
     """Return absolute path to the upload root folder."""
     root = current_app.config.get("UPLOAD_FOLDER")
@@ -87,6 +124,26 @@ def _get_file_record_for_user(file_id: int, user_id: int):
     row = cur.fetchone()
     conn.close()
     return row
+
+
+def _message_belongs_to_user(message_id: int, user_id: int) -> bool:
+    """
+    Verify that a message belongs to the current user via its conversation.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT m.id
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE m.id = ? AND c.user_id = ?
+        """,
+        (message_id, user_id),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return row is not None
 
 
 @files_bp.post("/files/upload")
@@ -741,6 +798,146 @@ def search_project_files(project_id: int):
             "project_id": project_id,
             "query": query,
             "hits": hits,
+        }
+    )
+
+
+@files_bp.post("/messages/<int:message_id>/attach-file")
+def attach_file_to_message(message_id: int):
+    """
+    Attach a file to a specific message for the current user.
+
+    JSON body:
+      { "file_id": 123 }
+
+    This is the bridge that lets the UI show clickable file badges under
+    messages (summaries, QA responses, etc.).
+    """
+    user_id, err = _ensure_user()
+    if err:
+        return err
+
+    _ensure_message_file_refs_table()
+
+    body = request.json or {}
+    raw_file_id = body.get("file_id")
+
+    try:
+        file_id = int(raw_file_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid_file_id"}), 400
+
+    # Ensure the message belongs to this user
+    if not _message_belongs_to_user(message_id, user_id):
+        return jsonify({"error": "message_not_found"}), 404
+
+    # Ensure the file belongs to this user
+    row = _get_file_record_for_user(file_id, user_id)
+    if not row:
+        return jsonify({"error": "file_not_found"}), 404
+
+    file_info = dict(row)
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Avoid duplicate links
+    cur.execute(
+        """
+        SELECT id
+        FROM message_file_refs
+        WHERE message_id = ? AND file_id = ?
+        """,
+        (message_id, file_id),
+    )
+    existing = cur.fetchone()
+
+    if existing:
+        link_id = existing["id"]
+    else:
+        cur.execute(
+            """
+            INSERT INTO message_file_refs (message_id, file_id)
+            VALUES (?, ?)
+            """,
+            (message_id, file_id),
+        )
+        conn.commit()
+        link_id = cur.lastrowid
+
+    conn.close()
+
+    return jsonify(
+        {
+            "ok": True,
+            "link_id": link_id,
+            "message_id": message_id,
+            "file": file_info,
+        }
+    )
+
+
+@files_bp.get("/messages/<int:message_id>/file-refs")
+def list_files_for_message(message_id: int):
+    """
+    List all files attached to a given message for the current user.
+
+    Response:
+      {
+        "message_id": 42,
+        "files": [
+          {
+            "link_id": 7,
+            "file_id": 12,
+            "filename": "motor-config.json",
+            "mime_type": "application/json",
+            "size_bytes": 1234,
+            "created_at": "2025-12-03 14:21:00",
+            "project_id": 5,
+            "conversation_id": 99
+          },
+          ...
+        ]
+      }
+    """
+    user_id, err = _ensure_user()
+    if err:
+        return err
+
+    _ensure_message_file_refs_table()
+
+    # Ensure the message belongs to this user
+    if not _message_belongs_to_user(message_id, user_id):
+        return jsonify({"error": "message_not_found"}), 404
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT
+            mfr.id AS link_id,
+            pf.id AS file_id,
+            pf.filename,
+            pf.mime_type,
+            pf.size_bytes,
+            pf.created_at,
+            pf.project_id,
+            pf.conversation_id
+        FROM message_file_refs mfr
+        JOIN project_files pf ON mfr.file_id = pf.id
+        WHERE mfr.message_id = ? AND pf.user_id = ?
+        ORDER BY pf.created_at ASC, pf.id ASC
+        """,
+        (message_id, user_id),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    files = [dict(r) for r in rows]
+    return jsonify(
+        {
+            "message_id": message_id,
+            "files": files,
         }
     )
 

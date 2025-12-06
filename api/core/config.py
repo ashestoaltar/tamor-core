@@ -1,4 +1,3 @@
-# core/config.py
 import os
 import json
 import sqlite3
@@ -26,6 +25,11 @@ CHRISTMAS_PLAYLIST_FILE = os.path.join(PLAYLIST_DIR, "christmas.json")
 
 # Simple in-memory TMDb cache
 TMDB_CACHE: dict[str, dict] = {}
+
+# ---- SEMANTIC FILE SEARCH CONFIG ----
+# Character-based chunking size + overlap for file embeddings
+FILE_CHUNK_SIZE = int(os.getenv("FILE_CHUNK_SIZE", "800"))
+FILE_CHUNK_OVERLAP = int(os.getenv("FILE_CHUNK_OVERLAP", "200"))
 
 # ---- OPENAI ----
 client = OpenAI()
@@ -64,3 +68,4 @@ def init_memory_db() -> None:
 
 # Run once on import
 init_memory_db()
+

@@ -1,359 +1,225 @@
-/* Chat panel container */
+/* ================================
+   Chat Panel Root
+================================ */
 .chat-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--bg, #1b1b1b);
+  color: var(--text, #e6e6e6);
 }
 
-/* Scrollable message area */
+/* ================================
+   Messages Area
+================================ */
 .messages {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem 1.5rem;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* Smooth scroll */
+.messages::-webkit-scrollbar {
+  width: 8px;
+}
+.messages::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+.messages::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* ================================
+   Chat Message Bubbles
+================================ */
+.chat-message {
+  display: flex;
+  margin-bottom: 1rem;
+  max-width: 90%;
+}
+
+.chat-message.user {
+  justify-content: flex-end;
+}
+
+.chat-message.user .chat-bubble {
+  background: #3b82f6;
+  color: white;
+  border-radius: 12px 12px 0 12px;
+}
+
+.chat-message.tamor .chat-bubble {
+  background: #2b2b2b;
+  border: 1px solid #444;
+  color: #e6e6e6;
+  border-radius: 12px 12px 12px 0;
+}
+
+.chat-bubble {
+  padding: 0.75rem 1rem;
+  max-width: 650px;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+/* Markdown content inside bubble */
+.chat-bubble code {
+  background: #111;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+/* ================================
+   File Badges Under Assistant Messages
+================================ */
+.chat-file-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  margin-left: 0.5rem;
+}
+
+.chat-file-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #333;
+  border: 1px solid #444;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border 0.15s;
+  color: #e6e6e6;
+}
+
+.chat-file-badge:hover {
+  background: #444;
+  border-color: #555;
+}
+
+.chat-file-badge-icon {
+  margin-right: 5px;
+}
+
+.chat-file-badge-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ================================
+   Input Area
+================================ */
+.input-area {
+  border-top: 1px solid #333;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  background: #1a1a1a;
 }
 
-/* Base message bubble layout */
-.chat-message {
-  display: flex;
-  max-width: 100%;
-}
-
-.chat-bubble {
-  max-width: 80%;
-  border-radius: 12px;
-  padding: 0.6rem 0.85rem;
+.chat-input {
+  width: 100%;
+  resize: none;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
   font-size: 0.95rem;
   line-height: 1.4;
 }
 
-/* User bubble */
-.chat-message.user {
-  justify-content: flex-end;
+.chat-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #0d0d0d;
 }
 
-.chat-message.user .chat-bubble {
-  background: var(--accent);
-  color: var(--bg);
-  border-bottom-right-radius: 4px;
-}
-
-/* Tamor bubble */
-.chat-message.tamor .chat-bubble {
-  background: var(--bg-elevated);
-  color: var(--text);
-  border: 1px solid var(--border-subtle);
-  border-bottom-left-radius: 4px;
-}
-
-/* Input area (structural border is in dark.css) */
-.input-area {
+.input-actions {
   display: flex;
-  gap: 10px;
-  padding-top: 10px;
+  justify-content: space-between;
 }
 
-.input-area textarea,
-.input-area input {
-  flex: 1;
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 10px;
+.input-actions button {
+  background: #2b2b2b;
+  border: 1px solid #444;
+  padding: 6px 12px;
   border-radius: 6px;
-  font-size: 0.95rem;
-  resize: vertical;
-  min-height: 48px;
-  max-height: 160px;
-}
-
-.input-area button {
-  background-color: var(--accent-soft);
-  border: none;
-  color: #041016;
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  color: #eee;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
-/* Store button */
-.store-btn {
-  font-size: 0.7rem;
+.input-actions button:hover {
+  background: #333;
+}
+
+.input-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ================================
+   Status Error
+================================ */
+.chat-status {
+  font-size: 0.85rem;
   padding: 4px 8px;
-  background-color: var(--accent);
-  border: none;
-  color: #000;
   border-radius: 4px;
-  cursor: pointer;
 }
 
-/* Mode indicator (top of chat) */
-.mode-indicator {
-  font-size: 0.85rem;
-  margin-bottom: 10px;
+.chat-status.error {
+  background: rgba(255, 80, 80, 0.15);
+  color: #ff6b6b;
 }
 
-.mode-indicator strong {
-  color: var(--accent);
-}
-
-.mode-indicator span {
-  color: var(--accent);
-  font-weight: bold;
-}
-
-/* Placeholder text */
-.chat-placeholder {
-  margin-top: 2rem;
-  max-width: 540px;
-  color: #9ca3af;
-}
-
-.chat-placeholder h3 {
-  margin: 0 0 0.4rem;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.chat-placeholder p {
-  margin: 0.25rem 0;
-  font-size: 0.9rem;
-}
-
-.chat-placeholder ul {
-  margin: 0.75rem 0 0;
-  padding-left: 1.25rem;
-}
-
-.chat-placeholder li {
-  margin: 0.35rem 0;
-}
-
-/* Markdown content tweaks inside bubbles */
-.msg-content {
-  font-size: 0.95rem;
-}
-
-.msg-content p {
-  margin: 0.2rem 0;
-}
-
-.msg-content code {
-  font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-  font-size: 0.85rem;
-  background-color: rgba(15, 23, 42, 0.85);
-  padding: 1px 4px;
-  border-radius: 3px;
-}
-
-.msg-content pre {
-  margin: 0.5rem 0;
-  padding: 0.6rem 0.75rem;
-  background-color: rgba(15, 23, 42, 0.85);
-  border-radius: 6px;
-  overflow-x: auto;
-  font-size: 0.85rem;
-}
-
-.msg-content pre code {
-  background: none;
-  padding: 0;
-}
-
-/* Headers inside messages */
-.msg-content h1,
-.msg-content h2,
-.msg-content h3,
-.msg-content h4 {
-  margin: 0.6rem 0 0.3rem;
-  font-weight: 600;
-  color: #facc6b; /* warm accent (gold-ish) */
-}
-
-/* Lists */
-.msg-content ul,
-.msg-content ol {
-  margin: 0.35rem 0 0.35rem 1.2rem;
-  padding-left: 1.2rem;
-}
-
-.msg-content li {
-  margin: 0.15rem 0;
-}
-
-/* Code blocks */
-.msg-content pre {
-  background: #0b1016;
-  border-radius: 10px;
-  padding: 0.6rem 0.8rem;
-  font-size: 0.85rem;
-  overflow-x: auto;
-  border: 1px solid #273144;
-}
-
-.msg-content code {
-  font-family: "Fira Code", Menlo, Monaco, Consolas, "Courier New", monospace;
-}
-
-/* Horizontal rule (---) */
-.msg-content hr {
-  border: none;
-  border-top: 1px solid #273144;
-  margin: 0.75rem 0;
-}
-
-/* Input area (structural border is in dark.css) */
-.input-area {
+/* ================================
+   Inline File Previews in Chat
+================================ */
+.chat-file-badge-row {
   display: flex;
-  gap: 10px;
-  padding-top: 10px;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
-.input-area input {
-  flex: 1;
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 10px;
-  border-radius: 6px;
-  font-size: 0.95rem;
+.chat-file-badge-loading {
+  opacity: 0.6;
 }
 
-.input-area button {
-  background-color: var(--accent-soft);
-  border: none;
-  color: #041016;
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  cursor: pointer;
+.chat-file-preview {
+  margin-top: 4px;
+  max-width: 520px;
 }
 
-/* Store button */
-.store-btn {
-  font-size: 0.7rem;
-  padding: 4px 8px;
-  background-color: var(--accent);
-  border: none;
-  color: #000;
+.chat-file-preview-header {
+  font-size: 0.75rem;
+  color: #aaaaaa;
+  margin-bottom: 2px;
+}
+
+.chat-file-preview-error {
+  color: #ff6b6b;
+}
+
+.chat-file-preview pre {
+  background: #111;
   border-radius: 4px;
-  cursor: pointer;
+  border: 1px solid #333;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.35;
 }
-
-/* Mode indicator (top of chat) */
-.mode-indicator {
-  font-size: 0.85rem;
-  margin-bottom: 10px;
-  color: var(--accent-soft);
-}
-
-.mode-indicator span {
-  color: var(--accent);
-  font-weight: bold;
-}
-
-/* Placeholder text */
-.chat-placeholder {
-  margin-top: 2rem;
-  max-width: 540px;
-  color: #9ca3af;
-}
-
-.chat-placeholder h2 {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-  color: #fbbf24;
-}
-
-.chat-placeholder p {
-  font-size: 0.85rem;
-  margin-bottom: 0.35rem;
-}
-
-.chat-placeholder-hint {
-  font-style: italic;
-  color: #6b7280;
-}
-
-.chat-message {
-  display: flex;
-  margin: 6px 0;
-}
-
-.chat-message.user {
-  justify-content: flex-end;
-}
-
-.chat-message.tamor {
-  justify-content: flex-start;
-}
-
-.chat-message-bubble {
-  max-width: 70%;
-  padding: 8px 12px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-/* You = right bubble */
-.chat-message.user .chat-message-bubble {
-  background: var(--accent);
-  color: var(--bg);
-  border-bottom-right-radius: 3px;
-}
-
-/* Tamor = left bubble */
-.chat-message.tamor .chat-message-bubble {
-  background: var(--bg-elevated);
-  color: var(--text);
-  border: 1px solid var(--border-subtle);
-  border-bottom-left-radius: 3px;
-}
-
-/* ===== Chat Bubble Layout ===== */
-
-.chat-message {
-  display: flex;
-  margin: 8px 0;
-}
-
-/* User → right side */
-.chat-message.user {
-  justify-content: flex-end;
-}
-
-/* Tamor → left side */
-.chat-message.tamor {
-  justify-content: flex-start;
-}
-
-/* The bubble wrapper */
-.chat-bubble {
-  max-width: 70%;
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-
-/* User bubble */
-.chat-message.user .chat-bubble {
-  background: var(--accent);
-  color: var(--bg);
-  border-bottom-right-radius: 4px;
-}
-
-/* Tamor bubble */
-.chat-message.tamor .chat-bubble {
-  background: var(--bg-elevated);
-  color: var(--text);
-  border: 1px solid var(--border-subtle);
-  border-bottom-left-radius: 4px;
-}
-
 

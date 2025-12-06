@@ -87,7 +87,9 @@ def search_user_memories(user_id, query, limit=5, max_candidates=200):
 # ---------- Conversation helpers ---------------------------------------------
 
 
-def get_or_create_conversation(user_id, conversation_id=None, title=None, project_id=None):
+def get_or_create_conversation(
+    user_id, conversation_id=None, title=None, project_id=None
+):
     """
     Ensure we have a conversation row for this user.
     - If conversation_id is provided and belongs to this user -> reuse it.
@@ -134,8 +136,12 @@ def get_or_create_conversation(user_id, conversation_id=None, title=None, projec
 def add_message(conversation_id, sender, role, content):
     """
     Insert a message into the messages table and bump conversation.updated_at.
+
     sender: 'user' or 'tamor'
     role:   'user', 'assistant', 'system'
+
+    Returns:
+        message_id (int) for further linking (files, UI, etc.).
     """
     conn = get_db()
     cur = conn.cursor()
@@ -147,6 +153,7 @@ def add_message(conversation_id, sender, role, content):
         """,
         (conversation_id, sender, role, content),
     )
+    message_id = cur.lastrowid
 
     cur.execute(
         "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -155,6 +162,7 @@ def add_message(conversation_id, sender, role, content):
 
     conn.commit()
     conn.close()
+    return message_id
 
 
 # ---------- Main chat route --------------------------------------------------
@@ -208,7 +216,6 @@ def chat():
         else:
             intent = None  # Let normal chat handle it if not actually handled.
 
-
     # ---------- NORMAL CHAT BRANCH --------------------------------------
     if reply_text is None:
         # Per-user memory search (no more global identity bleed)
@@ -240,13 +247,16 @@ def chat():
         ]
 
     # ---------- Store messages in DB ----------------------------------------
+    user_message_id = None
+    assistant_message_id = None
+
     try:
-        add_message(conv_id, "user", "user", user_message)
+        user_message_id = add_message(conv_id, "user", "user", user_message)
     except Exception as e:
         print("Failed to save user message:", e)
 
     try:
-        add_message(conv_id, "tamor", "assistant", reply_text)
+        assistant_message_id = add_message(conv_id, "tamor", "assistant", reply_text)
     except Exception as e:
         print("Failed to save assistant message:", e)
 
@@ -276,10 +286,16 @@ def chat():
         "mode_info": mode_info,
         "memory_matches": memory_matches,
         "conversation_id": conv_id,
+        # Optional but very useful for the UI to attach files / show badges:
+        "message_ids": {
+          "user": user_message_id,
+          "assistant": assistant_message_id,
+        },
     }
 
     return jsonify(response)
-    
+
+
 @chat_bp.post("/chat/inject")
 def inject_assistant_message():
     """
@@ -291,6 +307,17 @@ def inject_assistant_message():
         "conversation_id": 123,
         "message": "Here is the summary of file ...",
         "mode": "Scholar"   # optional, only used for auto-memory tagging
+      }
+
+    Response JSON:
+      {
+        "conversation_id": 123,
+        "message": {
+          "id": 456,
+          "role": "assistant",
+          "sender": "tamor",
+          "content": "Here is the summary of file ..."
+        }
       }
     """
     data = request.json or {}
@@ -324,8 +351,9 @@ def inject_assistant_message():
         return jsonify({"error": "forbidden"}), 403
 
     # Store message in DB as coming from Tamor / assistant
+    message_id = None
     try:
-        add_message(conversation_id, "tamor", "assistant", content)
+        message_id = add_message(conversation_id, "tamor", "assistant", content)
     except Exception as e:
         print("Failed to save injected assistant message:", e)
 
@@ -343,12 +371,168 @@ def inject_assistant_message():
         {
             "conversation_id": conversation_id,
             "message": {
+                "id": message_id,
                 "role": "assistant",
                 "sender": "tamor",
                 "content": content,
             },
         }
     )
-    
-    
+
+
+@chat_bp.post("/chat/inject-and-reply")
+def inject_and_reply():
+    """
+    Insert a user-style message into an existing conversation AND
+    immediately run one assistant turn (same behavior as /chat).
+
+    Request JSON:
+      {
+        "conversation_id": 123,
+        "message": "Question about symbol WidthMM...",
+        "mode": "Scholar"
+      }
+
+    Response JSON:
+      {
+        "ok": true,
+        "conversation_id": 123,
+        "tamor": "...assistant reply...",
+        "memory_matches": [...],
+        "message_ids": {
+          "user": <id>,
+          "assistant": <id>
+        }
+      }
+    """
+    data = request.json or {}
+    user_message = (data.get("message") or data.get("content") or "").strip()
+    mode = data.get("mode", "Scholar")
+    conversation_id = data.get("conversation_id")
+
+    if not user_message:
+        return jsonify({"error": "message_required"}), 400
+    if not conversation_id:
+        return jsonify({"error": "conversation_id_required"}), 400
+
+    # Require login so we can enforce ownership
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "not_authenticated"}), 401
+
+    # Ensure the conversation belongs to this user
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, user_id FROM conversations WHERE id = ?",
+        (conversation_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"error": "conversation_not_found"}), 404
+    if row["user_id"] != user_id:
+        return jsonify({"error": "forbidden"}), 403
+
+    mode_info = modes.get(mode, {})
+
+    reply_text = None
+    memories = []
+    memory_matches = []
+
+    # ---------- INTENT PARSER / COMMANDS BRANCH -------------------------
+    intent = parse_intent(user_message)
+
+    if intent is not None:
+        intent_result = execute_intent(
+            intent,
+            user_id=user_id,
+            conversation_id=conversation_id,
+        )
+        if intent_result.get("handled"):
+            reply_text = intent_result.get("reply_text", "")
+            memory_matches = intent_result.get("memory_matches", [])
+        else:
+            intent = None
+
+    # ---------- NORMAL CHAT BRANCH --------------------------------------
+    if reply_text is None:
+        memories = search_user_memories(user_id, user_message)
+        memory_context = "\n".join([m[2] for m in memories])
+
+        system_prompt = build_system_prompt(mode)
+        system_prompt += (
+            "\n\nUse the following long-term memory context only if it is helpful and relevant. "
+            "Do not force it into the answer if it doesn't fit.\n"
+            f"Memory context:\n{memory_context}"
+        )
+
+        try:
+            completion = client.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+            )
+            reply_text = completion.choices[0].message.content
+        except Exception as e:
+            reply_text = f"(Tamor encountered an error talking to the model: {e})"
+
+        memory_matches = [
+            {"id": m[1], "score": m[0], "content": m[2]} for m in memories
+        ]
+
+    # ---------- Store messages in DB ----------------------------------------
+    user_message_id = None
+    assistant_message_id = None
+
+    try:
+        user_message_id = add_message(
+            conversation_id, "user", "user", user_message
+        )
+    except Exception as e:
+        print("Failed to save injected user message:", e)
+
+    try:
+        assistant_message_id = add_message(
+            conversation_id, "tamor", "assistant", reply_text
+        )
+    except Exception as e:
+        print("Failed to save assistant reply (inject-and-reply):", e)
+
+    # ---------- Auto-memory (unchanged) -------------------------------------
+    try:
+        requests.post(
+            "http://127.0.0.1:5055/api/memory/auto",
+            json={"text": user_message, "mode": mode, "source": "user"},
+            timeout=1.0,
+        )
+    except Exception as e:
+        print("Auto-memory (user, inject-and-reply) failed:", e)
+
+    try:
+        requests.post(
+            "http://127.0.0.1:5055/api/memory/auto",
+            json={"text": reply_text, "mode": mode, "source": "assistant"},
+            timeout=1.0,
+        )
+    except Exception as e:
+        print("Auto-memory (assistant, inject-and-reply) failed:", e)
+
+    return jsonify(
+        {
+            "ok": True,
+            "conversation_id": conversation_id,
+            "tamor": reply_text,
+            "mode": mode,
+            "mode_info": mode_info,
+            "memory_matches": memory_matches,
+            "message_ids": {
+                "user": user_message_id,
+                "assistant": assistant_message_id,
+            },
+        }
+    )
 

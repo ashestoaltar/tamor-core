@@ -17,8 +17,8 @@ function resolveApiBase() {
   return origin + "/api";
 }
 
-const API_BASE = resolveApiBase();
-
+// 🔹 Now exported so React components can build URLs for <img>, etc.
+export const API_BASE = resolveApiBase();
 
 export async function apiFetch(path, options = {}) {
   const url = `${API_BASE}${path}`;
@@ -55,3 +55,25 @@ export async function apiFetch(path, options = {}) {
 
   return data;
 }
+
+// Optional helpers for knowledge graph endpoints
+
+export async function extractKnowledge(projectId) {
+  if (!projectId) {
+    throw new Error("projectId required");
+  }
+  return apiFetch(`/projects/${projectId}/knowledge/extract`, {
+    method: "POST",
+  });
+}
+
+export async function searchKnowledge(projectId, symbol) {
+  if (!projectId) {
+    throw new Error("projectId required");
+  }
+  return apiFetch(`/projects/${projectId}/knowledge/search`, {
+    method: "POST",
+    body: { symbol },
+  });
+}
+

@@ -150,6 +150,11 @@
   margin-top: 0.25rem;
 }
 
+/* Wrapper for the flat projects list */
+.projects-list {
+  margin-bottom: 0.4rem;
+}
+
 .conversation-header {
   display: flex;
   align-items: center;
@@ -182,12 +187,6 @@
   color: var(--accent);
 }
 
-.projects-controls {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.35rem;
-}
-
 /* Project "folder" rows */
 .project-section {
   margin-top: 0.1rem;
@@ -202,23 +201,20 @@
   font-size: 0.8rem;
   cursor: pointer;
   color: var(--text-soft);
+  position: relative;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
 .project-header:hover {
-  background-color: var(--bg-elevated);
-  color: var(--text);
+  background-color: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.78);
 }
+
 
 .project-header.current-workspace {
-  background-color: var(--bg-elevated);
+  background-color: var(--accent-soft);
   color: var(--text);
-}
-
-.project-toggle {
-  width: 14px;
-  display: inline-flex;
-  justify-content: center;
-  font-size: 0.7rem;
+  border-left: 3px solid var(--accent);
 }
 
 .project-name {
@@ -233,12 +229,102 @@
   color: var(--text-muted);
 }
 
-/* Conversations inside each project */
+/* Kebab menus (projects + conversations) */
+.row-menu-toggle {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);   /* softer */
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.project-header:hover .row-menu-toggle,
+.conversation-item:hover .row-menu-toggle {
+  color: rgba(255, 255, 255, 0.55);   /* medium-soft */
+}
+
+.row-menu-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.65);   /* still soft, but visible */
+}
+
+
+/* Context menu popover */
+.row-menu {
+  position: absolute;
+  right: 4px;
+  top: 100%;
+  margin-top: 4px;
+  min-width: 180px;
+  padding: 4px 0;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);     /* darker, softer */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+.row-menu-item {
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.38);   /* very soft */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.row-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.03); 
+  color: rgba(255, 255, 255, 0.58);   /* still soft, not harsh */
+}
+
+.row-menu-item.danger {
+  color: rgba(255, 120, 120, 0.65);    /* softened red */
+}
+
+.row-menu-item.danger:hover {
+  background-color: rgba(255, 120, 120, 0.08);
+  color: rgba(255, 150, 150, 0.9);
+}
+
+.row-menu-icon {
+  margin-right: 6px;
+  font-size: 0.78rem;
+  color: inherit;                      /* inherits softer tone */
+}
+
+
+.row-menu-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border-subtle);
+}
+
+.row-menu-subheader {
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* Chats list area underneath projects */
 .project-conversations {
-  margin-left: 18px;
   margin-top: 2px;
 }
 
+/* Conversation rows */
 .conversation-item {
   padding: 3px 6px;
   border-radius: 6px;
@@ -249,16 +335,20 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  position: relative;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.conversation-item:hover {
-  background-color: var(--bg-elevated);
-  color: var(--text);
+.conversation-item:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.78);
 }
+
 
 .conversation-item.active {
   background-color: var(--accent-soft);
   color: #041016;
+  border-left: 3px solid var(--accent);
 }
 
 /* Conversation inner layout */
@@ -275,38 +365,11 @@
   text-overflow: ellipsis;
 }
 
+/* (kept for now, though no longer used with kebab menus) */
 .conversation-actions {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.conversation-project-select {
-  background: transparent;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  padding: 2px 6px;
-}
-
-.conversation-project-select:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.conversation-rename-btn,
-.conversation-delete-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.conversation-rename-btn:hover,
-.conversation-delete-btn:hover {
-  color: var(--accent);
 }
 
 /* Conversation edit state */
@@ -352,7 +415,7 @@
   color: var(--text-muted);
 }
 
-/* Project edit buttons */
+/* Project edit inputs/buttons */
 .project-edit-input {
   flex: 1;
   border-radius: 6px;

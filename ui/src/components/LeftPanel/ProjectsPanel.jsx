@@ -1,5 +1,5 @@
 // src/components/LeftPanel/ProjectsPanel.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../api/client";
 
 function formatDateLabel(value) {
@@ -24,9 +24,6 @@ export default function ProjectsPanel({
   const [convos, setConvos] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [expandedProjects, setExpandedProjects] = useState({});
-  const [unassignedExpanded, setUnassignedExpanded] = useState(true);
-
   const [editingConvId, setEditingConvId] = useState(null);
   const [editingConvTitle, setEditingConvTitle] = useState("");
   const [savingConvId, setSavingConvId] = useState(null);
@@ -36,6 +33,12 @@ export default function ProjectsPanel({
   const [savingProject, setSavingProject] = useState(false);
   const [deletingProjectId, setDeletingProjectId] = useState(null);
 
+  const [openConvMenuId, setOpenConvMenuId] = useState(null);
+  const [openProjectMenuId, setOpenProjectMenuId] = useState(null);
+
+  const panelRef = useRef(null);
+
+  // ---- Load projects + conversations ----
   async function loadAll() {
     setLoading(true);
     try {
@@ -47,19 +50,16 @@ export default function ProjectsPanel({
       const projList = projData.projects || [];
       const convList = convData.conversations || convData || [];
 
-      console.log("DEBUG /projects ->", projList);
-      console.log("DEBUG /conversations ->", convList);
-
       setProjects(projList);
       setConvos(convList);
 
-      // Expand all projects by default the first time
-      if (Object.keys(expandedProjects).length === 0) {
-        const initial = {};
-        for (const p of projList) {
-          initial[p.id] = true;
+      // If nothing is selected yet, default to first project or Unassigned
+      if (currentProjectId === undefined) {
+        if (projList.length > 0) {
+          setCurrentProjectId(projList[0].id);
+        } else {
+          setCurrentProjectId(null);
         }
-        setExpandedProjects(initial);
       }
     } finally {
       setLoading(false);
@@ -70,6 +70,24 @@ export default function ProjectsPanel({
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken]);
+
+  // ---- Click outside to close menus ----
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(event.target)
+      ) {
+        setOpenConvMenuId(null);
+        setOpenProjectMenuId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // ---- Project actions ----
 
@@ -86,11 +104,7 @@ export default function ProjectsPanel({
 
       const created = data.project || data;
       setProjects((prev) => [...prev, created]);
-
-      setExpandedProjects((prev) => ({
-        ...prev,
-        [created.id]: true,
-      }));
+      setCurrentProjectId(created.id);
     } catch (err) {
       console.error("Failed to create project:", err);
     } finally {
@@ -101,6 +115,7 @@ export default function ProjectsPanel({
   const startEditProject = (project) => {
     setEditingProjectId(project.id);
     setEditingProjectName(project.name || "");
+    setOpenProjectMenuId(null);
   };
 
   const cancelEditProject = () => {
@@ -121,7 +136,7 @@ export default function ProjectsPanel({
 
       setProjects((prev) =>
         prev.map((p) =>
-          p.id === editingProjectId ? { ...p, name: data.name } : p
+          p.id === editingProjectId ? { ...p, name: data.name || trimmed } : p
         )
       );
       cancelEditProject();
@@ -157,18 +172,8 @@ export default function ProjectsPanel({
       console.error("Failed to delete project:", err);
     } finally {
       setDeletingProjectId(null);
+      setOpenProjectMenuId(null);
     }
-  };
-
-  const toggleProjectExpanded = (projectId) => {
-    setExpandedProjects((prev) => ({
-      ...prev,
-      [projectId]: !prev[projectId],
-    }));
-  };
-
-  const toggleUnassignedExpanded = () => {
-    setUnassignedExpanded((prev) => !prev);
   };
 
   // ---- Conversation actions ----
@@ -176,6 +181,7 @@ export default function ProjectsPanel({
   const startEditConversation = (conv) => {
     setEditingConvId(conv.id);
     setEditingConvTitle(conv.title || "");
+    setOpenConvMenuId(null);
   };
 
   const cancelEditConversation = () => {
@@ -229,20 +235,33 @@ export default function ProjectsPanel({
     }
   };
 
-  // ---- Group data ----
+  // ---- Derived data: counts, selection, filtered chats ----
 
-  const byProject = {};
-  const unassigned = [];
+  const projectConversationCounts = projects.reduce((acc, p) => {
+    acc[p.id] = 0;
+    return acc;
+  }, {});
+  let unassignedCount = 0;
+
   for (const c of convos) {
     if (c.project_id == null) {
-      unassigned.push(c);
-    } else {
-      if (!byProject[c.project_id]) {
-        byProject[c.project_id] = [];
-      }
-      byProject[c.project_id].push(c);
+      unassignedCount += 1;
+    } else if (projectConversationCounts[c.project_id] !== undefined) {
+      projectConversationCounts[c.project_id] += 1;
     }
   }
+
+  const selectedProjectId = currentProjectId ?? null;
+  const selectedProject =
+    selectedProjectId == null
+      ? null
+      : projects.find((p) => p.id === selectedProjectId) || null;
+
+  const displayedConvos = convos.filter((c) =>
+    selectedProjectId == null ? c.project_id == null : c.project_id === selectedProjectId
+  );
+
+  // ---- Render helpers ----
 
   const renderConversationRow = (c) => {
     const isActive = c.id === activeConversationId;
@@ -290,46 +309,83 @@ export default function ProjectsPanel({
             </div>
           </div>
         ) : (
-          <div className="conversation-main-row">
-            <div className="conversation-title">
-              {c.title || `Conversation ${c.id}`}
+          <>
+            <div className="conversation-main-row">
+              <div className="conversation-title">
+                {c.title || `Conversation ${c.id}`}
+              </div>
+              <button
+                className="row-menu-toggle"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenProjectMenuId(null);
+                  setOpenConvMenuId((prev) => (prev === c.id ? null : c.id));
+                }}
+              >
+                ⋯
+              </button>
             </div>
-            <div className="conversation-actions">
-              <select
-                className="conversation-project-select"
-                value={c.project_id || ""}
+
+            {openConvMenuId === c.id && (
+              <div
+                className="row-menu"
                 onClick={(e) => e.stopPropagation()}
-                onChange={(e) => moveConversation(c.id, e.target.value)}
               >
-                <option value="">Unassigned</option>
+                <button
+                  className="row-menu-item"
+                  type="button"
+                  onClick={() => startEditConversation(c)}
+                >
+                  <span className="row-menu-icon">✏️</span>
+                  <span>Rename</span>
+                </button>
+
+                <div className="row-menu-divider" />
+
+                <div className="row-menu-subheader">Move to project</div>
+                <button
+                  className="row-menu-item"
+                  type="button"
+                  onClick={() => {
+                    moveConversation(c.id, "");
+                    setOpenConvMenuId(null);
+                  }}
+                >
+                  <span className="row-menu-icon">📂</span>
+                  <span>Unassigned</span>
+                </button>
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
+                  <button
+                    key={p.id}
+                    className="row-menu-item"
+                    type="button"
+                    onClick={() => {
+                      moveConversation(c.id, String(p.id));
+                      setOpenConvMenuId(null);
+                    }}
+                  >
+                    <span className="row-menu-icon">📁</span>
+                    <span>{p.name}</span>
+                  </button>
                 ))}
-              </select>
-              <button
-                className="conversation-rename-btn"
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEditConversation(c);
-                }}
-              >
-                ✎
-              </button>
-              <button
-                className="conversation-delete-btn"
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteConversation && onDeleteConversation(c.id);
-                }}
-              >
-                🗑
-              </button>
-            </div>
-          </div>
+
+                <div className="row-menu-divider" />
+
+                <button
+                  className="row-menu-item danger"
+                  type="button"
+                  onClick={() => {
+                    onDeleteConversation && onDeleteConversation(c.id);
+                    setOpenConvMenuId(null);
+                  }}
+                >
+                  <span className="row-menu-icon">🗑</span>
+                  <span>Delete</span>
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {updatedLabel && !isEditing && (
@@ -342,19 +398,10 @@ export default function ProjectsPanel({
   // ---- Render ----
 
   return (
-    <div className="projects-panel">
+    <div className="projects-panel" ref={panelRef}>
+      {/* Projects header */}
       <div className="conversation-header">
         <h3 className="panel-title">Projects</h3>
-        <button
-          className="new-conversation-btn"
-          type="button"
-          onClick={() => onNewConversation && onNewConversation()}
-        >
-          + New Chat
-        </button>
-      </div>
-
-      <div className="projects-controls">
         <button
           className="new-project-btn"
           type="button"
@@ -364,140 +411,161 @@ export default function ProjectsPanel({
         </button>
       </div>
 
+      {/* Project list (folders + Unassigned) */}
       {loading && <div className="memory-loading">Loading…</div>}
 
       {!loading && (
         <>
-          {projects.map((p) => {
-            const projectConvos = byProject[p.id] || [];
-            const expanded = expandedProjects[p.id] ?? true;
+          <div className="projects-list">
+            {projects.map((p) => {
+              const isEditingProj = p.id === editingProjectId;
+              const isActive = currentProjectId === p.id;
 
-            const isEditingProj = p.id === editingProjectId;
-
-            return (
-              <div className="project-section" key={p.id}>
-                <div
-                  className={
-                    "project-header" +
-                    (currentProjectId === p.id ? " current-workspace" : "")
-                  }
-                  onClick={() => {
-                    toggleProjectExpanded(p.id);
-                    setCurrentProjectId(p.id);
-                  }}
-                >
-                  <span className="project-toggle">
-                    {expanded ? "▼" : "▶"}
-                  </span>
-
-                  {isEditingProj ? (
-                    <>
-                      <input
-                        className="project-edit-input"
-                        value={editingProjectName}
-                        onChange={(e) =>
-                          setEditingProjectName(e.target.value)
-                        }
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <button
-                        className="project-edit-save"
-                        type="button"
-                        disabled={savingProject}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          saveProjectName();
-                        }}
-                      >
-                        {savingProject ? "Saving…" : "Save"}
-                      </button>
-                      <button
-                        className="project-edit-cancel"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          cancelEditProject();
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="project-name">{p.name}</span>
-                      <span className="project-count">
-                        {projectConvos.length} conversation
-                        {projectConvos.length === 1 ? "" : "s"}
-                      </span>
-                      <button
-                        className="project-edit-save"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startEditProject(p);
-                        }}
-                      >
-                        ✎
-                      </button>
-                      <button
-                        className="project-delete-btn"
-                        type="button"
-                        disabled={deletingProjectId === p.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteProject(p.id);
-                        }}
-                      >
-                        🗑
-                      </button>
-                    </>
-                  )}
+              return (
+                <div className="project-section" key={p.id}>
+                  <div
+                    className={
+                      "project-header" +
+                      (isActive ? " current-workspace" : "")
+                    }
+                    onClick={() => {
+                      setCurrentProjectId(p.id);
+                      setOpenProjectMenuId(null);
+                      setOpenConvMenuId(null);
+                    }}
+                  >
+                    {isEditingProj ? (
+                      <>
+                        <input
+                          className="project-edit-input"
+                          value={editingProjectName}
+                          onChange={(e) =>
+                            setEditingProjectName(e.target.value)
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          className="project-edit-save"
+                          type="button"
+                          disabled={savingProject}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            saveProjectName();
+                          }}
+                        >
+                          {savingProject ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          className="project-edit-cancel"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            cancelEditProject();
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="project-name">{p.name}</span>
+                        <span className="project-count">
+                          {projectConversationCounts[p.id] || 0} conversation
+                          {projectConversationCounts[p.id] === 1 ? "" : "s"}
+                        </span>
+                        <button
+                          className="row-menu-toggle"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenConvMenuId(null);
+                            setOpenProjectMenuId((prev) =>
+                              prev === p.id ? null : p.id
+                            );
+                          }}
+                        >
+                          ⋯
+                        </button>
+                        {openProjectMenuId === p.id && (
+                          <div
+                            className="row-menu"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              className="row-menu-item"
+                              type="button"
+                              onClick={() => startEditProject(p)}
+                            >
+                              <span className="row-menu-icon">✏️</span>
+                              <span>Rename</span>
+                            </button>
+                            <div className="row-menu-divider" />
+                            <button
+                              className="row-menu-item danger"
+                              type="button"
+                              disabled={deletingProjectId === p.id}
+                              onClick={() => deleteProject(p.id)}
+                            >
+                              <span className="row-menu-icon">🗑</span>
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
+              );
+            })}
 
-                {expanded && projectConvos.length > 0 && (
-                  <div className="project-conversations">
-                    {projectConvos.map(renderConversationRow)}
-                  </div>
-                )}
-
-                {expanded && projectConvos.length === 0 && (
-                  <div className="memory-empty small">
-                    No conversations in this project yet.
-                  </div>
-                )}
+            {/* Unassigned pseudo-project */}
+            <div className="project-section">
+              <div
+                className={
+                  "project-header" +
+                  (currentProjectId == null ? " current-workspace" : "")
+                }
+                onClick={() => {
+                  setCurrentProjectId(null);
+                  setOpenProjectMenuId(null);
+                  setOpenConvMenuId(null);
+                }}
+              >
+                <span className="project-name">Unassigned</span>
+                <span className="project-count">
+                  {unassignedCount} conversation
+                  {unassignedCount === 1 ? "" : "s"}
+                </span>
               </div>
-            );
-          })}
-
-          {/* Unassigned section */}
-          <div className="project-section">
-            <div
-              className={
-                "project-header" +
-                (currentProjectId === null ? " current-workspace" : "")
-              }
-              onClick={() => {
-                toggleUnassignedExpanded();
-                setCurrentProjectId(null);
-              }}
-            >
-              <span className="project-toggle">
-                {unassignedExpanded ? "▼" : "▶"}
-              </span>
-              <span className="project-name">Unassigned</span>
-              <span className="project-count">
-                {unassigned.length} conversation
-                {unassigned.length === 1 ? "" : "s"}
-              </span>
             </div>
-            {unassignedExpanded && unassigned.length > 0 && (
-              <div className="project-conversations">
-                {unassigned.map(renderConversationRow)}
+
+            {projects.length === 0 && (
+              <div className="memory-empty small">
+                No projects yet. Use &ldquo;+ New Project&rdquo; to create one.
               </div>
             )}
-            {unassignedExpanded && unassigned.length === 0 && (
+          </div>
+
+          {/* Chats for selected project */}
+          <div className="conversation-header" style={{ marginTop: "0.35rem" }}>
+            <h3 className="panel-title">
+              {selectedProject ? selectedProject.name : "Unassigned"}
+            </h3>
+            <button
+              className="new-conversation-btn"
+              type="button"
+              onClick={() => onNewConversation && onNewConversation()}
+            >
+              + New Chat
+            </button>
+          </div>
+
+          <div className="project-conversations">
+            {displayedConvos.length > 0 ? (
+              displayedConvos.map(renderConversationRow)
+            ) : (
               <div className="memory-empty small">
-                No unassigned conversations.
+                No conversations in this project yet.
               </div>
             )}
           </div>
