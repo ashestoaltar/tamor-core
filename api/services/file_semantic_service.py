@@ -2,492 +2,413 @@
 """
 Semantic multi-file search + project-wide summarization over project files.
 
-Responsibilities:
-- Ensure file_chunks table exists
-- Chunk & embed text-like project files
-- Run cosine similarity search over chunks
-- Summarize all chunks across a project
+This version is intentionally simple and stateless:
+
+- It does NOT read embeddings from the file_chunks table.
+- It uses cached file text (file_text_cache via get_or_extract_file_text_for_row).
+- For each query, it:
+    * loads text + metadata for all files in the project,
+    * chunks them in memory (keeping track of char offsets),
+    * embeds the chunks and the query,
+    * computes cosine similarity,
+    * returns top-k hits (with file, page, score, snippet),
+    * optionally asks the LLM for a grounded answer.
+
+Perfect for the Anchor spec demo scale.
 """
 
-import os
+from typing import Any, Dict, List, Optional, Tuple
 import sqlite3
-from typing import Any, Dict, List
 
 import numpy as np
 
 from utils.db import get_db
 from core.memory_core import embed, embed_many
-from core.config import (
-    client,
-    OPENAI_MODEL,
-    FILE_CHUNK_SIZE,
-    FILE_CHUNK_OVERLAP,
-)
-from routes.files_api import _get_upload_root, _read_file_text
+from core.config import client, OPENAI_MODEL
+from routes.files_api import get_or_extract_file_text_for_row
+
+# Chunking config – keep local and simple
+FILE_CHUNK_SIZE = 1200
+FILE_CHUNK_OVERLAP = 200
 
 
 # ---------------------------------------------------------------------------
-# DB helpers
+# Helpers
 # ---------------------------------------------------------------------------
-
-
-def ensure_file_chunks_table() -> None:
-    """Create the file_chunks table if it does not exist."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS file_chunks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_id INTEGER NOT NULL,
-            file_id INTEGER NOT NULL,
-            chunk_index INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            embedding BLOB NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (project_id) REFERENCES projects(id),
-            FOREIGN KEY (file_id) REFERENCES project_files(id)
-        );
-        """
-    )
-    cur.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_file_chunks_project
-        ON file_chunks(project_id);
-        """
-    )
-    cur.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_file_chunks_file
-        ON file_chunks(file_id);
-        """
-    )
-    conn.commit()
-    conn.close()
-
-
-# ---------------------------------------------------------------------------
-# Chunking + embedding
-# ---------------------------------------------------------------------------
-
-
-_PLACEHOLDER_PREFIXES = (
-    "This file is not a plain-text type.",
-    "This file is a PDF, but the PDF parser",
-    "This PDF appears to have no extractable text",
-    "Error extracting text from PDF:",
-    "Error reading file contents.",
-)
 
 
 def _is_placeholder_text(text: str) -> bool:
-    t = (text or "").strip()
-    return any(t.startswith(p) for p in _PLACEHOLDER_PREFIXES)
-
-
-def _chunk_text(text: str) -> List[str]:
-    """
-    Simple character-based sliding-window chunking with overlap.
-
-    This is intentionally simple and robust across code, config, notes, etc.
-    """
-    text = text or ""
+    """Detect placeholder texts that indicate we couldn't parse the file."""
     if not text:
-        return []
+        return True
 
-    size = max(256, int(FILE_CHUNK_SIZE))
-    overlap = max(0, int(FILE_CHUNK_OVERLAP))
-    chunks: List[str] = []
+    prefixes = (
+        "This file is not a plain-text type.",
+        "This file is a PDF, but the PDF parser",
+        "This PDF appears to have no extractable text",
+        "Error extracting text from PDF:",
+        "Error reading file:",
+    )
+    return any(text.startswith(p) for p in prefixes)
 
+
+def _chunk_text_with_offsets(
+    text: str, chunk_size: int, overlap: int
+) -> List[Tuple[int, str]]:
+    """
+    Sliding-window chunking by characters, but we keep the starting index
+    of each chunk so we can map it back to a PDF page.
+    Returns a list of (start_index, chunk_text).
+    """
+    chunks: List[Tuple[int, str]] = []
     start = 0
-    n = len(text)
-    while start < n:
-        end = min(n, start + size)
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        if end >= n:
+    length = len(text)
+    while start < length:
+        end = min(length, start + chunk_size)
+        chunks.append((start, text[start:end]))
+        if end == length:
             break
-        start = end - overlap if overlap > 0 else end
-
+        start = max(0, end - overlap)
     return chunks
 
 
-def _load_file_text(file_row: sqlite3.Row) -> str:
-    """Read text for a project_files row using the same logic as /files/content."""
-    upload_root = _get_upload_root()
-    stored_name_rel = file_row["stored_name"]
-    mime_type = file_row["mime_type"] or ""
-
-    full_path = os.path.join(upload_root, stored_name_rel)
-    if not os.path.isfile(full_path):
-        return ""
-
-    return _read_file_text(full_path, mime_type)
-
-
-def _index_single_file(project_id: int, file_row: sqlite3.Row) -> int:
-    """
-    Create or refresh chunks for one file.
-    Returns number of chunks written.
-    """
-    ensure_file_chunks_table()
-
-    file_id = file_row["id"]
-    text = _load_file_text(file_row)
-    if not text or _is_placeholder_text(text):
-        # Nothing useful to index
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM file_chunks WHERE file_id = ?", (file_id,))
-        conn.commit()
-        conn.close()
-        return 0
-
-    chunks = _chunk_text(text)
-    if not chunks:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM file_chunks WHERE file_id = ?", (file_id,))
-        conn.commit()
-        conn.close()
-        return 0
-
-    # Embed all chunks
-    embeddings = embed_many(chunks)
-
+def _load_project_file_rows(project_id: int, user_id: int) -> List[sqlite3.Row]:
+    """Return project_files rows for this project/user."""
     conn = get_db()
+    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-
-    # Clear any previous chunks for this file
-    cur.execute("DELETE FROM file_chunks WHERE file_id = ?", (file_id,))
-
-    rows_to_insert = []
-    for idx, (content, emb_blob) in enumerate(zip(chunks, embeddings)):
-        rows_to_insert.append((project_id, file_id, idx, content, emb_blob))
-
-    cur.executemany(
-        """
-        INSERT INTO file_chunks (project_id, file_id, chunk_index, content, embedding)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        rows_to_insert,
-    )
-
-    conn.commit()
-    conn.close()
-    return len(chunks)
-
-
-def ensure_chunks_for_project(project_id: int, user_id: int) -> int:
-    """
-    Ensure all files in this project have chunks.
-    Returns the number of *new* chunks created (approx).
-    """
-    ensure_file_chunks_table()
-
-    conn = get_db()
-    cur = conn.cursor()
-
-    # Load all project_files for this user + project
     cur.execute(
         """
-        SELECT id, stored_name, mime_type
-        FROM project_files
-        WHERE project_id = ? AND user_id = ?
-        ORDER BY created_at ASC, id ASC
+        SELECT pf.*
+        FROM project_files pf
+        JOIN projects p ON pf.project_id = p.id
+        WHERE pf.project_id = ? AND p.user_id = ?
+        ORDER BY pf.id ASC
         """,
         (project_id, user_id),
     )
-    file_rows = cur.fetchall()
-    conn.close()
-
-    total_new_chunks = 0
-
-    for row in file_rows:
-        # Skip if we already have at least one chunk for this file
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT 1 FROM file_chunks WHERE file_id = ? LIMIT 1",
-            (row["id"],),
-        )
-        has_any = cur.fetchone() is not None
-        conn.close()
-
-        if has_any:
-            continue
-
-        total_new_chunks += _index_single_file(project_id, row)
-
-    return total_new_chunks
+    return cur.fetchall()
 
 
-# ---------------------------------------------------------------------------
-# Semantic search + LLM answer (Phase 2.1)
-# ---------------------------------------------------------------------------
-
-
-def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-    denom = np.linalg.norm(a) * np.linalg.norm(b)
-    if denom == 0:
-        return 0.0
-    return float(np.dot(a, b) / denom)
-
-
-def _run_llm_answer(query: str, chunks: List[Dict[str, Any]]) -> str | None:
+def _map_offset_to_page(
+    offset: int, page_offsets: Optional[List[int]]
+) -> Optional[int]:
     """
-    Given the user query and a list of top chunks, call OpenAI
-    to synthesize an answer grounded in those chunks.
+    Given a character offset into the concatenated PDF text and a list of
+    page_offsets (one per page), return a 1-based page number.
     """
-    if not chunks:
+    if not page_offsets or not isinstance(page_offsets, list):
         return None
 
-    # Best-effort guard: if OpenAI client fails for any reason, just skip
-    try:
-        # Limit total context size
-        max_chars = 8000
-        used = 0
-        context_parts: List[str] = []
+    page_index = 0
+    for i, off in enumerate(page_offsets):
+        if not isinstance(off, int):
+            continue
+        if off <= offset:
+            page_index = i
+        else:
+            break
+    return page_index + 1
 
-        for ch in chunks:
-            text = ch.get("content") or ""
-            if not text:
+
+def _build_chunks_for_project(
+    project_id: int, user_id: int
+) -> List[Dict[str, Any]]:
+    """
+    Load cached text + meta for all files in a project and return in-memory chunks.
+
+    Each chunk dict looks like:
+        {
+            "file_id": int,
+            "filename": str,
+            "mime_type": str | None,
+            "chunk_index": int,
+            "text": str,
+            "start_offset": int,
+            "page": int | None,
+        }
+    """
+    rows = _load_project_file_rows(project_id, user_id)
+    if not rows:
+        return []
+
+    chunks_out: List[Dict[str, Any]] = []
+
+    for row in rows:
+        file_id = row["id"]
+        filename = row["filename"]
+        mime_type = row["mime_type"]
+
+        text, meta, _parser = get_or_extract_file_text_for_row(row)
+        if not text or _is_placeholder_text(text):
+            continue
+
+        page_offsets = None
+        if isinstance(meta, dict):
+            po = meta.get("page_offsets")
+            if isinstance(po, list):
+                page_offsets = po
+
+        windowed = _chunk_text_with_offsets(
+            text, FILE_CHUNK_SIZE, FILE_CHUNK_OVERLAP
+        )
+
+        for idx, (start_offset, chunk_text) in enumerate(windowed):
+            if not chunk_text.strip():
                 continue
-            if used + len(text) > max_chars:
-                break
-            used += len(text)
-            context_parts.append(
-                f"FILE: {ch['filename']} (file_id={ch['file_id']}, chunk_index={ch['chunk_index']})\n"
-                f"CONTENT:\n{text}\n-----\n"
+
+            page_num = _map_offset_to_page(start_offset, page_offsets)
+
+            chunks_out.append(
+                {
+                    "file_id": file_id,
+                    "filename": filename,
+                    "mime_type": mime_type,
+                    "chunk_index": idx,
+                    "start_offset": start_offset,
+                    "page": page_num,
+                    "text": chunk_text,
+                }
             )
 
-        if not context_parts:
-            return None
+    return chunks_out
 
-        context_str = "".join(context_parts)
 
-        system_prompt = (
-            "You are Tamor, an engineering- and study-focused assistant. "
-            "You are given several text chunks from multiple project files, plus a user query. "
-            "Answer ONLY using the provided chunks. "
-            "When you use information from a file, explicitly mention it like "
-            "\"According to motor-config.json (chunk 2)...\". "
-            "If the answer is not clearly present, say you cannot find it."
-        )
+def _embed_query_and_chunks(
+    query: str, chunks: List[Dict[str, Any]]
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """
+    Compute embeddings for a query and list of chunks.
 
-        user_prompt = (
-            f"USER QUERY:\n{query}\n\n"
-            "Here are the most relevant file chunks:\n\n"
-            f"{context_str}\n"
-            "Using ONLY this information, answer the query as clearly as possible. "
-            "Cite which files you are using."
-        )
+    Returns (q_emb, chunk_embs) or (None, None) if embedding not available.
 
-        completion = client.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        )
-        return completion.choices[0].message.content.strip()
-    except Exception as e:
-        return f"(Error calling OpenAI for semantic answer: {e})"
+    Handles both normal float vectors and raw bytes/BLOB embeddings.
+    """
+    if not chunks:
+        return None, None
+
+    if client is None:
+        return None, None
+
+    texts = [c["text"] for c in chunks]
+
+    chunk_embs_raw = embed_many(texts)
+    q_emb_raw = embed(query)
+
+    # --- normalize query embedding ---
+    if isinstance(q_emb_raw, (bytes, bytearray, memoryview)):
+        q_emb = np.frombuffer(q_emb_raw, dtype=np.float32)
+    elif isinstance(q_emb_raw, np.ndarray):
+        q_emb = q_emb_raw.astype(np.float32, copy=False)
+    else:
+        q_emb = np.array(q_emb_raw, dtype=np.float32)
+
+    # --- normalize chunk embeddings ---
+    if isinstance(chunk_embs_raw, list):
+        arrs: List[np.ndarray] = []
+        for vec in chunk_embs_raw:
+            if isinstance(vec, (bytes, bytearray, memoryview)):
+                arr = np.frombuffer(vec, dtype=np.float32)
+            elif isinstance(vec, np.ndarray):
+                arr = vec.astype(np.float32, copy=False)
+            else:
+                arr = np.array(vec, dtype=np.float32)
+            arrs.append(arr)
+        if not arrs:
+            return None, None
+        chunk_embs = np.vstack(arrs)
+    elif isinstance(chunk_embs_raw, np.ndarray):
+        chunk_embs = chunk_embs_raw.astype(np.float32, copy=False)
+        if chunk_embs.ndim == 1:
+            chunk_embs = chunk_embs.reshape(1, -1)
+    else:
+        return None, None
+
+    return q_emb, chunk_embs
+
+
+# ---------------------------------------------------------------------------
+# Semantic search
+# ---------------------------------------------------------------------------
 
 
 def semantic_search_project_files(
     project_id: int,
     user_id: int,
     query: str,
-    top_k: int = 8,
+    top_k: int = 20,  # a bit higher for "find all specs mentioning X"
     include_answer: bool = True,
 ) -> Dict[str, Any]:
     """
-    Main entrypoint for semantic search:
+    Top-level API used by routes.projects_api.
 
-    - Ensure chunks exist for all project files
-    - Embed the query
-    - Compute cosine similarity against all chunks in project
-    - Return top_k chunk hits + optional LLM answer
+    Returns:
+      {
+        "query": "...",
+        "results": [ {chunk hit...}, ... ],
+        "answer": "LLM-grounded explanation or None"
+      }
     """
     query = (query or "").strip()
     if not query:
-        return {"results": [], "answer": None}
+        return {"query": query, "results": [], "answer": None}
 
-    ensure_chunks_for_project(project_id, user_id)
+    chunks = _build_chunks_for_project(project_id, user_id)
+    if not chunks:
+        return {"query": query, "results": [], "answer": None}
 
-    # Embed the query via the same model used for file chunks
-    q_vec = np.frombuffer(embed(query), dtype=np.float32)
+    q_emb, chunk_embs = _embed_query_and_chunks(query, chunks)
+    if q_emb is None or chunk_embs is None:
+        return {"query": query, "results": [], "answer": None}
 
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT
-            fc.id AS chunk_id,
-            fc.file_id,
-            fc.chunk_index,
-            fc.content,
-            fc.embedding,
-            pf.filename,
-            pf.mime_type,
-            pf.size_bytes,
-            pf.created_at
-        FROM file_chunks fc
-        JOIN project_files pf ON fc.file_id = pf.id
-        WHERE fc.project_id = ?
-        """,
-        (project_id,),
-    )
-    rows = cur.fetchall()
-    conn.close()
+    norms = np.linalg.norm(chunk_embs, axis=1) * np.linalg.norm(q_emb)
+    sims = np.dot(chunk_embs, q_emb) / np.maximum(norms, 1e-8)
 
-    scored: List[Dict[str, Any]] = []
+    top_indices = np.argsort(-sims)[:top_k]
 
-    for row in rows:
-        emb_blob = row["embedding"]
-        emb_vec = np.frombuffer(emb_blob, dtype=np.float32)
-        score = _cosine_similarity(q_vec, emb_vec)
-        if score <= 0:
-            continue
-
-        content = row["content"] or ""
-        snippet = content[:260]
-        if len(content) > 260:
-            snippet += " …"
-
-        scored.append(
+    hits: List[Dict[str, Any]] = []
+    for idx in top_indices:
+        idx_int = int(idx)
+        c = chunks[idx_int]
+        hits.append(
             {
-                "chunk_id": row["chunk_id"],
-                "file_id": row["file_id"],
-                "chunk_index": row["chunk_index"],
-                "content": content,
-                "snippet": snippet,
-                "score": score,
-                "filename": row["filename"],
-                "mime_type": row["mime_type"],
-                "size_bytes": row["size_bytes"],
-                "created_at": row["created_at"],
+                "file_id": c["file_id"],
+                "filename": c["filename"],
+                "mime_type": c.get("mime_type"),
+                "chunk_index": c["chunk_index"],
+                "page": c.get("page"),
+                "score": float(sims[idx_int]),
+                "text": c["text"],
             }
         )
 
-    scored.sort(key=lambda x: x["score"], reverse=True)
-    top = scored[: max(1, top_k)]
+    result: Dict[str, Any] = {"query": query, "results": hits, "answer": None}
 
-    answer = None
-    if include_answer:
-        answer = _run_llm_answer(query, top)
+    if not include_answer or not hits or client is None:
+        return result
 
-    return {
-        "results": top,
-        "answer": answer,
-    }
+    # Build a context window out of the top chunks
+    context_parts: List[str] = []
+    max_chars = 8000
+    used = 0
+    for h in hits:
+        chunk_text = h.get("text") or ""
+        if not chunk_text:
+            continue
+        remaining = max_chars - used
+        if remaining <= 0:
+            break
+        if len(chunk_text) > remaining:
+            chunk_text = chunk_text[:remaining] + "\n...[truncated]..."
+        page_str = (
+            f" (page {h.get('page')})" if isinstance(h.get("page"), int) else ""
+        )
+        context_parts.append(
+            f"From file '{h.get('filename', 'unknown')}'{page_str}, "
+            f"chunk {h.get('chunk_index', '?')}:\n{chunk_text}"
+        )
+        used += len(chunk_text)
+
+    context = "\n\n---\n\n".join(context_parts)
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are an assistant that answers questions using semantic search "
+                "results from the user's project files. Be concise but specific. "
+                "If the answer is unclear from the snippets, say so explicitly "
+                "and avoid hallucinating extra details."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"The user asked: {query}\n\n"
+                "Use ONLY the following snippets from their project files "
+                "as your source of truth:\n\n" + context
+            ),
+        },
+    ]
+
+    completion = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=messages,
+    )
+    answer = completion.choices[0].message.content
+    result["answer"] = answer
+
+    return result
 
 
 # ---------------------------------------------------------------------------
-# Project-wide summarization (Phase 2.2)
+# Project-wide summarization
 # ---------------------------------------------------------------------------
 
 
 def summarize_project_files(
     project_id: int,
     user_id: int,
-    prompt: str | None = None,
-    max_context_chars: int = 9000,
-) -> str:
+    prompt: Optional[str] = None,
+) -> Dict[str, Any]:
     """
-    Summarize all (text-like) file chunks in a project.
+    Summarize all available chunks for a project using the LLM.
 
-    - Ensures chunks exist for all project files.
-    - Pulls chunks in a stable order: by filename, then chunk_index.
-    - Feeds a limited amount of text into the LLM with a project-focused prompt.
-
-    prompt: an optional natural-language instruction like
-        "High-level overview of all files, focusing on constraints and config keys."
+    If `prompt` is provided, it is treated as additional instructions for
+    how to shape the summary (e.g. "focus on constraints and open questions").
     """
-    ensure_chunks_for_project(project_id, user_id)
+    chunks = _build_chunks_for_project(project_id, user_id)
+    if not chunks:
+        return {"summary": "", "used_model": None, "total_chunks": 0}
 
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT
-            pf.filename,
-            pf.mime_type,
-            fc.file_id,
-            fc.chunk_index,
-            fc.content
-        FROM file_chunks fc
-        JOIN project_files pf ON fc.file_id = pf.id
-        WHERE fc.project_id = ?
-        ORDER BY pf.filename ASC, fc.chunk_index ASC
-        """,
-        (project_id,),
+    all_text = "\n\n".join(c["text"] for c in chunks)
+    if not all_text.strip():
+        return {"summary": "", "used_model": None, "total_chunks": 0}
+
+    if client is None:
+        pseudo = all_text[:3000]
+        return {
+            "summary": (
+                "OpenAI is not configured on this server, so this is a "
+                "truncated preview of the project file chunks:\n\n" + pseudo
+            ),
+            "used_model": None,
+            "total_chunks": len(chunks),
+        }
+
+    base_system = (
+        "You are an assistant that summarizes project documentation and files. "
+        "Provide a clear, concise high-level overview of the project's files, "
+        "focusing on constraints, config keys, and open questions."
     )
-    rows = cur.fetchall()
-    conn.close()
 
-    if not rows:
-        return "This project has no indexed text-like file content to summarize yet."
-
-    used = 0
-    context_parts: List[str] = []
-
-    for row in rows:
-        filename = row["filename"]
-        chunk_index = row["chunk_index"]
-        content = row["content"] or ""
-        if not content:
-            continue
-
-        # Reserve some room for headers
-        header = f"FILE: {filename} (chunk {chunk_index + 1})\n"
-        block = header + content + "\n-----\n"
-
-        if used + len(block) > max_context_chars:
-            break
-
-        context_parts.append(block)
-        used += len(block)
-
-    if not context_parts:
-        return "The project files have content, but it could not be loaded into context for summarization."
-
-    context_str = "".join(context_parts)
-
-    if not prompt:
-        prompt = (
-            "Provide a high-level overview of this project based on its files. "
-            "Group related files together, explain what they do, and call out any "
-            "key configuration parameters, constraints, or open questions you can infer."
+    if prompt:
+        system_content = (
+            base_system
+            + " The user has additional instructions for this summary:\n"
+            + prompt
         )
+    else:
+        system_content = base_system
 
-    system_prompt = (
-        "You are Tamor, an engineering- and study-focused assistant. "
-        "You are given many chunks of text from multiple files in a single project. "
-        "Write a clear, structured summary of the project, focusing on how the files fit together. "
-        "Mention specific filenames when relevant (e.g., motor-config.json, main.ipynb). "
-        "If there are gaps or unclear areas, explicitly list them as open questions."
+    messages = [
+        {
+            "role": "system",
+            "content": system_content,
+        },
+        {"role": "user", "content": all_text},
+    ]
+
+    completion = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=messages,
     )
 
-    user_prompt = (
-        f"SUMMARY INSTRUCTION:\n{prompt}\n\n"
-        "Here are the file chunks from the project:\n\n"
-        f"{context_str}\n"
-        "Using ONLY this information, produce a concise but detailed project summary. "
-        "Use headings and bullet points where helpful."
-    )
+    answer = completion.choices[0].message.content
 
-    try:
-        completion = client.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        )
-        return completion.choices[0].message.content.strip()
-    except Exception as e:
-        return f"(Error calling OpenAI for project summary: {e})"
+    return {
+        "summary": answer,
+        "used_model": OPENAI_MODEL,
+        "total_chunks": len(chunks),
+    }
 

@@ -1,491 +1,637 @@
-/* Root container for the whole right panel */
-.RightPanelRoot {
-  height: 100%;
+.right-panel {
   display: flex;
   flex-direction: column;
-  padding: 0.75rem 0.75rem 0.75rem 0.75rem;
-  border-left: 1px solid var(--border-subtle);
-  background: transparent;
-  box-sizing: border-box;
+  height: 100%;
+  background: #050814;
+  border-left: 1px solid #171b2d;
+  color: #e5e7f5;
+  font-size: 13px;
 }
 
-/* Top-level tab strip */
-.rp-tabs {
-  flex: 0 0 auto;
+/* Header -------------------------------------------------------------- */
+
+.rp-header {
+  padding: 10px 14px 6px;
+  border-bottom: 1px solid #171b2d;
+}
+
+.rp-header-main {
   display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-bottom: 0.5rem;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rp-header-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #8b93b8;
+}
+
+.rp-header-subtitle {
+  font-size: 13px;
+  color: #f9fafb;
+}
+
+.rp-header-project-name {
+  font-weight: 500;
+}
+
+.rp-muted {
+  color: #6b7280;
+}
+
+/* Tabs --------------------------------------------------------------- */
+
+.rp-tabs {
+  display: flex;
+  flex-wrap: wrap;              /* allow tabs to wrap to a second line */
+  gap: 4px;
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid #171b2d;
 }
 
 .rp-tab {
+  flex: 0 1 auto;               /* size to content instead of all being forced equal */
   border: none;
-  background: transparent;
-  color: var(--text-soft);
-  padding: 4px 10px;
+  padding: 6px 8px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 12px;
   cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
+
 
 .rp-tab:hover {
-  background-color: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.85);
+  background: #111827;
+  color: #e5e7eb;
 }
 
-.rp-tab.active {
-  background-color: var(--accent-soft);
-  color: var(--accent);
+.rp-tab-active {
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  color: #111827;
 }
 
-/* Scrollable body area */
+/* Body --------------------------------------------------------------- */
+
 .rp-body {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1;
   overflow-y: auto;
-  padding-right: 0.3rem;
+  padding: 8px 10px 10px;
 }
 
-/* Generic section container */
+.rp-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Sections ----------------------------------------------------------- */
+
 .rp-section {
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 10px 10px 8px;
-  margin-bottom: 10px;
+  border-radius: 12px;
+  background: #050816;
+  border: 1px solid #111827;
+  padding: 8px 10px 10px;
+}
+
+.rp-section + .rp-section {
+  margin-top: 4px;
+}
+
+.rp-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
 }
 
 .rp-section-title {
-  margin: 0 0 4px 0;
-  font-size: 0.85rem;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--text-muted);
+  letter-spacing: 0.16em;
+  color: #9ca3af;
 }
 
 .rp-section-subtitle {
-  margin: 4px 0 4px;
-  font-size: 0.8rem;
-  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 4px;
 }
 
-/* Common helpers */
+.rp-section-body {
+  font-size: 13px;
+}
+
+.rp-section-footer {
+  margin-top: 8px;
+}
+
+/* Generic bits ------------------------------------------------------- */
+
 .rp-divider {
   height: 1px;
-  margin: 8px 0;
-  background: var(--border-subtle);
-}
-
-.rp-help-text {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  margin: 2px 0 4px;
-}
-
-/* Inputs & selects */
-.rp-input,
-.rp-select,
-.rp-notes-textarea {
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  background: #050813;
-  color: var(--text-soft);
-  font-size: 0.8rem;
-  padding: 6px 8px;
-  box-sizing: border-box;
-}
-
-.rp-input::placeholder,
-.rp-notes-textarea::placeholder {
-  color: var(--text-muted);
-}
-
-.rp-select {
-  padding-right: 24px;
-}
-
-.rp-notes-textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-/* Buttons */
-.rp-button {
+  margin: 10px 0;
+  background: #0b1020;
   border-radius: 999px;
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 0.78rem;
-  padding: 4px 10px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
-.rp-button:hover:not(:disabled) {
-  background: rgba(255, 178, 60, 0.18);
-  color: #ffd18a;
+.rp-small-text {
+  font-size: 12px;
 }
 
-.rp-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.rp-button.subtle {
-  border-color: var(--border-subtle);
-  background: transparent;
-  color: var(--text-soft);
-}
-
-.rp-button.subtle:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.rp-button.subtle.danger {
-  border-color: rgba(255, 120, 120, 0.6);
-  color: rgba(255, 160, 160, 0.9);
-}
-
-.rp-button.subtle.danger:hover:not(:disabled) {
-  background: rgba(255, 120, 120, 0.1);
-  color: rgba(255, 190, 190, 1);
-}
-
-/* Small icon-only buttons */
-.rp-icon-button {
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background: transparent;
-  color: var(--text-soft);
-  font-size: 0.75rem;
-  padding: 2px 7px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-}
-
-.rp-icon-button:hover {
-  background-color: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.85);
-}
-
-/* Status text */
 .rp-status-text {
-  font-size: 0.78rem;
-  color: var(--text-soft);
+  font-size: 12px;
+  margin-left: 8px;
 }
 
-.rp-status-text.error {
-  color: rgba(255, 130, 130, 0.95);
+.rp-status-text.error,
+.rp-error {
+  color: #fecaca;
 }
 
 .rp-status-text.success {
-  color: rgba(140, 255, 180, 0.95);
+  color: #bbf7d0;
 }
 
-/* Notes footer row */
-.rp-notes-actions {
-  margin-top: 6px;
+.rp-help-text {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Inputs & buttons --------------------------------------------------- */
+
+.rp-input,
+.rp-notes-textarea {
+  width: 100%;
+  background: #020617;
+  border-radius: 8px;
+  border: 1px solid #111827;
+  padding: 6px 8px;
+  color: #e5e7eb;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.rp-input:focus,
+.rp-notes-textarea:focus {
+  outline: none;
+  border-color: #f97316;
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.5);
+}
+
+.rp-notes-textarea {
+  min-height: 120px;
+}
+
+.rp-notes-textarea.rp-small {
+  min-height: 72px;
+}
+
+.rp-search-row {
   display: flex;
+  gap: 6px;
   align-items: center;
-  gap: 0.5rem;
 }
 
-/* Memory list */
-.rp-memory-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.rp-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.rp-button {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  color: #111827;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.rp-button.primary {
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  color: #111827;
+}
+
+.rp-button.subtle {
+  background: #020617;
+  color: #e5e7eb;
+  border: 1px solid #111827;
+}
+
+.rp-button.subtle:hover {
+  border-color: #4b5563;
+}
+
+.rp-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Tags --------------------------------------------------------------- */
+
+.rp-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid transparent;
+}
+
+.rp-tag-muted {
+  border-color: #1f2937;
+  color: #9ca3af;
+  background: #020617;
+}
+
+.rp-tag-positive {
+  border-color: #065f46;
+  background: rgba(16, 185, 129, 0.06);
+  color: #6ee7b7;
+}
+
+.rp-tag-warning {
+  border-color: #7c2d12;
+  background: rgba(248, 113, 113, 0.06);
+  color: #fed7aa;
+}
+
+/* Empty state -------------------------------------------------------- */
+
+.rp-empty-state {
+  text-align: left;
+  margin-top: 16px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  border: 1px dashed #1f2937;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.rp-empty-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.rp-empty-text {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* File list ---------------------------------------------------------- */
+
+.rp-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.rp-file-row {
+  border-radius: 10px;
+  padding: 6px 8px;
+  background: #020617;
+  border: 1px solid #020617;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.rp-memory-item {
-  padding: 4px 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.02);
+.rp-file-row:hover {
+  border-color: #374151;
+  background: #030712;
 }
 
-.rp-memory-text {
-  font-size: 0.8rem;
-  color: var(--text-soft);
+.rp-file-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.rp-memory-tags {
+.rp-file-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e5e7eb;
+}
+
+.rp-file-meta {
   margin-top: 2px;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-
-.rp-tag {
-  font-size: 0.7rem;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-muted);
-}
-
-/* Playlist tab */
-.rp-playlist-body {
-  margin-top: 6px;
-}
-
-.rp-playlist-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 6px;
-}
-
-.rp-playlist-overview {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.rp-playlist-title-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.rp-playlist-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-soft);
-  margin: 0;
-}
-
-.rp-playlist-grid {
-  margin-top: 4px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-}
-
-.rp-playlist-card {
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 10px;
-  padding: 6px;
-  border: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.rp-poster-wrapper {
-  border-radius: 8px;
-  overflow: hidden;
-  background: #02030a;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.rp-poster-image {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.rp-inline-preview-title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-soft);
-  margin: 4px 0 0;
-}
-
-.rp-inline-preview-meta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.rp-inline-preview-text {
-  font-size: 0.78rem;
-  color: var(--text-soft);
-  margin-top: 2px;
-}
-
-/* File list / search / preview */
-.rp-search-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.rp-search-results {
-  margin-top: 4px;
-}
-
-.rp-file-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.rp-file-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.rp-file-thumb {
-  font-size: 1.1rem;
-}
-
-.rp-file-icon {
-  font-size: 1rem;
-  margin-top: 1px;
-}
-
-.rp-file-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.rp-file-name {
-  font-size: 0.8rem;
-  color: var(--text-soft);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rp-file-meta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.rp-file-meta-small {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
-.rp-file-text {
-  font-size: 0.78rem;
-  color: var(--text-soft);
-  white-space: pre-wrap;
-  margin-top: 1px;
 }
 
 .rp-file-actions {
   display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.rp-file-actions .rp-button {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  font-size: 11px;
+}
+
+.rp-file-summary {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #020617;
+  border: 1px solid #111827;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.rp-file-summary pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Structure block ---------------------------------------------------- */
+
+.rp-structure-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  max-height: 220px;
+  overflow: auto;
+  background: #020617;
+  border-radius: 8px;
+  padding: 6px 8px;
+  border: 1px solid #111827;
+}
+
+/* Search results ----------------------------------------------------- */
+
+.rp-section-sublist {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rp-hit-row {
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #020617;
+  border: 1px solid #020617;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.rp-hit-row:hover {
+  border-color: #374151;
+  background: #030712;
+}
+
+.rp-hit-title {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.rp-hit-meta {
+  margin-bottom: 2px;
+}
+
+.rp-hit-snippet {
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+/* Summary / semantic answer preview --------------------------------- */
+
+.rp-summary-preview {
+  margin-top: 8px;
+  padding: 8px 9px;
+  border-radius: 10px;
+  background: #020617;
+  border: 1px solid #111827;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.rp-summary-preview pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Playlists ---------------------------------------------------------- */
+
+.rp-playlist-controls {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.rp-playlist-list {
+  margin-top: 4px;
+}
+
+.rp-playlist-item {
+  display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-/* Inline preview card (inside Files tab) */
-.rp-inline-preview {
-  margin-top: 6px;
-  border-radius: 10px;
-  border: 1px solid var(--border-subtle);
-  background: rgba(0, 0, 0, 0.35);
-  padding: 6px;
-}
-
-.rp-inline-preview-header {
+.rp-playlist-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-top: 4px;
 }
 
-.rp-inline-preview-image-wrap {
-  flex-shrink: 0;
-  margin-right: 6px;
-}
-
-.rp-inline-preview-image {
-  display: block;
+.rp-playlist-poster {
   width: 48px;
   height: 72px;
   object-fit: cover;
-  border-radius: 4px;
-}
-
-/* Project summary / file preview text */
-.rp-summary-preview,
-.rp-project-summary-preview,
-.rp-file-preview-body {
-  font-size: 0.8rem;
-  color: var(--text-soft);
-  white-space: pre-wrap;
-}
-
-/* File preview container */
-.rp-file-preview {
-  margin-top: 6px;
-  border-radius: 10px;
-  border: 1px solid var(--border-subtle);
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.rp-file-preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.rp-file-preview-title {
-  font-size: 0.8rem;
-  color: var(--text-soft);
-  margin: 0;
-}
-
-.rp-file-preview-body {
-  padding: 6px 8px;
-}
-
-/* Knowledge tab (symbols) */
-.rp-symbol-row {
-  padding: 4px 6px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid #111827;
+}
+
+/* Misc --------------------------------------------------------------- */
+
+.rp-header-project-name {
+  font-size: 13px;
+}
+
+.rp-tag + .rp-tag {
+  margin-left: 2px;
+}
+
+/* ------------------------------ */
+/* Semantic Search: File Group View */
+/* ------------------------------ */
+
+.rp-hit-group {
+  background: #151a1f;
+  border: 1px solid #2a323a;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  transition: background 0.2s ease;
+}
+
+.rp-hit-group:hover {
+  background: #1c2229;
+}
+
+.rp-hit-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e0e6ed;
   margin-bottom: 4px;
 }
 
-.rp-symbol-name {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 0.78rem;
-  color: var(--text-soft);
+.rp-hit-mini-summary {
+  font-size: 0.8rem;
+  color: #96a2b1;
+  margin-left: 8px;
+  display: inline-block;
+  max-width: 80%;
 }
 
-.rp-symbol-snippet {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  white-space: pre-wrap;
-  margin-top: 2px;
+.rp-hit-group-list {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 10px;
 }
 
-.rp-symbol-actions {
-  margin-top: 4px;
+.rp-hit-group-item {
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background: #11161b;
+  border: 1px solid #1e242b;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.rp-hit-group-item:hover {
+  border-color: #2f82ff;
+  background: #151c23;
+}
+
+.rp-hit-group-page {
+  font-size: 0.8rem;
+  color: #9ab4d0;
+  margin-right: 8px;
+  font-weight: 600;
+}
+
+.rp-hit-group-line {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 4px;
 }
 
-/* Divider used between sub-sections inside one card */
-.rp-card-divider {
-  height: 1px;
-  margin: 6px 0;
-  background: var(--border-subtle);
+.rp-hit-group-snippet {
+  font-size: 0.8rem;
+  color: #c0c8d2;
+  line-height: 1.35;
+}
+
+
+/* ------------------------------ */
+/* Buttons: pills + compact       */
+/* ------------------------------ */
+
+.rp-button-pill {
+  background: #1c2229;
+  color: #cdd7e5;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  border: 1px solid #2a323a;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.rp-button-pill:hover {
+  background: #2c3440;
+}
+
+.rp-button-pill-active {
+  background: #2f82ff;
+  border-color: #2f82ff;
+  color: #ffffff;
+}
+
+.rp-button-compact {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  border-radius: 6px;
+  background: #1c2229;
+  border: 1px solid #2a323a;
+  color: #cdd7e5;
+  cursor: pointer;
+}
+
+.rp-button-compact:hover {
+  background: #27303a;
+  border-color: #2f82ff;
+  color: #ffffff;
+}
+
+/* ------------------------------ */
+/* Semantic Search Bar            */
+/* ------------------------------ */
+
+.rp-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rp-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  background: #11161b;
+  color: #e0e6ed;
+  border: 1px solid #2a323a;
+  border-radius: 8px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.rp-search-input:focus {
+  outline: none;
+  border-color: #2f82ff;
+  background: #151b22;
+}
+
+.rp-search-button {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  background: #2f82ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.rp-search-button:hover {
+  background: #1f6cdc;
 }
 

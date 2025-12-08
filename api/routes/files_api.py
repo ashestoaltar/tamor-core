@@ -1,6 +1,12 @@
-# routes/files_api.py
+# api/routes/files_api.py
 import os
 import uuid
+import json
+from typing import Any, Dict, Optional, List
+
+from utils.db import get_db
+from services.file_parsing import extract_text_from_file
+from services.structured_parsing import extract_structure_for_mime
 
 from flask import (
     Blueprint,
@@ -22,456 +28,554 @@ except ImportError:  # lets the server run even if openai isn't installed yet
 # Optional: PDF text extraction
 try:
     from PyPDF2 import PdfReader
-except ImportError:  # still works without this, but PDFs won't be parsed
+except ImportError:  # still works without this, but PDFs won't be parsed as well
     PdfReader = None
 
 files_bp = Blueprint("files_api", __name__, url_prefix="/api")
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
 def _ensure_user():
-    """Return (user_id, error_response_or_None)."""
+    """
+    Ensure there is a logged-in user in the session.
+
+    Returns (user_id, error_response_or_none)
+    """
     user_id = session.get("user_id")
     if not user_id:
         return None, (jsonify({"error": "not_authenticated"}), 401)
     return user_id, None
 
 
-def _ensure_project_files_table():
-    """Create project_files table if it does not already exist."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS project_files (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id         INTEGER NOT NULL,
-            project_id      INTEGER,
-            conversation_id INTEGER,
-            filename        TEXT NOT NULL,
-            stored_name     TEXT NOT NULL,
-            mime_type       TEXT,
-            size_bytes      INTEGER,
-            created_at      TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-    conn.commit()
-    conn.close()
-
-
-def _ensure_message_file_refs_table():
-    """
-    Create message_file_refs table if it does not already exist.
-
-    This mirrors the standalone migration script, but keeps runtime
-    robust even if the migration hasn't been run yet.
-    """
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS message_file_refs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            message_id INTEGER NOT NULL,
-            file_id INTEGER NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(message_id) REFERENCES messages(id),
-            FOREIGN KEY(file_id) REFERENCES project_files(id)
-        )
-        """
-    )
-    cur.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_message_file_refs_message_id
-        ON message_file_refs(message_id)
-        """
-    )
-    cur.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_message_file_refs_file_id
-        ON message_file_refs(file_id)
-        """
-    )
-    conn.commit()
-    conn.close()
-
-
 def _get_upload_root():
-    """Return absolute path to the upload root folder."""
-    root = current_app.config.get("UPLOAD_FOLDER")
-    if not root:
-        # Fallback to ./uploads relative to api/
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        root = os.path.join(base_dir, "uploads")
-    os.makedirs(root, exist_ok=True)
-    return root
+    """Return the absolute directory where uploaded files are stored."""
+    upload_root = current_app.config.get("UPLOAD_ROOT")
+    if not upload_root:
+        upload_root = os.path.join(current_app.root_path, "uploads")
+    os.makedirs(upload_root, exist_ok=True)
+    return upload_root
+
+
+def _allowed_file(filename: str) -> bool:
+    """Basic safety check for filenames."""
+    return "/" not in filename and "\\" not in filename
 
 
 def _get_file_record_for_user(file_id: int, user_id: int):
-    """Load a project_files row for a given user, or None."""
-    _ensure_project_files_table()
     conn = get_db()
+    import sqlite3
+
+    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT id, user_id, project_id, conversation_id, filename,
-               stored_name, mime_type, size_bytes, created_at
-        FROM project_files
-        WHERE id = ? AND user_id = ?
+        SELECT pf.*
+        FROM project_files pf
+        JOIN projects p ON pf.project_id = p.id
+        WHERE pf.id = ? AND p.user_id = ?
         """,
         (file_id, user_id),
     )
     row = cur.fetchone()
     conn.close()
+
+    if row:
+        conn = get_db()
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM project_files WHERE id = ?", (file_id,))
+        row = cur.fetchone()
+
     return row
 
 
-def _message_belongs_to_user(message_id: int, user_id: int) -> bool:
-    """
-    Verify that a message belongs to the current user via its conversation.
-    """
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT m.id
-        FROM messages m
-        JOIN conversations c ON m.conversation_id = c.id
-        WHERE m.id = ? AND c.user_id = ?
-        """,
-        (message_id, user_id),
-    )
-    row = cur.fetchone()
-    conn.close()
-    return row is not None
+def _get_openai_client():
+    """Return an OpenAI client if configured, else None."""
+    api_key = current_app.config.get("OPENAI_API_KEY")
+    if not api_key or OpenAI is None:
+        return None
+    return OpenAI(api_key=api_key)
 
 
-@files_bp.post("/files/upload")
-def upload_file():
-    """
-    Upload a file and associate it with an optional project and/or conversation.
+# ---------------------------------------------------------------------------
+# File upload / download
+# ---------------------------------------------------------------------------
 
-    Form-data fields:
-      - file: the uploaded file (required)
-      - project_id: optional project id
-      - conversation_id: optional conversation id
+
+@files_bp.post("/projects/<int:project_id>/files")
+def upload_file(project_id: int):
+    """
+    Upload a file and associate it with a project.
+
+    Expects multipart/form-data with a single "file" field.
     """
     user_id, err = _ensure_user()
     if err:
         return err
 
-    _ensure_project_files_table()
-
-    if "file" not in request.files:
-        return jsonify({"error": "file_required"}), 400
-
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "empty_filename"}), 400
-
-    project_id = request.form.get("project_id") or None
-    conversation_id = request.form.get("conversation_id") or None
+    import sqlite3
 
     try:
-        project_id = int(project_id) if project_id is not None else None
-    except ValueError:
-        return jsonify({"error": "invalid_project_id"}), 400
+        project_id = int(project_id)
 
-    try:
-        conversation_id = (
-            int(conversation_id) if conversation_id is not None else None
+        # 1) Basic form validation
+        if "file" not in request.files:
+            return (
+                jsonify({"error": "no_file", "details": "Missing form field 'file'."}),
+                400,
+            )
+
+        f = request.files["file"]
+        if not f or f.filename == "":
+            return jsonify({"error": "empty_filename"}), 400
+
+        if not _allowed_file(f.filename):
+            return jsonify({"error": "invalid_filename"}), 400
+
+        # 2) Where to store it on disk
+        upload_root = _get_upload_root()
+        project_dir = os.path.join(upload_root, str(project_id))
+        os.makedirs(project_dir, exist_ok=True)
+
+        stored_name = f"{uuid.uuid4().hex}_{f.filename}"
+        stored_name_rel = os.path.join(str(project_id), stored_name)
+        full_path = os.path.join(upload_root, stored_name_rel)
+
+        # 3) Save file
+        f.save(full_path)
+
+        mime_type = f.mimetype or ""
+        try:
+            size_bytes = os.path.getsize(full_path)
+        except OSError:
+            size_bytes = None
+
+        # 4) Insert DB row (support both schemas: with and without size_bytes)
+        conn = get_db()
+        cur = conn.cursor()
+
+        try:
+            # Newer schema with size_bytes AND user_id
+            cur.execute(
+                """
+                INSERT INTO project_files (project_id, user_id, filename, stored_name, mime_type, size_bytes)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (project_id, user_id, f.filename, stored_name_rel, mime_type, size_bytes),
+            )
+        except sqlite3.OperationalError as e:
+            # Fallback for older schema without size_bytes column
+            if "size_bytes" not in str(e):
+                raise
+
+            cur.execute(
+                """
+                INSERT INTO project_files (project_id, user_id, filename, stored_name, mime_type)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (project_id, user_id, f.filename, stored_name_rel, mime_type),
+            )
+
+        file_id = cur.lastrowid
+        conn.commit()
+
+        # 5) Clean JSON response the frontend expects
+        return jsonify(
+            {
+                "id": file_id,
+                "project_id": project_id,
+                "filename": f.filename,
+                "stored_name": stored_name_rel,
+                "mime_type": mime_type,
+                "size_bytes": size_bytes,
+            }
         )
-    except ValueError:
-        return jsonify({"error": "invalid_conversation_id"}), 400
+
+    except Exception as e:
+        current_app.logger.exception("Error during file upload")
+        return (
+            jsonify(
+                {
+                    "error": "upload_failed",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
+
+
+@files_bp.get("/projects/<int:project_id>/files")
+def list_project_files(project_id: int):
+    """
+    List files for a project, including cached parse metadata when available.
+    """
+    user_id, err = _ensure_user()
+    if err:
+        return err
 
     conn = get_db()
+    conn.row_factory = None
     cur = conn.cursor()
-
-    # If a project is specified, make sure it belongs to this user
-    if project_id is not None:
-        cur.execute(
-            "SELECT id FROM projects WHERE id = ? AND user_id = ?",
-            (project_id, user_id),
-        )
-        if not cur.fetchone():
-            conn.close()
-            return jsonify({"error": "project_not_found"}), 404
-
-    # If a conversation is specified, make sure it belongs to this user
-    if conversation_id is not None:
-        cur.execute(
-            "SELECT id FROM conversations WHERE id = ? AND user_id = ?",
-            (conversation_id, user_id),
-        )
-        if not cur.fetchone():
-            conn.close()
-            return jsonify({"error": "conversation_not_found"}), 404
-
-    upload_root = _get_upload_root()
-
-    # Build the folder path: uploads/<user>/<project or "general">
-    sub_parts = [str(user_id)]
-    if project_id is not None:
-        sub_parts.append(f"project_{project_id}")
-    else:
-        sub_parts.append("general")
-
-    user_folder = os.path.join(upload_root, *sub_parts)
-    os.makedirs(user_folder, exist_ok=True)
-
-    # Create a unique stored filename
-    original_name = file.filename
-    unique_prefix = uuid.uuid4().hex
-    stored_filename = f"{unique_prefix}_{original_name}"
-    full_path = os.path.join(user_folder, stored_filename)
-
-    # Save file to disk
-    file.save(full_path)
-    size_bytes = os.path.getsize(full_path)
-    mime_type = file.mimetype or None
-
-    # Store relative path from upload_root
-    stored_name_rel = os.path.relpath(full_path, upload_root)
-
-    # Insert DB row
     cur.execute(
         """
-        INSERT INTO project_files
-            (user_id, project_id, conversation_id, filename, stored_name, mime_type, size_bytes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        SELECT
+            pf.*,
+            ftc.text AS cached_text,
+            ftc.meta_json AS cached_meta_json,
+            ftc.parser AS cached_parser
+        FROM project_files pf
+        JOIN projects p ON pf.project_id = p.id
+        LEFT JOIN file_text_cache ftc ON ftc.file_id = pf.id
+        WHERE pf.project_id = ? AND p.user_id = ?
+        ORDER BY pf.id DESC
         """,
-        (
-            user_id,
-            project_id,
-            conversation_id,
-            original_name,
-            stored_name_rel,
-            mime_type,
-            size_bytes,
-        ),
+        (project_id, user_id),
     )
-    conn.commit()
-    file_id = cur.lastrowid
+    rows = cur.fetchall()
 
+    files = []
+
+    # Same placeholder logic used by semantic search / knowledge graph
+    placeholder_prefixes = (
+        "This file is not a plain-text type.",
+        "This file is a PDF, but the PDF parser",
+        "This PDF appears to have no extractable text",
+        "Error extracting text from PDF:",
+        "Error reading file:",
+    )
+
+    colnames = [d[0] for d in cur.description]
+    for row in rows:
+        info = dict(zip(colnames, row))
+
+        cached_text = (info.get("cached_text") or "").strip()
+        meta_json = info.get("cached_meta_json")
+        parser = info.get("cached_parser") or None
+
+        has_text = False
+        warnings: list[str] = []
+
+        if meta_json:
+            try:
+                meta = json.loads(meta_json)
+                w = meta.get("warnings") or []
+                if isinstance(w, str):
+                    warnings = [w]
+                elif isinstance(w, list):
+                    warnings = [str(x) for x in w]
+            except Exception:
+                warnings = []
+
+        if cached_text:
+            is_placeholder = cached_text.startswith(placeholder_prefixes)
+            has_text = not is_placeholder
+
+        files.append(
+            {
+                "id": info["id"],
+                "project_id": info["project_id"],
+                "filename": info["filename"],
+                "stored_name": info["stored_name"],
+                "mime_type": info.get("mime_type") or "",
+                # may be None if not set; UI already tolerates that
+                "size_bytes": info.get("size_bytes"),
+                # new fields for UI badges
+                "has_text": has_text,
+                "parser": parser,
+                "warnings": warnings,
+            }
+        )
+
+    conn.close()
+    return jsonify({"files": files})
+
+
+@files_bp.get("/files/<int:file_id>/download")
+def download_file(file_id: int):
+    """
+    Download the raw file.
+    """
+    user_id, err = _ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    conn.row_factory = None
+    cur = conn.cursor()
     cur.execute(
         """
-        SELECT id, user_id, project_id, conversation_id, filename,
-               stored_name, mime_type, size_bytes, created_at
-        FROM project_files
-        WHERE id = ?
+        SELECT pf.*, p.user_id
+        FROM project_files pf
+        JOIN projects p ON pf.project_id = p.id
+        WHERE pf.id = ?
         """,
         (file_id,),
     )
     row = cur.fetchone()
     conn.close()
 
-    data = dict(row)
-    return jsonify({"file": data})
-
-
-@files_bp.get("/projects/<int:project_id>/files")
-def list_project_files(project_id: int):
-    """Return all files attached to a specific project for the current user."""
-    user_id, err = _ensure_user()
-    if err:
-        return err
-
-    _ensure_project_files_table()
-
-    conn = get_db()
-    cur = conn.cursor()
-
-    # Make sure project belongs to user
-    cur.execute(
-        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
-        (project_id, user_id),
-    )
-    if not cur.fetchone():
-        conn.close()
-        return jsonify({"error": "not_found"}), 404
-
-    cur.execute(
-        """
-        SELECT id, user_id, project_id, conversation_id,
-               filename, stored_name, mime_type, size_bytes, created_at
-        FROM project_files
-        WHERE user_id = ? AND project_id = ?
-        ORDER BY created_at DESC, id DESC
-        """,
-        (user_id, project_id),
-    )
-    rows = cur.fetchall()
-    conn.close()
-
-    files = [dict(r) for r in rows]
-    return jsonify({"project_id": project_id, "files": files})
-
-
-@files_bp.get("/files/<int:file_id>")
-def download_file(file_id: int):
-    """
-    Stream a file for download / preview.
-
-    The file must belong to the current user.
-    """
-    user_id, err = _ensure_user()
-    if err:
-        return err
-
-    row = _get_file_record_for_user(file_id, user_id)
     if not row:
         return jsonify({"error": "not_found"}), 404
 
-    info = dict(row)
+    info = dict(zip([d[0] for d in cur.description], row))
+    if info["user_id"] != user_id:
+        return jsonify({"error": "forbidden"}), 403
+
     upload_root = _get_upload_root()
     stored_name_rel = info["stored_name"]
-    filename = info["filename"]
-    mime_type = info.get("mime_type")
-
     full_path = os.path.join(upload_root, stored_name_rel)
+
     if not os.path.isfile(full_path):
         return jsonify({"error": "file_missing"}), 404
 
     directory = os.path.dirname(full_path)
-    stored_basename = os.path.basename(full_path)
-
-    # Use send_from_directory to avoid exposing full path
-    return send_from_directory(
-        directory,
-        stored_basename,
-        mimetype=mime_type,
-        as_attachment=False,  # inline preview if browser supports it
-        download_name=filename,
-    )
+    filename = os.path.basename(full_path)
+    return send_from_directory(directory, filename, as_attachment=False)
 
 
-@files_bp.delete("/files/<int:file_id>")
-def delete_file(file_id: int):
+# ---------------------------------------------------------------------------
+# Centralized text extraction + caching
+# ---------------------------------------------------------------------------
+
+
+def get_or_extract_file_text_for_row(file_row):
     """
-    Delete a file record and remove the underlying file from disk.
+    Centralized helper to obtain (and cache) extracted text for a project_files row.
+
+    Accepts a sqlite3.Row or dict with at least: id, stored_name, mime_type.
+    Returns (text, meta_dict, parser_name).
+
+    Phase 2.6: we also attach a lightweight "structure" object into meta_json:
+      meta["structure"] = { ... }
     """
-    user_id, err = _ensure_user()
-    if err:
-        return err
-
-    row = _get_file_record_for_user(file_id, user_id)
-    if not row:
-        return jsonify({"error": "not_found"}), 404
-
-    info = dict(row)
-    upload_root = _get_upload_root()
-    stored_name_rel = info["stored_name"]
-    full_path = os.path.join(upload_root, stored_name_rel)
-
-    # Remove file from disk if it exists
-    if os.path.isfile(full_path):
-        try:
-            os.remove(full_path)
-        except OSError:
-            # Don't fail the request just because the file is missing/locked
-            pass
-
-    # Delete DB row
     conn = get_db()
     cur = conn.cursor()
-    cur.execute(
-        "DELETE FROM project_files WHERE id = ? AND user_id = ?",
-        (file_id, user_id),
-    )
-    conn.commit()
-    conn.close()
 
-    return jsonify({"ok": True, "id": file_id})
+    file_id = file_row["id"]
 
-
-def _extract_pdf_text(full_path: str) -> str:
-    """Best-effort text extraction for PDFs using PyPDF2 if available."""
-    if PdfReader is None:
-        return (
-            "This file is a PDF, but the PDF parser (PyPDF2) is not installed "
-            "on the server yet. Install it with `pip install PyPDF2` to enable "
-            "text extraction, summarization, and QA for PDFs."
+    # Try cache first
+    try:
+        cur.execute(
+            "SELECT text, meta_json, parser FROM file_text_cache WHERE file_id = ?",
+            (file_id,),
         )
+        row = cur.fetchone()
+    except Exception:
+        row = None
+
+    if row and row[0] is not None:
+        cached_text = row[0] or ""
+        meta_json = row[1]
+        parser = row[2] or None
+        meta: Optional[Dict[str, Any]] = None
+        if meta_json:
+            try:
+                meta = json.loads(meta_json)
+            except Exception:
+                meta = None
+
+        # Phase 2.6 backfill: if we have meta but no structure, compute once
+        try:
+            if isinstance(meta, dict) and "structure" not in meta:
+                upload_root = _get_upload_root()
+                stored_name_rel = file_row["stored_name"]
+                try:
+                    mime_type = file_row["mime_type"] or ""
+                except KeyError:
+                    mime_type = ""
+                full_path = os.path.join(upload_root, stored_name_rel)
+
+                structure = extract_structure_for_mime(mime_type or "", full_path)
+                if structure is not None:
+                    meta["structure"] = structure
+                    cur.execute(
+                        "UPDATE file_text_cache SET meta_json = ? WHERE file_id = ?",
+                        (json.dumps(meta), file_id),
+                    )
+                    conn.commit()
+        except Exception:
+            # Structure backfill failures must not break basic flows
+            pass
+
+        return cached_text, meta, parser
+
+    # Cache miss: extract from disk
+    upload_root = _get_upload_root()
+    stored_name_rel = file_row["stored_name"]
+    try:
+        mime_type = file_row["mime_type"] or ""
+    except KeyError:
+        mime_type = ""
+
+    full_path = os.path.join(upload_root, stored_name_rel)
+    if not os.path.isfile(full_path):
+        return "", None, None
+
+    result = extract_text_from_file(
+        full_path, mime_type or "", os.path.basename(full_path)
+    )
+    text = (result.get("text") or "").strip()
+    meta: Optional[Dict[str, Any]] = result.get("meta") or {}
+    parser = result.get("parser") or None
+
+    # Phase 2.6: attach structure on first parse
+    try:
+        structure = extract_structure_for_mime(mime_type or "", full_path)
+    except Exception:
+        structure = None
+
+    if structure is not None:
+        if not isinstance(meta, dict):
+            meta = {}
+        meta["structure"] = structure
+
+    meta_json = None
+    if meta:
+        try:
+            meta_json = json.dumps(meta)
+        except TypeError:
+            meta_json = None
 
     try:
-        with open(full_path, "rb") as f:
-            reader = PdfReader(f)
-            chunks = []
-            for page in reader.pages:
-                try:
-                    t = page.extract_text() or ""
-                except Exception:
-                    t = ""
-                chunks.append(t)
-        text = "\n".join(chunks).strip()
-        if not text:
-            return (
-                "This PDF appears to have no extractable text (it may be a scan). "
-                "You can still open it directly from the file list."
-            )
-        return text
-    except Exception as e:
-        return f"Error extracting text from PDF: {e}"
+        cur.execute(
+            "INSERT OR REPLACE INTO file_text_cache (file_id, text, meta_json, parser) VALUES (?, ?, ?, ?)",
+            (file_id, text, meta_json, parser),
+        )
+        conn.commit()
+    except Exception:
+        # Failing to cache should not break the main flow
+        pass
+
+    return text, meta, parser
 
 
 def _read_file_text(full_path: str, mime_type: str | None):
     """
     Best-effort text extraction for LLM/search flows.
 
-    - PDFs: try PyPDF2 (if available)
-    - For text/* and common code/markdown extensions, read as UTF-8 (with errors ignored).
-    - For everything else, return a helpful placeholder.
+    This now delegates to services.file_parsing.extract_text_from_file so
+    that all backends (plain text, PDF, Word, Excel, HTML, etc.) share one
+    implementation.
+
+    For backward compatibility, we still return a plain text string here
+    and apply a conservative length cap. Placeholder messages for
+    unsupported types and PDF errors are preserved inside the parsing
+    service so that other modules can continue to detect them.
     """
-    mime_type = (mime_type or "").lower()
-    lower_path = full_path.lower()
+    # Delegate to the centralized parsing service
+    result = extract_text_from_file(
+        full_path, mime_type or "", os.path.basename(full_path)
+    )
+    text = (result.get("text") or "").strip()
 
-    # PDFs
-    if mime_type == "application/pdf" or lower_path.endswith(".pdf"):
-        text = _extract_pdf_text(full_path)
-    else:
-        text_like = False
-        if mime_type.startswith("text/"):
-            text_like = True
-        elif any(
-            lower_path.endswith(ext)
-            for ext in (
-                ".txt",
-                ".md",
-                ".markdown",
-                ".py",
-                ".js",
-                ".ts",
-                ".jsx",
-                ".tsx",
-                ".json",
-                ".html",
-                ".css",
-                ".csv",
-                ".yml",
-                ".yaml",
-            )
-        ):
-            text_like = True
-
-        if not text_like:
-            return (
-                "This file is not a plain-text type. "
-                "You can still download and open it, but automated summarization "
-                "and search will require a richer extractor (PDF/Word/etc.)."
-            )
-
-        try:
-            with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
-                text = f.read()
-        except OSError:
-            return "Error reading file contents."
-
-    # To keep payloads safe, trim very long content
+    # Conservative cap to keep responses / logs manageable.
     max_chars = 16000
     if len(text) > max_chars:
         text = text[:max_chars] + "\n\n[... truncated for size ...]\n"
 
     return text
+
+
+def _build_structure_hint(meta: Optional[Dict[str, Any]]) -> str:
+    """
+    Turn meta["structure"] (if present) into a short natural-language hint
+    for the LLM so summaries can be page / sheet / heading aware.
+    """
+    if not meta or not isinstance(meta, dict):
+        return ""
+
+    structure = meta.get("structure")
+    if not isinstance(structure, dict):
+        return ""
+
+    t = structure.get("type")
+
+    # PDF: mention pages by number and a few page headings
+    if t == "pdf":
+        pages = structure.get("pages") or []
+        if not isinstance(pages, list) or not pages:
+            return ""
+        page_indices: List[str] = []
+        heading_bits: List[str] = []
+        for p in pages:
+            if not isinstance(p, dict):
+                continue
+            idx = p.get("index")
+            if idx is not None:
+                page_indices.append(str(idx))
+            heading = (p.get("heading") or "").strip()
+            if heading:
+                heading_bits.append(f"page {idx}: {heading}")
+        if not page_indices:
+            return ""
+        joined_pages = ", ".join(page_indices)
+        heading_hint = ""
+        if heading_bits:
+            heading_hint = " Example top headings: " + "; ".join(heading_bits[:5])
+        return (
+            "\n\nThe file is a PDF with pages "
+            f"{joined_pages}. When summarizing, mention important content by page number."
+            + heading_hint
+        )
+
+    # Excel: mention sheet names + headers
+    if t == "xlsx":
+        sheets = structure.get("sheets") or []
+        if not isinstance(sheets, list) or not sheets:
+            return ""
+        names = [s.get("name", "?") for s in sheets if isinstance(s, dict)]
+        names = [n for n in names if n]
+        if not names:
+            return ""
+        names_str = ", ".join(names)
+
+        # Optionally include a bit of header info
+        header_bits: List[str] = []
+        for s in sheets:
+            if not isinstance(s, dict):
+                continue
+            sheet_name = s.get("name", "?")
+            headers = s.get("headers") or []
+            if headers:
+                header_bits.append(f"{sheet_name}: {', '.join(headers[:8])}")
+        header_hint = ""
+        if header_bits:
+            header_hint = (
+                " Key sheets and their headers include: "
+                + " | ".join(header_bits[:4])
+            )
+
+        return (
+            "\n\nThe file is an Excel workbook with sheets: "
+            f"{names_str}. Summarize per sheet and call out key headers."
+            + header_hint
+        )
+
+    # DOCX: mention top headings
+    if t == "docx":
+        heads = structure.get("headings") or []
+        if not isinstance(heads, list) or not heads:
+            return ""
+        texts = [
+            h.get("text", "")
+            for h in heads
+            if isinstance(h, dict) and h.get("text")
+        ]
+        texts = [t for t in texts if t]
+        if not texts:
+            return ""
+        top = texts[:5]
+        joined = ", ".join(top)
+        return (
+            "\n\nThe file is a Word document with major headings: "
+            f"{joined}. Use these headings to structure the summary."
+        )
+
+    return ""
 
 
 @files_bp.get("/files/<int:file_id>/content")
@@ -507,22 +611,52 @@ def get_file_content(file_id: int):
                 "conversation_id": info["conversation_id"],
                 "filename": info["filename"],
                 "mime_type": mime_type,
-                "size_bytes": info["size_bytes"],
-                "created_at": info["created_at"],
             },
             "text": text,
         }
     )
+    
+@files_bp.get("/files/<int:file_id>/structure")
+def get_file_structure(file_id: int):
+    """
+    Debug endpoint: return the parsed structure for a file
+    (pages for PDF, sheet headers for XLSX, headings for DOCX).
+
+    This does NOT return file text — only meta["structure"].
+    """
+    user_id, err = _ensure_user()
+    if err:
+        return err
+
+    row = _get_file_record_for_user(file_id, user_id)
+    if not row:
+        return jsonify({"error": "not_found"}), 404
+
+    # Reuse centralized cached extractor
+    text, meta, _parser = get_or_extract_file_text_for_row(row)
+
+    structure = None
+    if isinstance(meta, dict):
+        structure = meta.get("structure")
+
+    # Convert sqlite3.Row to a plain dict so .get() works
+    info = dict(row)
+
+    return jsonify(
+        {
+            "file_id": info["id"],
+            "filename": info["filename"],
+            "mime_type": info.get("mime_type"),
+            "structure": structure,
+        }
+    )
 
 
-def _get_openai_client():
-    """Return an OpenAI client or None if not configured."""
-    if OpenAI is None:
-        return None
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-    return OpenAI(api_key=api_key)
+
+
+# ---------------------------------------------------------------------------
+# Summarize / QA within a file
+# ---------------------------------------------------------------------------
 
 
 @files_bp.post("/files/<int:file_id>/summarize")
@@ -541,7 +675,7 @@ def summarize_or_qa_file(file_id: int):
         "file": { ... basic metadata ... },
         "task": "summary" | "qa",
         "query": "...",
-        "result": "<LLM text>"
+        "result": "LLM answer here",
       }
     """
     user_id, err = _ensure_user()
@@ -552,7 +686,8 @@ def summarize_or_qa_file(file_id: int):
     if not row:
         return jsonify({"error": "not_found"}), 404
 
-    info = dict(row)
+    # Convert sqlite3.Row to a real dict safely
+    info = {key: row[key] for key in row.keys()}
     upload_root = _get_upload_root()
     stored_name_rel = info["stored_name"]
     mime_type = info.get("mime_type") or ""
@@ -568,7 +703,9 @@ def summarize_or_qa_file(file_id: int):
 
     query = (body.get("query") or "").strip()
 
-    text = _read_file_text(full_path, mime_type)
+    # Use cached extraction if available (now includes structure in meta)
+    text, meta, _parser = get_or_extract_file_text_for_row(row)
+    structure_hint = _build_structure_hint(meta)
 
     client = _get_openai_client()
     if client is None:
@@ -581,80 +718,66 @@ def summarize_or_qa_file(file_id: int):
                         "id": info["id"],
                         "filename": info["filename"],
                         "mime_type": mime_type,
-                        "size_bytes": info["size_bytes"],
-                        "created_at": info["created_at"],
                     },
-                    "task": task,
+                    "task": "summary",
                     "query": query,
                     "result": (
-                        "OpenAI is not configured on this server, so here is a "
-                        "truncated preview of the file instead:\n\n"
+                        "OpenAI is not configured on this server, so this is a "
+                        "truncated preview of the file instead of a real LLM summary:\n\n"
                         + pseudo
                     ),
                 }
             )
         else:
-            return jsonify(
-                {
-                    "file": {
-                        "id": info["id"],
-                        "filename": info["filename"],
-                        "mime_type": mime_type,
-                        "size_bytes": info["size_bytes"],
-                        "created_at": info["created_at"],
-                    },
-                    "task": task,
-                    "query": query,
-                    "result": (
-                        "OpenAI is not configured on this server, so I cannot run a "
-                        "semantic search over this file yet. You can still open it "
-                        "directly from the file list."
-                    ),
-                }
+            return (
+                jsonify(
+                    {
+                        "error": "llm_not_configured",
+                        "message": "OpenAI is not configured on this server.",
+                    }
+                ),
+                501,
             )
 
-    model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
-
+    # Build the prompt based on task, with structure-aware hint
     if task == "summary":
         system_prompt = (
-            "You are Tamor, an assistant helping the user understand a single file.\n"
-            "You are given the file's text content. Provide a clear, concise summary "
-            "that captures its structure and key points. Assume this is part of a "
-            "larger engineering / study / project workspace."
+            "You are an assistant that summarizes files for the user. "
+            "Provide a concise but detailed summary of the file content. "
+            "If the file is multi-page (PDF) or multi-sheet (Excel), make "
+            "clear references like 'On page 3' or 'In sheet Parts'."
         )
         user_prompt = (
-            "Summarize the following file for the user. "
-            "Highlight any sections that look like configuration, parameters, key decisions, "
-            "or action items.\n\n"
-            "--- FILE CONTENT START ---\n"
-            f"{text}\n"
-            "--- FILE CONTENT END ---"
+            "Summarize the following file for the user."
+            + structure_hint
+            + "\n\nHere is the file content:\n\n"
+            + text
         )
-    else:  # task == "qa"
+    else:  # qa
+        if not query:
+            return jsonify({"error": "missing_query"}), 400
         system_prompt = (
-            "You are Tamor, an assistant answering questions about a single file.\n"
-            "You are given the file's text content as context. Answer ONLY from that text. "
-            "If the answer isn't clearly present, say that you can't find it."
+            "You are an assistant that answers questions about a file. "
+            "If the answer is not in the file, say you don't know. "
+            "If the file is multi-page or multi-sheet, cite the relevant "
+            "page or sheet in your answer when possible."
         )
         user_prompt = (
-            "Here is the file content, followed by the user's question.\n\n"
-            f"USER QUESTION: {query}\n\n"
-            "--- FILE CONTENT START ---\n"
-            f"{text}\n"
-            "--- FILE CONTENT END ---"
+            f"The user has this question about the file: {query}"
+            + structure_hint
+            + "\n\nAnswer using only the information in the file below:\n\n"
+            + text
         )
 
-    try:
-        completion = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        )
-        result_text = completion.choices[0].message.content.strip()
-    except Exception as e:
-        result_text = f"(Error calling OpenAI: {e})"
+    completion = client.chat.completions.create(
+        model=current_app.config.get("OPENAI_MODEL", "gpt-4o-mini"),
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    )
+
+    answer = completion.choices[0].message.content
 
     return jsonify(
         {
@@ -662,41 +785,25 @@ def summarize_or_qa_file(file_id: int):
                 "id": info["id"],
                 "filename": info["filename"],
                 "mime_type": mime_type,
-                "size_bytes": info["size_bytes"],
-                "created_at": info["created_at"],
             },
             "task": task,
             "query": query,
-            "result": result_text,
+            "result": answer,
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Project-wide file search
+# ---------------------------------------------------------------------------
 
 
 @files_bp.post("/projects/<int:project_id>/files/search")
 def search_project_files(project_id: int):
     """
-    Search all text-like files in a project for a simple substring query.
+    Simple substring search across all text-like files in a project.
 
-    Request JSON:
-      { "query": "louver" }
-
-    Response JSON:
-      {
-        "project_id": 1,
-        "query": "louver",
-        "hits": [
-          {
-            "file_id": 12,
-            "filename": "PergolaLightingNotes.txt",
-            "snippet": "... louver spacing is set to 150mm ...",
-            "matches": 3,
-            "mime_type": "text/plain",
-            "size_bytes": 12345,
-            "created_at": "2025-12-03 14:21:00"
-          },
-          ...
-        ]
-      }
+    This is separate from the semantic search endpoint, which uses embeddings.
     """
     user_id, err = _ensure_user()
     if err:
@@ -705,42 +812,28 @@ def search_project_files(project_id: int):
     body = request.json or {}
     query = (body.get("query") or "").strip()
     if not query:
-        return jsonify({"error": "query_required"}), 400
-
-    _ensure_project_files_table()
+        return jsonify({"error": "missing_query"}), 400
 
     conn = get_db()
+    conn.row_factory = None
     cur = conn.cursor()
-
-    # Verify project ownership
-    cur.execute(
-        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
-        (project_id, user_id),
-    )
-    proj = cur.fetchone()
-    if not proj:
-        conn.close()
-        return jsonify({"error": "not_found"}), 404
-
     cur.execute(
         """
-        SELECT id, user_id, project_id, conversation_id,
-               filename, stored_name, mime_type, size_bytes, created_at
-        FROM project_files
-        WHERE user_id = ? AND project_id = ?
-        ORDER BY created_at DESC, id DESC
+        SELECT pf.*
+        FROM project_files pf
+        JOIN projects p ON pf.project_id = p.id
+        WHERE pf.project_id = ? AND p.user_id = ?
+        ORDER BY pf.id DESC
         """,
-        (user_id, project_id),
+        (project_id, user_id),
     )
     rows = cur.fetchall()
-    conn.close()
 
     upload_root = _get_upload_root()
-    q_lower = query.lower()
-    hits = []
+    matches = []
 
-    for r in rows:
-        info = dict(r)
+    for row in rows:
+        info = dict(zip([d[0] for d in cur.description], row))
         stored_name_rel = info["stored_name"]
         mime_type = info.get("mime_type") or ""
         full_path = os.path.join(upload_root, stored_name_rel)
@@ -759,185 +852,44 @@ def search_project_files(project_id: int):
             continue
         if text.startswith("Error extracting text from PDF:"):
             continue
-        if text.startswith("Error reading file contents."):
-            continue
 
-        text_lower = text.lower()
-        idx = text_lower.find(q_lower)
-        if idx == -1:
-            continue
+        idx = text.lower().find(query.lower())
+        if idx != -1:
+            snippet_start = max(0, idx - 40)
+            snippet_end = min(len(text), idx + len(query) + 40)
+            snippet = text[snippet_start:snippet_end]
+            matches.append(
+                {
+                    "file_id": info["id"],
+                    "filename": info["filename"],
+                    "mime_type": mime_type,
+                    "snippet": snippet,
+                }
+            )
 
-        # Count matches (simple substring counting)
-        match_count = text_lower.count(q_lower)
-
-        # Build a snippet around the first match
-        window = 80
-        start = max(0, idx - window)
-        end = min(len(text), idx + len(query) + window)
-        snippet = text[start:end].replace("\n", " ")
-
-        if start > 0:
-            snippet = "... " + snippet
-        if end < len(text):
-            snippet = snippet + " ..."
-
-        hits.append(
-            {
-                "file_id": info["id"],
-                "filename": info["filename"],
-                "snippet": snippet,
-                "matches": match_count,
-                "mime_type": mime_type,
-                "size_bytes": info["size_bytes"],
-                "created_at": info["created_at"],
-            }
-        )
-
-    return jsonify(
-        {
-            "project_id": project_id,
-            "query": query,
-            "hits": hits,
-        }
-    )
+    return jsonify({"query": query, "matches": matches})
 
 
-@files_bp.post("/messages/<int:message_id>/attach-file")
-def attach_file_to_message(message_id: int):
+# ---------------------------------------------------------------------------
+# Helper to verify message ownership (for potential future flows)
+# ---------------------------------------------------------------------------
+
+
+def _verify_message_belongs_to_user(message_id: int, user_id: int) -> bool:
     """
-    Attach a file to a specific message for the current user.
-
-    JSON body:
-      { "file_id": 123 }
-
-    This is the bridge that lets the UI show clickable file badges under
-    messages (summaries, QA responses, etc.).
+    Verify that a message belongs to the current user via its conversation.
     """
-    user_id, err = _ensure_user()
-    if err:
-        return err
-
-    _ensure_message_file_refs_table()
-
-    body = request.json or {}
-    raw_file_id = body.get("file_id")
-
-    try:
-        file_id = int(raw_file_id)
-    except (TypeError, ValueError):
-        return jsonify({"error": "invalid_file_id"}), 400
-
-    # Ensure the message belongs to this user
-    if not _message_belongs_to_user(message_id, user_id):
-        return jsonify({"error": "message_not_found"}), 404
-
-    # Ensure the file belongs to this user
-    row = _get_file_record_for_user(file_id, user_id)
-    if not row:
-        return jsonify({"error": "file_not_found"}), 404
-
-    file_info = dict(row)
-
-    conn = get_db()
-    cur = conn.cursor()
-
-    # Avoid duplicate links
-    cur.execute(
-        """
-        SELECT id
-        FROM message_file_refs
-        WHERE message_id = ? AND file_id = ?
-        """,
-        (message_id, file_id),
-    )
-    existing = cur.fetchone()
-
-    if existing:
-        link_id = existing["id"]
-    else:
-        cur.execute(
-            """
-            INSERT INTO message_file_refs (message_id, file_id)
-            VALUES (?, ?)
-            """,
-            (message_id, file_id),
-        )
-        conn.commit()
-        link_id = cur.lastrowid
-
-    conn.close()
-
-    return jsonify(
-        {
-            "ok": True,
-            "link_id": link_id,
-            "message_id": message_id,
-            "file": file_info,
-        }
-    )
-
-
-@files_bp.get("/messages/<int:message_id>/file-refs")
-def list_files_for_message(message_id: int):
-    """
-    List all files attached to a given message for the current user.
-
-    Response:
-      {
-        "message_id": 42,
-        "files": [
-          {
-            "link_id": 7,
-            "file_id": 12,
-            "filename": "motor-config.json",
-            "mime_type": "application/json",
-            "size_bytes": 1234,
-            "created_at": "2025-12-03 14:21:00",
-            "project_id": 5,
-            "conversation_id": 99
-          },
-          ...
-        ]
-      }
-    """
-    user_id, err = _ensure_user()
-    if err:
-        return err
-
-    _ensure_message_file_refs_table()
-
-    # Ensure the message belongs to this user
-    if not _message_belongs_to_user(message_id, user_id):
-        return jsonify({"error": "message_not_found"}), 404
-
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT
-            mfr.id AS link_id,
-            pf.id AS file_id,
-            pf.filename,
-            pf.mime_type,
-            pf.size_bytes,
-            pf.created_at,
-            pf.project_id,
-            pf.conversation_id
-        FROM message_file_refs mfr
-        JOIN project_files pf ON mfr.file_id = pf.id
-        WHERE mfr.message_id = ? AND pf.user_id = ?
-        ORDER BY pf.created_at ASC, pf.id ASC
+        SELECT m.id
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE m.id = ? AND c.user_id = ?
         """,
         (message_id, user_id),
     )
-    rows = cur.fetchall()
-    conn.close()
-
-    files = [dict(r) for r in rows]
-    return jsonify(
-        {
-            "message_id": message_id,
-            "files": files,
-        }
-    )
+    row = cur.fetchone()
+    return row is not None
 

@@ -417,14 +417,21 @@ export default function ChatPanel({
     try {
       const formData = new FormData();
       formData.append("file", file);
+      // project_id / conversation_id in the form are optional now; the route
+      // uses the project_id from the URL.
       formData.append("project_id", String(currentProjectId));
       formData.append("conversation_id", String(activeConversationId));
 
-      const uploadResponse = await fetch(`${API_BASE}/files/upload`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
+      // 🔴 OLD (now 404): `${API_BASE}/files/upload`
+      // ✅ NEW: project-aware upload route
+      const uploadResponse = await fetch(
+        `${API_BASE}/projects/${currentProjectId}/files`,
+        {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        }
+      );
 
       if (!uploadResponse.ok) {
         const errData = await uploadResponse.json().catch(() => ({}));

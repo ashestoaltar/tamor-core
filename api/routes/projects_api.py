@@ -359,8 +359,6 @@ def project_knowledge_extract(project_id: int):
     Response JSON (example):
       {
         "project_id": 1,
-        "files_scanned": 5,
-        "files_with_symbols": 3,
         "symbols_written": 42
       }
     """
@@ -381,16 +379,25 @@ def project_knowledge_extract(project_id: int):
         return jsonify({"error": "not_found"}), 404
 
     try:
-        stats = extract_symbols_for_project(project_id=project_id, user_id=user_id)
+        # returns an int (total_symbols), not a dict
+        symbols_written = extract_symbols_for_project(
+            project_id=project_id,
+            user_id=user_id,
+        )
     except Exception as e:
         print("Error during knowledge extraction:", e)
-        return jsonify({"error": "knowledge_extract_failed", "detail": str(e)}), 500
+        return jsonify(
+            {"error": "knowledge_extract_failed", "detail": str(e)}
+        ), 500
 
-    # Ensure project_id is always present in the payload we return
-    if "project_id" not in stats:
-        stats["project_id"] = project_id
+    # Build a simple, explicit response
+    return jsonify(
+        {
+            "project_id": project_id,
+            "symbols_written": symbols_written,
+        }
+    )
 
-    return jsonify(stats)
 
 
 @projects_bp.post("/projects/<int:project_id>/knowledge/search")
@@ -466,7 +473,7 @@ def project_knowledge_search(project_id: int):
         {
             "project_id": project_id,
             "query": result.get("query", symbol),
-            "hits": result.get("results", []),
+            "hits": result.get("hits", []),
         }
     )
 

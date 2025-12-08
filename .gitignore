@@ -42,3 +42,24 @@ archive/ui/node_modules/
 # --- Zips / archives ---
 *.zip
 tamor
+# --- Additional SQLite DBs ---
+api/*.db
+api/*.db.*
+*.db
+*.db.*
+
+# Wrong/backup DB variants
+api/**/WRONG_*
+api/**/empty_*
+api/**/EMPTY_*
+
+# --- Backup / copy files from manual edits ---
+* (copy).py
+* (copy).jsx
+* (copy).js
+* (copy).css
+* (copy).html
+
+# --- Python cache (extra safety) ---
+*.pyc
+*.pyo
