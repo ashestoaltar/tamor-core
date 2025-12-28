@@ -7,6 +7,7 @@
   height: 100%;
   background: var(--bg, #1b1b1b);
   color: var(--text, #e6e6e6);
+  position: relative;
 }
 
 /* ================================
@@ -32,21 +33,46 @@
 }
 
 /* ================================
-   Chat Message Bubbles
+   Chat Message Rows
 ================================ */
 .chat-message {
   display: flex;
+  flex-direction: column; /* stack bubble + pill + badges */
   margin-bottom: 1rem;
   max-width: 90%;
 }
 
 .chat-message.user {
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
+.chat-message.tamor {
+  align-items: flex-start;
+}
+
+/* ================================
+   Chat Bubbles
+================================ */
+.chat-bubble {
+  padding: 0.75rem 1rem;
+  max-width: 820px;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  box-sizing: border-box;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.92);
+  border-radius: 14px;
+}
+
+/* Role styling based on wrapper */
 .chat-message.user .chat-bubble {
-  background: #3b82f6;
-  color: white;
+  background: rgba(60, 130, 255, 0.60);
+  border-color: rgba(60, 130, 255, 0.85);
   border-radius: 12px 12px 0 12px;
 }
 
@@ -57,22 +83,91 @@
   border-radius: 12px 12px 12px 0;
 }
 
-.chat-bubble {
-  padding: 0.75rem 1rem;
-  max-width: 650px;
-  line-height: 1.5;
-  font-size: 0.95rem;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  box-sizing: border-box;
-}
-
 /* Markdown content inside bubble */
 .chat-bubble code {
   background: #111;
   padding: 2px 4px;
   border-radius: 4px;
+}
+
+/* Optional reminder emphasis (if you later add reminder classes) */
+.chat-bubble.reminder-bubble {
+  border-left: 3px solid rgba(255, 255, 255, 0.18);
+  padding-left: 12px;
+}
+
+/* ================================
+   Task Pill (from TaskPill.jsx)
+================================ */
+.task-pill {
+  margin-top: 10px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.task-pill--compact {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.task-pill-header {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.task-pill-type {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-size: 0.78em;
+  opacity: 0.95;
+}
+
+.task-pill-meta,
+.task-pill-status,
+.task-pill-confidence {
+  opacity: 0.8;
+  font-size: 0.85em;
+}
+
+.task-pill-body {
+  margin-top: 8px;
+}
+
+.task-pill-line {
+  margin-top: 6px;
+  opacity: 0.95;
+}
+
+.task-pill-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.task-pill-actions button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+}
+
+.task-pill-actions button:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.task-pill-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* ================================
@@ -84,6 +179,12 @@
   gap: 6px;
   margin-top: 6px;
   margin-left: 0.5rem;
+}
+
+.chat-file-badge-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .chat-file-badge {
@@ -104,6 +205,10 @@
   border-color: #555;
 }
 
+.chat-file-badge-loading {
+  opacity: 0.65;
+}
+
 .chat-file-badge-icon {
   margin-right: 5px;
 }
@@ -113,6 +218,34 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Inline preview */
+.chat-file-preview {
+  margin-top: 4px;
+  max-width: 520px;
+}
+
+.chat-file-preview-header {
+  font-size: 0.75rem;
+  color: #aaaaaa;
+  margin-bottom: 2px;
+}
+
+.chat-file-preview-error {
+  color: #ff6b6b;
+}
+
+.chat-file-preview pre {
+  background: #111;
+  border-radius: 4px;
+  border: 1px solid #333;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.35;
 }
 
 /* ================================
@@ -148,6 +281,7 @@
 .input-actions {
   display: flex;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .input-actions button {
@@ -183,43 +317,11 @@
   color: #ff6b6b;
 }
 
-/* ================================
-   Inline File Previews in Chat
-================================ */
-.chat-file-badge-row {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.chat-file-badge-loading {
-  opacity: 0.6;
-}
-
-.chat-file-preview {
-  margin-top: 4px;
-  max-width: 520px;
-}
-
-.chat-file-preview-header {
-  font-size: 0.75rem;
-  color: #aaaaaa;
-  margin-bottom: 2px;
-}
-
-.chat-file-preview-error {
-  color: #ff6b6b;
-}
-
-.chat-file-preview pre {
-  background: #111;
-  border-radius: 4px;
-  border: 1px solid #333;
-  padding: 6px 8px;
-  font-size: 0.8rem;
-  max-height: 200px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  line-height: 1.35;
+/* Optional jump highlight (if used elsewhere) */
+.message-jump-highlight {
+  outline: 2px solid rgba(255, 200, 80, 0.75);
+  box-shadow: 0 0 0 6px rgba(255, 200, 80, 0.12);
+  border-radius: 12px;
+  transition: outline 0.2s ease;
 }
 
