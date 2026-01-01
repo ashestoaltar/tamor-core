@@ -1,0 +1,200 @@
+[
+  {
+    "id": "tt0218967",
+    "type": "movie",
+    "name": "The Family Man",
+    "tmdb_query": "The Family Man 2000"
+  },
+  {
+    "id": "tt0038650",
+    "type": "movie",
+    "name": "It's a Wonderful Life",
+    "tmdb_query": "It's a Wonderful Life 1946"
+  },
+  {
+    "id": "tt0072424",
+    "type": "movie",
+    "name": "The Year Without a Santa Claus",
+    "tmdb_query": "The Year Without a Santa Claus 1974"
+  },
+  {
+    "id": "tt0097958",
+    "type": "movie",
+    "name": "National Lampoon's Christmas Vacation",
+    "tmdb_query": "National Lampoon's Christmas Vacation 1989"
+  },
+  {
+    "id": "tt0095016",
+    "type": "movie",
+    "name": "Die Hard",
+    "tmdb_query": "Die Hard 1988"
+  },
+  {
+    "id": "tt0075988",
+    "type": "movie",
+    "name": "Emmet Otter's Jug-Band Christmas",
+    "tmdb_query": "Emmet Otter's Jug-Band Christmas 1977"
+  },
+  {
+    "id": "tt0104940",
+    "type": "movie",
+    "name": "The Muppet Christmas Carol",
+    "tmdb_query": "The Muppet Christmas Carol 1992"
+  },
+  {
+    "id": "tt0066327",
+    "type": "movie",
+    "name": "Santa Claus Is Coming to Town",
+    "tmdb_query": "Santa Claus Is Coming to Town 1970"
+  },
+  {
+    "id": "tt0319343",
+    "type": "movie",
+    "name": "Elf",
+    "tmdb_query": "Elf 2003"
+  },
+  {
+    "id": "tt0059026",
+    "type": "movie",
+    "name": "A Charlie Brown Christmas",
+    "tmdb_query": "A Charlie Brown Christmas 1965"
+  },
+  {
+    "id": "tt0085334",
+    "type": "movie",
+    "name": "A Christmas Story",
+    "tmdb_query": "A Christmas Story 1983"
+  },
+  {
+    "id": "tt0486583",
+    "type": "movie",
+    "name": "Fred Claus",
+    "tmdb_query": "Fred Claus 2007"
+  },
+  {
+    "id": "tt0369436",
+    "type": "movie",
+    "name": "Four Christmases",
+    "tmdb_query": "Four Christmases 2008"
+  },
+  {
+    "id": "tt0060345",
+    "type": "movie",
+    "name": "How the Grinch Stole Christmas (1966)",
+    "tmdb_query": "How the Grinch Stole Christmas 1966"
+  },
+  {
+    "id": "tt0058536",
+    "type": "movie",
+    "name": "Rudolph the Red-Nosed Reindeer",
+    "tmdb_query": "Rudolph the Red-Nosed Reindeer 1964"
+  },
+  {
+    "id": "tt0096061",
+    "type": "movie",
+    "name": "Scrooged",
+    "tmdb_query": "Scrooged 1988"
+  },
+  {
+    "id": "tt0034862",
+    "name": "Holiday Inn (1942)",
+    "type": "movie",
+    "tmdb_query": "Holiday Inn 1942"
+  },
+  {
+    "id": "tt21359036",
+    "name": "Haul Out the Holly (2022)",
+    "type": "movie",
+    "tmdb_query": "Haul Out the Holly 2022"
+  },
+  {
+    "id": "tt28492358",
+    "name": "Haul Out the Holly: Lit Up (2023)",
+    "type": "movie",
+    "tmdb_query": "Haul Out the Holly: Lit Up 2023"
+  },
+  {
+    "id": "tt0037595",
+    "name": "Christmas in Connecticut 1945 (1945)",
+    "type": "movie",
+    "tmdb_query": "Christmas in Connecticut 1945 1945"
+  },
+  {
+    "id": "tt29381717",
+    "name": "The Santa Summit (2023)",
+    "type": "movie",
+    "tmdb_query": "The Santa Summit 2023"
+  },
+  {
+    "id": "tt29233518",
+    "name": "My Norwegian Holiday (2023)",
+    "type": "movie",
+    "tmdb_query": "My Norwegian Holiday 2023"
+  },
+  {
+    "id": "tt0216621",
+    "name": "A Christmas Carol (1999)",
+    "type": "movie",
+    "tmdb_query": "A Christmas Carol 1999"
+  },
+  {
+    "id": "tt0087056",
+    "name": "A Christmas Carol (1984)",
+    "type": "movie",
+    "tmdb_query": "A Christmas Carol 1984"
+  },
+  {
+    "id": "tt0381969",
+    "name": "A Christmas Carol (1989)",
+    "type": "movie",
+    "tmdb_query": "A Christmas Carol 1989"
+  },
+  {
+    "id": "tt0039628",
+    "name": "Miracle on 34th Street (1947)",
+    "type": "movie",
+    "tmdb_query": "Miracle on 34th Street 1947"
+  },
+  {
+    "id": "tt24822574",
+    "name": "A Biltmore Christmas (2023)",
+    "type": "movie",
+    "tmdb_query": "A Biltmore Christmas 2023"
+  },
+  {
+    "id": "tt0033045",
+    "name": "The Shop Around the Corner (1940)",
+    "type": "movie",
+    "tmdb_query": "The Shop Around the Corner 1940"
+  },
+  {
+    "id": "tt0045102",
+    "name": "Room for One More (1952)",
+    "type": "movie",
+    "tmdb_query": "Room for One More 1952"
+  },
+  {
+    "id": "tt0033874",
+    "name": "The Man Who Came to Dinner (1941)",
+    "type": "movie",
+    "tmdb_query": "The Man Who Came to Dinner 1941"
+  },
+  {
+    "id": "tt37985000",
+    "name": "Christmas at the Catnip Cafe (2025)",
+    "type": "movie",
+    "tmdb_query": "Christmas at the Catnip Cafe 2025"
+  },
+  {
+    "id": "tt0039502",
+    "name": "It Happened on Fifth Avenue (1947)",
+    "type": "movie",
+    "tmdb_query": "It Happened on Fifth Avenue 1947"
+  },
+  {
+    "id": "tt13341414",
+    "name": "A Timeless Christmas (2020)",
+    "type": "movie",
+    "tmdb_query": "A Timeless Christmas 2020"
+  }
+]

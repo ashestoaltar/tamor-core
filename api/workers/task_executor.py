@@ -147,6 +147,8 @@ def _claim_and_execute():
         SELECT *
         FROM detected_tasks
         WHERE status='confirmed'
+          AND json_extract(normalized_json, '$.scheduled_for') IS NOT NULL
+          AND json_extract(normalized_json, '$.scheduled_for') != '' 
           AND json_extract(normalized_json, '$.scheduled_for') <= ?
         ORDER BY id
         LIMIT 10

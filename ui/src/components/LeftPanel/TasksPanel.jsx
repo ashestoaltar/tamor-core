@@ -63,16 +63,18 @@ export default function TasksPanel({ onOpenConversation, onJumpToMessage }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString]);
 
+  // TaskPill (chat) emits this. TasksPanel refreshes.
   useEffect(() => {
     const handler = () => load();
     window.addEventListener("tamor:tasks-updated", handler);
     return () => window.removeEventListener("tamor:tasks-updated", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [queryString]);
 
   const setTaskStatus = async (taskId, next) => {
     setBusy(true);
     setErr("");
+
     try {
       if (next === "dismissed" || next === "confirmed") {
         await apiFetch(`/tasks/${taskId}/status`, { method: "POST", body: { status: next } });
@@ -90,8 +92,8 @@ export default function TasksPanel({ onOpenConversation, onJumpToMessage }) {
         await apiFetch(endpoint, { method: "POST" });
       }
 
+      // ✅ single refresh. No event dispatch here (prevents double-refresh).
       await load();
-      window.dispatchEvent(new Event("tamor:tasks-updated"));
     } catch (e) {
       setErr(e?.message || "Failed to update task status.");
     } finally {
@@ -239,9 +241,7 @@ export default function TasksPanel({ onOpenConversation, onJumpToMessage }) {
 
               {t.conversation_id ? (
                 <div style={{ fontSize: 11, opacity: 0.6, marginTop: 8 }}>
-                  convo #{t.conversation_id}{" "}
-                  {t.message_id ? `• msg #${t.message_id}` : ""}
-                  {" "}
+                  convo #{t.conversation_id} {t.message_id ? `• msg #${t.message_id}` : ""}{" "}
                   <span
                     style={{ textDecoration: "underline", cursor: "pointer", opacity: 0.8 }}
                     onClick={() => onOpenConversation?.(t.conversation_id)}

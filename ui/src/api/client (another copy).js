@@ -99,11 +99,3 @@ export async function getTaskRuns(taskId, limit = 10) {
   return apiFetch(`/tasks/${taskId}/runs?limit=${encodeURIComponent(limit)}`);
 }
 
-// Phase 5.1 (Option B1): Snooze
-export async function snoozeTask(taskId, minutes) {
-  return apiFetch(`/tasks/${taskId}/snooze`, { method: "POST", body: { minutes } });
-}
-
-export async function snoozeTaskUntil(taskId, untilIso) {
-  return apiFetch(`/tasks/${taskId}/snooze`, { method: "POST", body: { until: untilIso } });
-}

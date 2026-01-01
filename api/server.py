@@ -41,6 +41,8 @@ from routes.conversations_api import conversations_bp
 from routes.projects_api import projects_bp
 from routes.search_api import search_bp
 from routes.files_api import files_bp
+from routes.tasks_api import tasks_bp
+
 
 app.register_blueprint(stremio_bp)
 app.register_blueprint(memory_bp)
@@ -50,6 +52,8 @@ app.register_blueprint(conversations_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(search_bp)
 app.register_blueprint(files_bp)
+app.register_blueprint(tasks_bp)
+
 
 # ---------------------------------------------------------
 # Entry point

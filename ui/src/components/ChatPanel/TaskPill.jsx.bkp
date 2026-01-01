@@ -55,14 +55,8 @@ function statusStyle(status) {
   };
 
   if (status === "needs_confirmation") {
-  return {
-    ...base,
-    background: "rgba(255, 170, 0, 0.18)",
-    border: "1px solid rgba(255,170,0,0.45)",
-    fontWeight: 600,
-  };
-}
-
+    return { ...base, background: "rgba(255, 180, 60, 0.12)", border: "1px solid rgba(255,180,60,0.25)" };
+  }
   if (status === "dismissed") {
     return { ...base, background: "rgba(160,160,255,0.10)", border: "1px solid rgba(160,160,255,0.22)" };
   }
@@ -199,21 +193,12 @@ export default function TaskPill({ task, onAppendMessage }) {
     <div
       className="task-pill"
       style={{
-  marginTop: 10,
-  border: "1px solid rgba(255,255,255,0.12)",
-  borderRadius: 14,
-  background: "rgba(255,255,255,0.03)",
-  overflow: "hidden",
-  borderLeft:
-    status === "needs_confirmation"
-      ? "4px solid rgba(255,170,0,0.7)"
-      : status === "confirmed"
-      ? "4px solid rgba(60,180,120,0.6)"
-      : status === "dismissed"
-      ? "4px solid rgba(160,160,255,0.6)"
-      : "4px solid rgba(255,255,255,0.12)",
-}}
-
+        marginTop: 10,
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 14,
+        background: "rgba(255,255,255,0.03)",
+        overflow: "hidden",
+      }}
     >
       <div
         className="task-pill-header"

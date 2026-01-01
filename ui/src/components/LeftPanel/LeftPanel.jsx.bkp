@@ -1,8 +1,8 @@
-// ui/src/components/LeftPanel/LeftPanel.jsx
+// src/components/LeftPanel/LeftPanel.jsx
 import "./LeftPanel.css";
 import { useState } from "react";
 import ProjectsPanel from "./ProjectsPanel";
-import TasksPanel from "./TasksPanel";
+import { apiFetch } from "../../api/client";
 
 export default function LeftPanel({
   refreshToken, // currently unused but kept for future use
@@ -17,9 +17,6 @@ export default function LeftPanel({
   setCurrentProjectId,
 }) {
   const modes = ["Scholar", "Forge", "Path", "Anchor", "Creative", "System"];
-
-  // Conversations | Tasks tab
-  const [activeTab, setActiveTab] = useState("conversations"); // "conversations" | "tasks"
 
   // --- Search ---
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,13 +44,9 @@ export default function LeftPanel({
     }
     setSearchLoading(true);
     try {
-      // NOTE: LeftPanel originally used apiFetch; if you prefer that, re-add the import:
-      // import { apiFetch } from "../../api/client";
-      const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-
+      const data = await apiFetch(
+        `/search?q=${encodeURIComponent(trimmed)}`
+      );
       setSearchResults({
         conversations: data.conversations || [],
         projects: data.projects || [],
@@ -116,33 +109,17 @@ export default function LeftPanel({
         )}
       </div>
 
-      {/* Conversations / Tasks tabs (hidden during search) */}
-      {!inSearchMode && (
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button
-            type="button"
-            className={activeTab === "conversations" ? "left-tab active" : "left-tab"}
-            onClick={() => setActiveTab("conversations")}
-          >
-            Conversations
-          </button>
-          <button
-            type="button"
-            className={activeTab === "tasks" ? "left-tab active" : "left-tab"}
-            onClick={() => setActiveTab("tasks")}
-          >
-            Tasks
-          </button>
-        </div>
-      )}
-
       {/* Middle section */}
       <div className="section memory-section">
         {inSearchMode ? (
           <div className="search-results">
-            {searchLoading && <div className="search-loading">Searching…</div>}
+            {searchLoading && (
+              <div className="search-loading">Searching…</div>
+            )}
 
-            {!searchLoading && !hasAnyResults && <div className="search-empty">No results.</div>}
+            {!searchLoading && !hasAnyResults && (
+              <div className="search-empty">No results.</div>
+            )}
 
             {/* Conversations */}
             {searchResults.conversations?.length > 0 && (
@@ -158,9 +135,13 @@ export default function LeftPanel({
                       clearSearch();
                     }}
                   >
-                    <div className="search-result-title">{c.title || `Conversation ${c.id}`}</div>
+                    <div className="search-result-title">
+                      {c.title || `Conversation ${c.id}`}
+                    </div>
                     <div className="search-result-meta">
-                      {new Date(c.updated_at || c.created_at).toLocaleString()}
+                      {new Date(
+                        c.updated_at || c.created_at
+                      ).toLocaleString()}
                     </div>
                   </div>
                 ))}
@@ -180,8 +161,14 @@ export default function LeftPanel({
                       clearSearch();
                     }}
                   >
-                    <div className="search-result-title">{p.name || `Project ${p.id}`}</div>
-                    {p.description && <div className="search-result-meta">{p.description}</div>}
+                    <div className="search-result-title">
+                      {p.name || `Project ${p.id}`}
+                    </div>
+                    {p.description && (
+                      <div className="search-result-meta">
+                        {p.description}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -194,7 +181,9 @@ export default function LeftPanel({
                 {searchResults.memories.map((m) => (
                   <div key={m.id} className="search-result-item">
                     <div className="search-result-title">
-                      {m.content.length > 80 ? m.content.slice(0, 80) + "…" : m.content}
+                      {m.content.length > 80
+                        ? m.content.slice(0, 80) + "…"
+                        : m.content}
                     </div>
                     <div className="search-result-meta">
                       Score: {m.score.toFixed(2)} • #{m.id}
@@ -204,12 +193,6 @@ export default function LeftPanel({
               </div>
             )}
           </div>
-        ) : activeTab === "tasks" ? (
-          <TasksPanel
-            onOpenConversation={(cid) => {
-              onSelectConversation(cid);
-            }}
-          />
         ) : (
           <ProjectsPanel
             activeConversationId={activeConversationId}

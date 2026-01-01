@@ -1,252 +1,165 @@
+# api/core/task_classifier.py
 import re
-import json
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-# -----------------------------
-# Constants / Regex
-# -----------------------------
+try:
+    from dateutil import parser as date_parser  # type: ignore
+except Exception:  # pragma: no cover
+    date_parser = None
 
-_WEEKDAY_MAP = {
-    "mon": 0, "monday": 0,
-    "tue": 1, "tues": 1, "tuesday": 1,
-    "wed": 2, "wednesday": 2,
-    "thu": 3, "thurs": 3, "thursday": 3,
-    "fri": 4, "friday": 4,
-    "sat": 5, "saturday": 5,
-    "sun": 6, "sunday": 6,
-}
 
-_TZ_ALIASES = {
-    "utc": "UTC",
-    "est": "America/New_York",
-    "edt": "America/New_York",
-    "cst": "America/Chicago",
-    "cdt": "America/Chicago",
-    "mst": "America/Denver",
-    "mdt": "America/Denver",
-    "pst": "America/Los_Angeles",
-    "pdt": "America/Los_Angeles",
-}
+_REMIND_RE = re.compile(r"\b(remind me|set (a )?reminder)\b", re.IGNORECASE)
 
-_TIME_RE = re.compile(
-    r"\b(?:(\d{1,2})(?::(\d{2}))?\s*(am|pm)?|noon|midnight)\b(?!\s*(?:minutes?|hours?|days?|weeks?))",
-    re.I,
+_IN_RE = re.compile(
+    r"\b(in)\s+(?P<num>\d+)\s*(?P<unit>minute|minutes|min|hour|hours|hr|hrs|day|days)\b",
+    re.IGNORECASE,
 )
 
-
-_IN_DELTA_RE = re.compile(
-    r"\bin\s+(\d+)\s*(minute|minutes|hour|hours|day|days|week|weeks)\b",
-    re.I,
+_TOMORROW_AT_RE = re.compile(
+    r"\btomorrow\b(?:\s+at\s+(?P<h>\d{1,2})(?::(?P<m>\d{2}))?\s*(?P<ampm>am|pm)?)?",
+    re.IGNORECASE,
 )
 
-_EVERY_INTERVAL_RE = re.compile(
-    r"\bevery\s+(\d+)\s*(day|days|week|weeks|month|months)\b",
-    re.I,
+_AT_RE = re.compile(
+    r"\bat\s+(?P<h>\d{1,2})(?::(?P<m>\d{2}))?\s*(?P<ampm>am|pm)\b",
+    re.IGNORECASE,
 )
 
-_EVERY_WEEKDAY_LIST_RE = re.compile(
-    r"\bevery\s+((?:mon|tue|tues|wed|thu|thurs|fri|sat|sun)(?:/\w+)*)\b",
-    re.I,
-)
-
-# -----------------------------
-# Helpers
-# -----------------------------
-
-def _parse_timezone(text: str):
-    for k, v in _TZ_ALIASES.items():
-        if re.search(rf"\b{k}\b", text, re.I):
-            return ZoneInfo(v)
-    return ZoneInfo("UTC")
+# very light fallback for "3pm" without "at"
+_BARE_TIME_RE = re.compile(r"\b(?P<h>\d{1,2})(?::(?P<m>\d{2}))?\s*(?P<ampm>am|pm)\b", re.IGNORECASE)
 
 
-def _parse_time_of_day(text: str):
-    m = _TIME_RE.search(text)
+def _local_tz() -> ZoneInfo:
+    # Use system timezone if available; fallback UTC
+    try:
+        return ZoneInfo(str(datetime.now().astimezone().tzinfo))
+    except Exception:
+        return ZoneInfo("UTC")
+
+
+def _to_utc_iso(dt_local: datetime) -> str:
+    if dt_local.tzinfo is None:
+        dt_local = dt_local.replace(tzinfo=_local_tz())
+    return dt_local.astimezone(timezone.utc).isoformat(timespec="minutes")
+
+
+def _parse_in(text: str, now: datetime) -> datetime | None:
+    m = _IN_RE.search(text)
     if not m:
         return None
+    num = int(m.group("num"))
+    unit = m.group("unit").lower()
 
-    raw = m.group(0).lower()
-    if raw == "noon":
-        return time(12, 0)
-    if raw == "midnight":
-        return time(0, 0)
-
-    hour = int(m.group(1))
-    minute = int(m.group(2) or 0)
-    ampm = m.group(3)
-
-    if ampm:
-        ampm = ampm.lower()
-        if ampm == "pm" and hour != 12:
-            hour += 12
-        if ampm == "am" and hour == 12:
-            hour = 0
-            
-        # ✅ HARDEN: reject bogus matches like "in 90 minutes"
-        if hour < 0 or hour > 23:
-            return None
-        if minute < 0 or minute > 59:
-            return None
-    
-    return time(hour, minute)
-
-
-def _parse_in_delta(text: str):
-    m = _IN_DELTA_RE.search(text)
-    if not m:
-        return None
-
-    n = int(m.group(1))
-    unit = m.group(2).lower()
-
-    if "minute" in unit:
-        return timedelta(minutes=n)
-    if "hour" in unit:
-        return timedelta(hours=n)
-    if "day" in unit:
-        return timedelta(days=n)
-    if "week" in unit:
-        return timedelta(weeks=n)
+    if unit in ("minute", "minutes", "min"):
+        return now + timedelta(minutes=num)
+    if unit in ("hour", "hours", "hr", "hrs"):
+        return now + timedelta(hours=num)
+    if unit in ("day", "days"):
+        return now + timedelta(days=num)
     return None
 
 
-# -----------------------------
-# Main classifier
-# -----------------------------
+def _parse_tomorrow_at(text: str, now: datetime) -> datetime | None:
+    m = _TOMORROW_AT_RE.search(text)
+    if not m:
+        return None
 
-def classify_task(user_text: str):
-    """
-    Returns:
-      {
-        task_type,
-        title,
-        scheduled_for (UTC datetime),
-        recurrence (dict | None)
-      }
-    or None if not a task
-    """
+    base = (now + timedelta(days=1)).date()
+    h = m.group("h")
+    if not h:
+        # "tomorrow" with no explicit time -> default 9:00 AM
+        return datetime(base.year, base.month, base.day, 9, 0, tzinfo=now.tzinfo)
 
+    hour = int(h)
+    minute = int(m.group("m") or "0")
+    ampm = (m.group("ampm") or "").lower()
+
+    if ampm == "pm" and hour < 12:
+        hour += 12
+    if ampm == "am" and hour == 12:
+        hour = 0
+
+    return datetime(base.year, base.month, base.day, hour, minute, tzinfo=now.tzinfo)
+
+
+def _parse_at_time(text: str, now: datetime) -> datetime | None:
+    # matches "at 3pm"
+    m = _AT_RE.search(text)
+    if not m:
+        # fallback: "3pm" anywhere
+        m = _BARE_TIME_RE.search(text)
+        if not m:
+            return None
+
+    hour = int(m.group("h"))
+    minute = int(m.group("m") or "0")
+    ampm = (m.group("ampm") or "").lower()
+
+    if ampm == "pm" and hour < 12:
+        hour += 12
+    if ampm == "am" and hour == 12:
+        hour = 0
+
+    candidate = datetime(now.year, now.month, now.day, hour, minute, tzinfo=now.tzinfo)
+
+    # If time already passed today, assume next day
+    if candidate <= now:
+        candidate = candidate + timedelta(days=1)
+
+    return candidate
+
+
+def _parse_with_dateutil(text: str, now: datetime) -> datetime | None:
+    if not date_parser:
+        return None
+    try:
+        dt = date_parser.parse(text, default=now)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=now.tzinfo)
+        # If parsed time is in the past, bump by a day (conservative)
+        if dt <= now:
+            dt = dt + timedelta(days=1)
+        return dt
+    except Exception:
+        return None
+
+
+def classify_task(user_text: str) -> dict | None:
     text = (user_text or "").strip()
     if not text:
         return None
 
-    low = text.lower()
-
-    is_reminder = bool(re.search(r"\b(remind|reminder)\b", low))
-    is_timer = bool(re.search(r"\b(timer|countdown)\b", low))
-
-    if not (is_reminder or is_timer):
+    if not _REMIND_RE.search(text):
         return None
 
-    tz = _parse_timezone(low)
-    now = datetime.now(tz)
+    now = datetime.now(_local_tz())
 
-    # -----------------------------
-    # Absolute or relative time
-    # -----------------------------
+    scheduled_local = (
+        _parse_in(text, now)
+        or _parse_tomorrow_at(text, now)
+        or _parse_at_time(text, now)
+        or _parse_with_dateutil(text, now)
+    )
 
-    scheduled = None
+    normalized = {}
+    confidence = 0.6
 
-    delta = _parse_in_delta(low)
-    if delta:
-        scheduled = now + delta
-
-    tod = _parse_time_of_day(low)
-    if tod and not scheduled:
-        scheduled = now.replace(
-            hour=tod.hour,
-            minute=tod.minute,
-            second=0,
-            microsecond=0,
-        )
-        if scheduled <= now:
-            scheduled += timedelta(days=1)
-
-    if not scheduled:
-        scheduled = now + timedelta(minutes=1)
-
-    # -----------------------------
-    # Recurrence parsing
-    # -----------------------------
-
-    recurrence = None
-
-    # every weekday / weekend
-    if "every weekday" in low:
-        recurrence = {
-            "type": "weekly",
-            "interval": 1,
-            "byweekday": [0, 1, 2, 3, 4],
-        }
-
-    elif "every weekend" in low:
-        recurrence = {
-            "type": "weekly",
-            "interval": 1,
-            "byweekday": [5, 6],
-        }
-
-    # every Mon/Wed/Fri
+    if scheduled_local:
+        normalized["scheduled_for"] = _to_utc_iso(scheduled_local)
+        confidence = 0.95
     else:
-        m = _EVERY_WEEKDAY_LIST_RE.search(low)
-        if m:
-            days = m.group(1).split("/")
-            byweekday = []
-            for d in days:
-                d = d.lower()
-                if d in _WEEKDAY_MAP:
-                    byweekday.append(_WEEKDAY_MAP[d])
-            if byweekday:
-                recurrence = {
-                    "type": "weekly",
-                    "interval": 1,
-                    "byweekday": sorted(set(byweekday)),
-                }
-
-    # every N weeks / days / months
-    if not recurrence:
-        m = _EVERY_INTERVAL_RE.search(low)
-        if m:
-            n = int(m.group(1))
-            unit = m.group(2).lower()
-
-            if "week" in unit:
-                recurrence = {"type": "weekly", "interval": n}
-            elif "day" in unit:
-                recurrence = {"type": "daily", "interval": n}
-            elif "month" in unit:
-                recurrence = {"type": "monthly", "interval": n}
-
-    # monthly anchors
-    if not recurrence and "last day" in low and "month" in low:
-        recurrence = {
-            "type": "monthly",
-            "interval": 1,
-            "bysetpos": -1,
-        }
-
-    if not recurrence and "first business day" in low:
-        recurrence = {
-            "type": "monthly",
-            "interval": 1,
-            "business_day": "first",
-        }
-
-    # -----------------------------
-    # Normalize to UTC
-    # -----------------------------
-
-    scheduled_utc = scheduled.astimezone(ZoneInfo("UTC"))
-
-    title = re.sub(r"\s+", " ", text)
-    if len(title) > 120:
-        title = title[:117] + "..."
+        # we detected a reminder intent but couldn't parse time
+        confidence = 0.7
 
     return {
-        "task_type": "reminder" if is_reminder else "timer",
-        "title": title,
-        "scheduled_for": scheduled_utc,
-        "recurrence": recurrence,
+        "task_type": "reminder",
+        "title": text,
+        "confidence": confidence,
+        "payload": {
+            "raw": text,
+        },
+        "normalized": normalized,
+        "status": "needs_confirmation",
     }
 

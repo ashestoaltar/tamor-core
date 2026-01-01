@@ -1,78 +1,76 @@
 # api/routes/tasks_api.py
 import json
+from functools import wraps
+
 from flask import Blueprint, jsonify, request, session
+
 from utils.db import get_db
 
-tasks_bp = Blueprint("tasks_api", __name__, url_prefix="/api/tasks")
+tasks_bp = Blueprint("tasks_api", __name__, url_prefix="/api")
 
 
-def _task_row_to_dict(r):
+def require_login(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not session.get("user_id"):
+            return jsonify({"error": "not_authenticated"}), 401
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def _safe_json_load(s):
+    if not s:
+        return {}
     try:
-        normalized = json.loads(r["normalized_json"]) if r["normalized_json"] else None
+        return json.loads(s)
     except Exception:
-        normalized = None
-
-    status = r["status"]
-    # Normalize legacy spelling if older rows exist
-    if status == "canceled":
-        status = "cancelled"
-
-    return {
-        "id": r["id"],
-        "conversation_id": r["conversation_id"],
-        "message_id": r["message_id"],
-        "task_type": r["task_type"],
-        "title": r["title"],
-        "status": status,
-        "confidence": r["confidence"],
-        "normalized": normalized,
-        "created_at": r["created_at"],
-    }
+        return {}
 
 
-@tasks_bp.get("")
+def _row_to_task(r):
+    d = {k: r[k] for k in r.keys()}
+    d["payload"] = _safe_json_load(d.pop("payload_json", None))
+    d["normalized"] = _safe_json_load(d.pop("normalized_json", None))
+    return d
+
+
+@tasks_bp.get("/tasks")
+@require_login
 def list_tasks():
+    """
+    Matches UI expectations:
+      GET /api/tasks?status=...&task_type=...&limit=...
+    """
     user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "unauthorized"}), 401
-
-    conversation_id = request.args.get("conversation_id")
-    status = request.args.get("status")
-    task_type = request.args.get("task_type")
-    q = request.args.get("q")
-
+    status = (request.args.get("status") or "").strip()
+    task_type = (request.args.get("task_type") or "").strip()
     try:
-        limit = int(request.args.get("limit", 50))
+        limit = int(request.args.get("limit") or "100")
     except Exception:
-        limit = 50
-    limit = max(1, min(limit, 200))
+        limit = 100
+    limit = max(1, min(200, limit))
 
-    where = ["user_id=?"]
+    where = ["user_id = ?"]
     params = [user_id]
 
-    if conversation_id:
-        where.append("conversation_id=?")
-        params.append(conversation_id)
-
     if status:
-        where.append("status=?")
+        where.append("status = ?")
         params.append(status)
 
     if task_type:
-        where.append("task_type=?")
+        where.append("task_type = ?")
         params.append(task_type)
 
-    if q:
-        where.append("(title LIKE ? OR payload_json LIKE ? OR normalized_json LIKE ?)")
-        qq = f"%{q}%"
-        params.extend([qq, qq, qq])
-
     sql = f"""
-    SELECT id, conversation_id, message_id, task_type, title, status, confidence, normalized_json, created_at
-    FROM detected_tasks
-    WHERE {' AND '.join(where)}
-    ORDER BY id DESC
-    LIMIT ?
+        SELECT
+            id, user_id, project_id, conversation_id, message_id,
+            task_type, title, confidence,
+            payload_json, normalized_json,
+            status, created_at
+        FROM detected_tasks
+        WHERE {" AND ".join(where)}
+        ORDER BY id DESC
+        LIMIT ?
     """
     params.append(limit)
 
@@ -82,262 +80,87 @@ def list_tasks():
     rows = cur.fetchall()
     conn.close()
 
-    return jsonify({"ok": True, "tasks": [_task_row_to_dict(r) for r in rows]})
+    tasks = [_row_to_task(r) for r in rows]
+    return jsonify({"ok": True, "tasks": tasks})
 
 
-@tasks_bp.get("/counts")
-def task_counts():
+def _update_and_return(task_id: int, new_status: str):
     user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "unauthorized"}), 401
-
-    conversation_id = request.args.get("conversation_id")
-
-    where = ["user_id=?"]
-    params = [user_id]
-
-    if conversation_id:
-        where.append("conversation_id=?")
-        params.append(conversation_id)
-
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        f"""
-        SELECT status, COUNT(*) AS n
-        FROM detected_tasks
-        WHERE {' AND '.join(where)}
-        GROUP BY status
-        """,
-        params,
-    )
-    rows = cur.fetchall()
-    conn.close()
-
-    by_status = {r["status"]: r["n"] for r in rows}
-
-    # Normalize legacy spelling if older rows exist
-    if "canceled" in by_status and "cancelled" not in by_status:
-        by_status["cancelled"] = by_status.pop("canceled")
-
-    total = sum(by_status.values()) if by_status else 0
-    return jsonify({"ok": True, "total": total, "by_status": by_status})
-
-
-@tasks_bp.get("/<int:task_id>/runs")
-def get_task_runs(task_id: int):
-    """Return execution history for a task (most recent first)."""
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "unauthorized"}), 401
-
-    try:
-        limit = int(request.args.get("limit", 50))
-    except Exception:
-        limit = 50
-    limit = max(1, min(limit, 200))
 
     conn = get_db()
     cur = conn.cursor()
 
-    # Ensure the task belongs to the current user
     cur.execute(
-        "SELECT id FROM detected_tasks WHERE id=? AND user_id=?",
-        (task_id, user_id),
-    )
-    task_row = cur.fetchone()
-    if not task_row:
-        conn.close()
-        return jsonify({"error": "not_found"}), 404
-
-    # Discover available columns so we don't break if the schema differs slightly
-    cur.execute("PRAGMA table_info(task_runs)")
-    cols = [r["name"] for r in cur.fetchall()]
-    wanted = ["id", "task_id", "status", "created_at", "started_at", "finished_at", "error_text"]
-    select_cols = [c for c in wanted if c in cols]
-    if not select_cols:
-        select_cols = ["*"]
-
-    cur.execute(
-        f"""
-        SELECT {', '.join(select_cols)}
-        FROM task_runs
-        WHERE task_id=?
-        ORDER BY id DESC
-        LIMIT ?
-        """,
-        (task_id, limit),
-    )
-    rows = cur.fetchall()
-    conn.close()
-
-    runs = []
-    for r in rows:
-        try:
-            runs.append(dict(r))
-        except Exception:
-            runs.append({k: r[k] for k in r.keys()})
-
-    return jsonify({"ok": True, "task_id": task_id, "runs": runs})
-
-
-@tasks_bp.post("/<int:task_id>/confirm")
-def confirm_task(task_id: int):
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "unauthorized"}), 401
-
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        UPDATE detected_tasks
-        SET status='confirmed'
-        WHERE id=? AND user_id=?
-        """,
-        (task_id, user_id),
-    )
-    updated = cur.rowcount
-
-    cur.execute(
-        """
-        SELECT id, conversation_id, message_id, task_type, title, status, confidence, normalized_json, created_at
-        FROM detected_tasks
-        WHERE id=? AND user_id=?
-        """,
-        (task_id, user_id),
-    )
-    row = cur.fetchone()
-    conn.commit()
-    conn.close()
-
-    if not row:
-        return jsonify({"error": "not_found"}), 404
-
-    return jsonify({"ok": True, "updated": updated == 1, "task": _task_row_to_dict(row)})
-
-
-@tasks_bp.post("/<int:task_id>/cancel")
-def cancel_task(task_id: int):
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "unauthorized"}), 401
-
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        UPDATE detected_tasks
-        SET status='cancelled'
-        WHERE id=? AND user_id=?
-        """,
-        (task_id, user_id),
-    )
-    updated = cur.rowcount
-
-    cur.execute(
-        """
-        SELECT id, conversation_id, message_id, task_type, title, status, confidence, normalized_json, created_at
-        FROM detected_tasks
-        WHERE id=? AND user_id=?
-        """,
-        (task_id, user_id),
-    )
-    row = cur.fetchone()
-    conn.commit()
-    conn.close()
-
-    if not row:
-        return jsonify({"error": "not_found"}), 404
-
-    return jsonify({"ok": True, "updated": updated == 1, "task": _task_row_to_dict(row)})
-
-
-@tasks_bp.post("/<int:task_id>/complete")
-def complete_task(task_id: int):
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "unauthorized"}), 401
-
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        UPDATE detected_tasks
-        SET status='completed'
-        WHERE id=? AND user_id=?
-        """,
-        (task_id, user_id),
-    )
-    updated = cur.rowcount
-
-    cur.execute(
-        """
-        SELECT id, conversation_id, message_id, task_type, title, status, confidence, normalized_json, created_at
-        FROM detected_tasks
-        WHERE id=? AND user_id=?
-        """,
-        (task_id, user_id),
-    )
-    row = cur.fetchone()
-    conn.commit()
-    conn.close()
-
-    if not row:
-        return jsonify({"error": "not_found"}), 404
-
-    return jsonify({"ok": True, "updated": updated == 1, "task": _task_row_to_dict(row)})
-
-
-@tasks_bp.post("/<int:task_id>/status")
-def set_task_status(task_id: int):
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "unauthorized"}), 401
-
-    body = request.get_json(silent=True) or {}
-    new_status = (body.get("status") or "").strip().lower()
-
-    allowed = {
-        "needs_confirmation",
-        "confirmed",
-        "dismissed",
-        "completed",
-        "cancelled",
-        "canceled",  # accept legacy spelling from any callers
-    }
-    if new_status not in allowed:
-        return jsonify({"error": "invalid_status"}), 400
-
-    if new_status == "canceled":
-        new_status = "cancelled"
-
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        UPDATE detected_tasks
-        SET status=?
-        WHERE id=? AND user_id=?
-        """,
+        "UPDATE detected_tasks SET status = ? WHERE id = ? AND user_id = ?",
         (new_status, task_id, user_id),
     )
-    updated = cur.rowcount
+    if cur.rowcount == 0:
+        conn.close()
+        return None
+
+    conn.commit()
 
     cur.execute(
         """
-        SELECT id, conversation_id, message_id, task_type, title, status, confidence, normalized_json, created_at
+        SELECT
+            id, user_id, project_id, conversation_id, message_id,
+            task_type, title, confidence,
+            payload_json, normalized_json,
+            status, created_at
         FROM detected_tasks
-        WHERE id=? AND user_id=?
+        WHERE id = ? AND user_id = ?
         """,
         (task_id, user_id),
     )
     row = cur.fetchone()
-    conn.commit()
     conn.close()
 
-    if not row:
-        return jsonify({"error": "not_found"}), 404
+    return _row_to_task(row) if row else None
 
-    return jsonify({"ok": True, "updated": updated == 1, "task": _task_row_to_dict(row)})
+
+@tasks_bp.post("/tasks/<int:task_id>/confirm")
+@require_login
+def confirm_task(task_id: int):
+    t = _update_and_return(task_id, "confirmed")
+    if not t:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"ok": True, "task": t})
+
+
+@tasks_bp.post("/tasks/<int:task_id>/cancel")
+@require_login
+def cancel_task(task_id: int):
+    t = _update_and_return(task_id, "cancelled")
+    if not t:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"ok": True, "task": t})
+
+
+@tasks_bp.post("/tasks/<int:task_id>/complete")
+@require_login
+def complete_task(task_id: int):
+    t = _update_and_return(task_id, "completed")
+    if not t:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"ok": True, "task": t})
+
+
+@tasks_bp.post("/tasks/<int:task_id>/status")
+@require_login
+def set_status(task_id: int):
+    """
+    Matches UI expectations:
+      POST /api/tasks/<id>/status  { status: "dismissed" | "confirmed" }
+    """
+    data = request.json or {}
+    next_status = (data.get("status") or "").strip()
+
+    allowed = {"dismissed", "confirmed"}
+    if next_status not in allowed:
+        return jsonify({"error": "invalid_status"}), 400
+
+    t = _update_and_return(task_id, next_status)
+    if not t:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"ok": True, "task": t})
 

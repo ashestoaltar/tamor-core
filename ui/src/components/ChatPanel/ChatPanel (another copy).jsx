@@ -130,29 +130,6 @@ function appendUnique(prev, msg) {
   return [...prev, msg];
 }
 
-// Merge server messages into client state without losing client-only fields (like detected_task)
-function mergeMessages(prev, serverMsgs) {
-  const byId = new Map();
-  for (const m of prev || []) {
-    if (m?.id != null) byId.set(String(m.id), m);
-  }
-
-  const out = [];
-  for (const sm of serverMsgs || []) {
-    const key = sm?.id != null ? String(sm.id) : null;
-    if (!key) {
-      out.push(sm);
-      continue;
-    }
-    const existing = byId.get(key);
-    // preserve detected_task if server doesn't include it
-    const merged = existing ? { ...existing, ...sm } : sm;
-    out.push(merged);
-  }
-
-  return out.length ? out : [INITIAL_ASSISTANT_MESSAGE];
-}
-
 export default function ChatPanel({
   setLastMemoryMatches,
   setMemoryRefreshToken,
@@ -192,54 +169,27 @@ export default function ChatPanel({
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior });
   };
 
-  // ---- Task hydration: task.message_id is the USER message id; attach pill to the NEXT assistant message
+  // ---- Task hydration: attach tasks to messages by message_id ----
   const hydrateTasksForConversation = async (convId) => {
     if (!convId) return;
-
     try {
-      // Backend supports /tasks?limit=... (no conversation_id filter); filter client-side
-      const taskData = await apiFetch(`/tasks?limit=200`);
-      const tasks = (taskData?.tasks || []).filter((t) => t?.conversation_id === convId);
-
-      if (!tasks.length) return;
-
-      // Map by user message_id
-      const byUserMsgId = new Map();
+      const taskData = await apiFetch(`/tasks?conversation_id=${convId}&limit=200`);
+      const tasks = taskData?.tasks || [];
+      const byMessageId = {};
       for (const t of tasks) {
-        if (t?.message_id != null) byUserMsgId.set(String(t.message_id), t);
+        if (t?.message_id != null) byMessageId[String(t.message_id)] = t;
       }
 
-      setMessages((prev) => {
-        if (!Array.isArray(prev) || prev.length < 2) return prev;
-
-        const next = [...prev];
-
-        for (let i = 0; i < next.length - 1; i++) {
-          const m = next[i];
-          const a = next[i + 1];
-
-          if (!m || !a) continue;
-          if (m.role !== "user") continue;
-          if (a.role !== "assistant") continue;
-
-          const t = m?.id != null ? byUserMsgId.get(String(m.id)) : null;
-
-          // Fallback: sometimes tasks might be stored against assistant id (older rows)
-          const t2 = !t && a?.id != null ? byUserMsgId.get(String(a.id)) : null;
-          const task = t || t2;
-
-          if (!task) continue;
-
-          const cur = a.detected_task;
-          const same = cur?.id === task.id && cur?.status === task.status;
-          if (same) continue;
-
-          next[i + 1] = { ...a, detected_task: task };
-        }
-
-        return next;
-      });
-    } catch (e) {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (!m?.id) return m;
+          if (m.detected_task) return m;
+          const t = byMessageId[String(m.id)];
+          if (!t) return m;
+          return { ...m, detected_task: t };
+        })
+      );
+    } catch {
       // ignore
     }
   };
@@ -278,7 +228,7 @@ export default function ChatPanel({
       }
 
       // ✅ hydrate tasks shortly after messages render
-      setTimeout(() => hydrateTasksForConversation(convId), 120);
+      setTimeout(() => hydrateTasksForConversation(convId), 80);
 
       setTimeout(() => scrollToBottom("auto"), 40);
     } catch (err) {
@@ -319,11 +269,18 @@ export default function ChatPanel({
           const reminderHit = newOnes.some((m) => String(m?.content || "").startsWith("⏰ Reminder:"));
           if (reminderHit) showToast("🔔 Reminder triggered");
 
-          // ✅ merge (don’t wipe detected_task)
-          setMessages((prev) => mergeMessages(prev, msgs));
+          // canonical replace
+          setMessages((prev) => {
+  const byId = new Map(prev.map((m) => [m.id, m]));
+  for (const m of msgs) {
+    byId.set(m.id, { ...byId.get(m.id), ...m });
+  }
+  return Array.from(byId.values());
+});
 
-          // ✅ rehydrate tasks after poll merge
-          setTimeout(() => hydrateTasksForConversation(activeConversationId), 120);
+
+          // ✅ rehydrate tasks after poll replace
+          setTimeout(() => hydrateTasksForConversation(activeConversationId), 80);
 
           setTimeout(() => scrollToBottom("smooth"), 40);
         }
@@ -369,28 +326,12 @@ export default function ChatPanel({
         },
       });
 
-      const returnedConvId = data?.conversation_id || activeConversationId;
-
       if (data?.conversation_id && !activeConversationId) {
         setActiveConversationId(data.conversation_id);
       }
 
-      // Update the last optimistic user message with the real server id (critical for task linking)
-      const userMsgId = data?.message_ids?.user;
-      if (userMsgId) {
-        setMessages((prev) => {
-          const next = [...prev];
-          for (let i = next.length - 1; i >= 0; i--) {
-            if (next[i]?.role === "user" && !next[i]?.id && next[i]?.content === trimmed) {
-              next[i] = { ...next[i], id: userMsgId };
-              break;
-            }
-          }
-          return next;
-        });
-      }
-
-      // Append assistant message
+      // Your chat_api currently returns: { tamor, detected_task, message_ids }
+      // So we append a single assistant message object here:
       const assistantMsg = {
         id: data?.message_ids?.assistant,
         role: "assistant",
@@ -405,8 +346,9 @@ export default function ChatPanel({
         lastSeenMessageIdRef.current = Math.max(lastSeenMessageIdRef.current || 0, assistantMsg.id);
       }
 
-      // ✅ hydrate tasks (will attach needs_confirmation pill to the assistant message)
-      setTimeout(() => hydrateTasksForConversation(returnedConvId), 180);
+      // ✅ in case detected_task is missing, hydrate shortly after
+      const cid = data?.conversation_id || activeConversationId;
+      setTimeout(() => hydrateTasksForConversation(cid), 120);
 
       if (data?.memory_matches && setLastMemoryMatches) setLastMemoryMatches(data.memory_matches);
       if (data?.memory_refresh && setMemoryRefreshToken) setMemoryRefreshToken((x) => x + 1);
@@ -494,6 +436,7 @@ export default function ChatPanel({
         {messages.map((msg, idx) => {
           const isUser = msg.role === "user";
           const fileRefs = msg.id && fileRefsByMessageId[msg.id] ? fileRefsByMessageId[msg.id] : [];
+
           const dt = !isUser ? msg.detected_task : null;
 
           return (
@@ -506,11 +449,10 @@ export default function ChatPanel({
                   <TaskPill
                     task={dt}
                     onAppendMessage={(m) => {
+                      // if TaskPill appends messages, dedupe
                       setMessages((prev) => appendUnique(prev, { ...m, detected_task: null }));
                       if (m?.id) lastSeenMessageIdRef.current = Math.max(lastSeenMessageIdRef.current || 0, m.id);
                       setTimeout(() => scrollToBottom("smooth"), 40);
-                      // refresh task statuses across panels
-                      window.dispatchEvent(new Event("tamor:tasks-updated"));
                     }}
                   />
                 )}
