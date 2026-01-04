@@ -5,7 +5,6 @@ import ProjectsPanel from "./ProjectsPanel";
 import TasksPanel from "./TasksPanel";
 
 export default function LeftPanel({
-  refreshToken, // currently unused but kept for future use
   activeMode,
   setActiveMode,
   activeConversationId,

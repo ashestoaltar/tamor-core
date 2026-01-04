@@ -28,7 +28,7 @@ function fmt(iso) {
   }
 }
 
-export default function TasksPanel({ onOpenConversation, onJumpToMessage }) {
+export default function TasksPanel({ onOpenConversation }) {
   const [status, setStatus] = useState("needs_confirmation");
   const [taskType, setTaskType] = useState("");
   const [limit, setLimit] = useState(100);

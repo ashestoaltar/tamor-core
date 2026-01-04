@@ -66,7 +66,7 @@ export async function apiFetch(path, options = {}) {
     let errorPayload;
     try {
       errorPayload = isJson ? await resp.json() : await resp.text();
-    } catch (_) {
+    } catch {
       errorPayload = null;
     }
 

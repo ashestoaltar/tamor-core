@@ -195,21 +195,21 @@
 .project-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
-  border-radius: 6px;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
   font-size: 0.8rem;
   cursor: pointer;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.88);
   position: relative;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 
+/* ✅ Make hover SOLID (removes washed-out stacking rgba haze) */
 .project-header:hover {
-  background-color: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
+  background-color: #141a2e;
+  color: rgba(255, 255, 255, 0.94);
 }
-
 
 .project-header.current-workspace {
   background-color: var(--accent-soft);
@@ -233,51 +233,52 @@
 .row-menu-toggle {
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.35);   /* softer */
+  color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 999px;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 
 .project-header:hover .row-menu-toggle,
 .conversation-item:hover .row-menu-toggle {
-  color: rgba(255, 255, 255, 0.55);   /* medium-soft */
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .row-menu-toggle:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.65);   /* still soft, but visible */
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
 }
 
-
-/* Context menu popover */
+/* ✅ Context menu popover: opaque + readable */
 .row-menu {
   position: absolute;
-  right: 4px;
+  right: 6px;
   top: 100%;
-  margin-top: 4px;
-  min-width: 180px;
-  padding: 4px 0;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.45);     /* darker, softer */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  z-index: 20;
+  margin-top: 6px;
+  min-width: 190px;
+  padding: 6px 0;
+  border-radius: 12px;
 
+  background: #0f1426; /* solid = no transparency haze */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.45);
+
+  z-index: 50;
   display: flex;
   flex-direction: column;
 }
 
-
 .row-menu-item {
   width: 100%;
   text-align: left;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border: none;
   background: transparent;
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.38);   /* very soft */
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.86); /* readable */
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -285,38 +286,42 @@
 }
 
 .row-menu-item:hover {
-  background-color: rgba(255, 255, 255, 0.03); 
-  color: rgba(255, 255, 255, 0.58);   /* still soft, not harsh */
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.row-menu-item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .row-menu-item.danger {
-  color: rgba(255, 120, 120, 0.65);    /* softened red */
+  color: rgba(255, 140, 140, 0.9);
 }
 
 .row-menu-item.danger:hover {
-  background-color: rgba(255, 120, 120, 0.08);
-  color: rgba(255, 150, 150, 0.9);
+  background-color: rgba(255, 120, 120, 0.12);
+  color: rgba(255, 170, 170, 0.98);
 }
 
 .row-menu-icon {
-  margin-right: 6px;
-  font-size: 0.78rem;
-  color: inherit;                      /* inherits softer tone */
+  margin-right: 8px;
+  font-size: 0.9rem;
+  color: inherit;
 }
-
 
 .row-menu-divider {
   height: 1px;
-  margin: 4px 0;
-  background: var(--border-subtle);
+  margin: 6px 0;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .row-menu-subheader {
-  padding: 4px 10px;
+  padding: 6px 12px;
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 /* Chats list area underneath projects */
@@ -326,12 +331,12 @@
 
 /* Conversation rows */
 .conversation-item {
-  padding: 3px 6px;
-  border-radius: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
   margin-bottom: 2px;
   cursor: pointer;
   font-size: 0.78rem;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.88);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -339,11 +344,11 @@
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 
+/* ✅ Solid hover */
 .conversation-item:hover:not(.active) {
-  background-color: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
+  background-color: #141a2e;
+  color: rgba(255, 255, 255, 0.94);
 }
-
 
 .conversation-item.active {
   background-color: var(--accent-soft);
@@ -355,7 +360,7 @@
 .conversation-main-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .conversation-title {
@@ -365,34 +370,27 @@
   text-overflow: ellipsis;
 }
 
-/* (kept for now, though no longer used with kebab menus) */
-.conversation-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 /* Conversation edit state */
 .conversation-edit-row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .conversation-edit-input {
   width: 100%;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid var(--border-subtle);
   background: var(--bg-elevated);
   color: var(--text);
   font-size: 0.78rem;
-  padding: 4px 6px;
+  padding: 6px 8px;
 }
 
 .conversation-edit-controls {
   display: flex;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 6px;
 }
 
 .conversation-save-btn,
@@ -401,8 +399,8 @@
   border: 1px solid var(--border-subtle);
   background: transparent;
   color: var(--text-soft);
-  font-size: 0.7rem;
-  padding: 2px 8px;
+  font-size: 0.72rem;
+  padding: 4px 10px;
   cursor: pointer;
 }
 
@@ -418,13 +416,13 @@
 /* Project edit inputs/buttons */
 .project-edit-input {
   flex: 1;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid var(--border-subtle);
   background: var(--bg-elevated);
   color: var(--text);
   font-size: 0.78rem;
-  padding: 2px 6px;
-  margin-right: 4px;
+  padding: 4px 8px;
+  margin-right: 6px;
 }
 
 .project-edit-save,
@@ -435,7 +433,7 @@
   background: transparent;
   color: var(--text-soft);
   font-size: 0.7rem;
-  padding: 2px 6px;
+  padding: 4px 8px;
   cursor: pointer;
 }
 
@@ -459,16 +457,15 @@
   flex: 1;
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
 }
 
 .left-tab.active {
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.95);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.95);
 }
-
 

@@ -1,5 +1,5 @@
 // src/components/RightPanel/components/SemanticSearchPanel.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import useSemanticSearch from "../hooks/useSemanticSearch";
 
 function shortenSnippet(text, maxLen = 160) {
@@ -35,10 +35,21 @@ function SemanticSearchPanel({
   const [semanticViewMode, setSemanticViewMode] = useState("chunks");
   const [selectedSemanticHit, setSelectedSemanticHit] = useState(null);
 
-  useEffect(() => {
-    // reset preview whenever results change
-    setSelectedSemanticHit(null);
-  }, [semanticResults]);
+  const effectiveSelectedSemanticHit = useMemo(() => {
+    if (!selectedSemanticHit) return null;
+    // If the selected hit is no longer in the current results, treat as unselected (no setState needed)
+    const stillExists = (semanticResults || []).some((h) => {
+      // Prefer stable identity by file_id + page/chunk_index + text
+      return (
+        h?.file_id === selectedSemanticHit?.file_id &&
+        (h?.page ?? null) === (selectedSemanticHit?.page ?? null) &&
+        (h?.chunk_index ?? null) === (selectedSemanticHit?.chunk_index ?? null) &&
+        (h?.text ?? "") === (selectedSemanticHit?.text ?? "")
+      );
+    });
+    return stillExists ? selectedSemanticHit : null;
+  }, [selectedSemanticHit, semanticResults]);
+
 
   const groupedSemanticResults = useMemo(() => {
     if (semanticViewMode !== "files") return null;
@@ -279,13 +290,13 @@ function SemanticSearchPanel({
         {selectedSemanticHit && (
           <div className="rp-section-sublist">
             <h4 className="rp-section-subtitle">
-              Preview: {selectedSemanticHit.filename}
+              Preview: {effectiveSelectedSemanticHit.filename}
               {typeof selectedSemanticHit.page === "number" &&
                 ` (page ${selectedSemanticHit.page})`}
             </h4>
             <iframe
               title="Spec preview"
-              src={`/api/files/${selectedSemanticHit.file_id}/download${
+              src={`/api/files/${effectiveSelectedSemanticHit.file_id}/download${
                 typeof selectedSemanticHit.page === "number"
                   ? `#page=${selectedSemanticHit.page}${
                       semanticQuery

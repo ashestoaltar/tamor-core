@@ -6,10 +6,8 @@ import { apiFetch } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import TaskPill from "./TaskPill";
 
-const INITIAL_ASSISTANT_MESSAGE = {
-  role: "assistant",
-  content: "Shalom, I am Tamor. How can I help you think, build, or study today?",
-};
+const EMPTY_STATE_TEXT =
+  "Shalom, I am Tamor. How can I help you today?";
 
 function getFileEmoji(filename, mimeType) {
   const name = (filename || "").toLowerCase();
@@ -145,13 +143,22 @@ function mergeMessages(prev, serverMsgs) {
       continue;
     }
     const existing = byId.get(key);
-    // preserve detected_task if server doesn't include it
     const merged = existing ? { ...existing, ...sm } : sm;
     out.push(merged);
   }
 
-  return out.length ? out : [INITIAL_ASSISTANT_MESSAGE];
+  // ✅ Preserve optimistic/pending messages with no id (last few only)
+  const pending = (prev || []).filter((m) => m?.id == null && m?.content);
+  for (const p of pending.slice(-4)) {
+    const already = out.some(
+      (m) => m?.id == null && m?.role === p.role && m?.content === p.content
+    );
+    if (!already) out.push(p);
+  }
+
+  return out;
 }
+
 
 export default function ChatPanel({
   setLastMemoryMatches,
@@ -165,7 +172,7 @@ export default function ChatPanel({
 }) {
   const { user } = useAuth();
 
-  const [messages, setMessages] = useState([INITIAL_ASSISTANT_MESSAGE]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -239,56 +246,66 @@ export default function ChatPanel({
 
         return next;
       });
-    } catch (e) {
+    } catch {
       // ignore
     }
   };
 
-  const loadConversationHistory = async (convId) => {
-    if (!convId) {
-      setMessages([INITIAL_ASSISTANT_MESSAGE]);
+const loadConversationHistory = async (convId) => {
+  // 🔒 IMPORTANT: Never wipe the UI just because convId is temporarily missing.
+  // This prevents "messages disappear" during brief state transitions.
+  if (!convId) {
+    // Keep what we have; only ensure at least the initial message exists.
+    setMessages((prev) => (prev?.length ? prev : []));
+    lastSeenMessageIdRef.current = 0;
+    return;
+  }
+
+  setLoadingHistory(true);
+  try {
+    const data = await apiFetch(`/conversations/${convId}/messages`);
+    const msgs = data.messages || [];
+
+    if (msgs.length === 0) {
+      // 🔒 Don't wipe; keep local messages (optimistic/pending) if any.
+      setMessages((prev) => (prev?.length ? prev : []));
       lastSeenMessageIdRef.current = 0;
-      return;
+    } else {
+      // ✅ Merge server history into local state (preserves pending optimistic)
+      setMessages((prev) => mergeMessages(prev, msgs));
+      lastSeenMessageIdRef.current = msgs[msgs.length - 1]?.id || 0;
     }
 
-    setLoadingHistory(true);
-    try {
-      const data = await apiFetch(`/conversations/${convId}/messages`);
-      const msgs = data.messages || [];
-
-      if (msgs.length === 0) {
-        setMessages([INITIAL_ASSISTANT_MESSAGE]);
-        lastSeenMessageIdRef.current = 0;
-      } else {
-        setMessages(msgs);
-        lastSeenMessageIdRef.current = msgs[msgs.length - 1]?.id || 0;
+    // hydrate file refs (best-effort)
+    const ids = (msgs || []).map((m) => m.id).filter((x) => typeof x === "number");
+    if (ids.length) {
+      try {
+        const refs = await apiFetch(`/messages/file_refs?conversation_id=${convId}`);
+        setFileRefsByMessageId(refs.by_message_id || {});
+      } catch {
+        // ignore
       }
-
-      // hydrate file refs (best-effort)
-      const ids = (msgs || []).map((m) => m.id).filter((x) => typeof x === "number");
-      if (ids.length) {
-        try {
-          const refs = await apiFetch(`/messages/file_refs?conversation_id=${convId}`);
-          setFileRefsByMessageId(refs.by_message_id || {});
-        } catch {
-          // ignore
-        }
-      } else {
-        setFileRefsByMessageId({});
-      }
-
-      // ✅ hydrate tasks shortly after messages render
-      setTimeout(() => hydrateTasksForConversation(convId), 120);
-
-      setTimeout(() => scrollToBottom("auto"), 40);
-    } catch (err) {
-      console.error("Failed to load conversation:", err);
-      setMessages([INITIAL_ASSISTANT_MESSAGE]);
-      lastSeenMessageIdRef.current = 0;
-    } finally {
-      setLoadingHistory(false);
+    } else {
+      // 🔒 Only clear refs if we truly have no server messages AND no local messages.
+      // Otherwise keep existing refs to avoid flicker.
+      setFileRefsByMessageId((prev) => prev || {});
     }
-  };
+
+    // hydrate tasks shortly after messages render
+    setTimeout(() => hydrateTasksForConversation(convId), 120);
+    setTimeout(() => scrollToBottom("auto"), 40);
+  } catch (err) {
+    console.error("Failed to load conversation:", err);
+
+    // 🔒 Critical: do NOT wipe messages on transient failures.
+    // Keep current chat intact so the user doesn't see "disappearing" messages.
+    setMessages((prev) => (prev?.length ? prev : []));
+    // Keep lastSeenMessageIdRef as-is; resetting it can cause weird polling behavior.
+  } finally {
+    setLoadingHistory(false);
+  }
+};
+
 
   // Load history when conversation changes
   useEffect(() => {
@@ -339,13 +356,13 @@ export default function ChatPanel({
       cancelled = true;
       clearInterval(interval);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [user, activeConversationId]);
 
   // Auto-scroll on new message count
   useEffect(() => {
     setTimeout(() => scrollToBottom("auto"), 30);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [messages.length]);
 
   const sendMessage = async () => {
@@ -391,13 +408,18 @@ export default function ChatPanel({
       }
 
       // Append assistant message
+      const assistantText =
+        (data?.reply ?? data?.tamor ?? data?.reply_text ?? "").toString();
+
       const assistantMsg = {
         id: data?.message_ids?.assistant,
         role: "assistant",
         sender: "tamor",
-        content: data?.tamor || "",
+        content: assistantText || "(No reply returned.)",
         detected_task: data?.detected_task || null,
+        meta: data?.meta || null,
       };
+
 
       setMessages((prev) => appendUnique(prev, assistantMsg));
 
@@ -491,13 +513,18 @@ export default function ChatPanel({
           </div>
         )}
 
+        {!loadingHistory && messages.length === 0 && (
+          <div className="chat-empty-state">{EMPTY_STATE_TEXT}</div>
+        )}
+
+        
         {messages.map((msg, idx) => {
           const isUser = msg.role === "user";
           const fileRefs = msg.id && fileRefsByMessageId[msg.id] ? fileRefsByMessageId[msg.id] : [];
           const dt = !isUser ? msg.detected_task : null;
 
           return (
-            <div key={msg.id || idx} className={isUser ? "chat-message user" : "chat-message tamor"}>
+            <div key={msg.id ?? `tmp-${idx}`} className={isUser ? "chat-message user" : "chat-message tamor"}>
               <div className="chat-bubble">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
 

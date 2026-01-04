@@ -14,7 +14,7 @@ function formatDateLabel(value) {
 export default function ProjectsPanel({
   activeConversationId,
   onSelectConversation,
-  onDeleteConversation,
+  onDeleteConversation, // kept for compatibility, no longer required for delete
   refreshToken,
   currentProjectId,
   setCurrentProjectId,
@@ -61,6 +61,8 @@ export default function ProjectsPanel({
           setCurrentProjectId(null);
         }
       }
+    } catch (err) {
+      console.error("Failed to load projects/conversations:", err);
     } finally {
       setLoading(false);
     }
@@ -74,10 +76,7 @@ export default function ProjectsPanel({
   // ---- Click outside to close menus ----
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(event.target)
-      ) {
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
         setOpenConvMenuId(null);
         setOpenProjectMenuId(null);
       }
@@ -235,6 +234,36 @@ export default function ProjectsPanel({
     }
   };
 
+  // ✅ NEW: actually delete a conversation via API
+  const deleteConversation = async (convId) => {
+    if (!window.confirm("Delete this conversation? This cannot be undone.")) {
+      return;
+    }
+
+    try {
+      // Call the backend
+      await apiFetch(`/conversations/${convId}`, { method: "DELETE" });
+
+      // Update local state
+      setConvos((prev) => prev.filter((c) => c.id !== convId));
+
+      // If the active conversation was deleted, clear selection
+      if (activeConversationId === convId) {
+        onSelectConversation && onSelectConversation(null);
+      }
+
+      // Optional: inform parent (kept for compatibility)
+      if (onDeleteConversation) {
+        onDeleteConversation(convId);
+      }
+    } catch (err) {
+      console.error("Failed to delete conversation:", err);
+      alert(`Delete failed: ${err?.message || err}`);
+    } finally {
+      setOpenConvMenuId(null);
+    }
+  };
+
   // ---- Derived data: counts, selection, filtered chats ----
 
   const projectConversationCounts = projects.reduce((acc, p) => {
@@ -258,7 +287,9 @@ export default function ProjectsPanel({
       : projects.find((p) => p.id === selectedProjectId) || null;
 
   const displayedConvos = convos.filter((c) =>
-    selectedProjectId == null ? c.project_id == null : c.project_id === selectedProjectId
+    selectedProjectId == null
+      ? c.project_id == null
+      : c.project_id === selectedProjectId
   );
 
   // ---- Render helpers ----
@@ -328,14 +359,14 @@ export default function ProjectsPanel({
             </div>
 
             {openConvMenuId === c.id && (
-              <div
-                className="row-menu"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <div className="row-menu" onClick={(e) => e.stopPropagation()}>
                 <button
                   className="row-menu-item"
                   type="button"
-                  onClick={() => startEditConversation(c)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditConversation(c);
+                  }}
                 >
                   <span className="row-menu-icon">✏️</span>
                   <span>Rename</span>
@@ -347,7 +378,8 @@ export default function ProjectsPanel({
                 <button
                   className="row-menu-item"
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     moveConversation(c.id, "");
                     setOpenConvMenuId(null);
                   }}
@@ -360,7 +392,8 @@ export default function ProjectsPanel({
                     key={p.id}
                     className="row-menu-item"
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       moveConversation(c.id, String(p.id));
                       setOpenConvMenuId(null);
                     }}
@@ -375,9 +408,9 @@ export default function ProjectsPanel({
                 <button
                   className="row-menu-item danger"
                   type="button"
-                  onClick={() => {
-                    onDeleteConversation && onDeleteConversation(c.id);
-                    setOpenConvMenuId(null);
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteConversation(c.id);
                   }}
                 >
                   <span className="row-menu-icon">🗑</span>
@@ -425,8 +458,7 @@ export default function ProjectsPanel({
                 <div className="project-section" key={p.id}>
                   <div
                     className={
-                      "project-header" +
-                      (isActive ? " current-workspace" : "")
+                      "project-header" + (isActive ? " current-workspace" : "")
                     }
                     onClick={() => {
                       setCurrentProjectId(p.id);
@@ -439,9 +471,7 @@ export default function ProjectsPanel({
                         <input
                           className="project-edit-input"
                           value={editingProjectName}
-                          onChange={(e) =>
-                            setEditingProjectName(e.target.value)
-                          }
+                          onChange={(e) => setEditingProjectName(e.target.value)}
                           onClick={(e) => e.stopPropagation()}
                         />
                         <button
@@ -494,7 +524,10 @@ export default function ProjectsPanel({
                             <button
                               className="row-menu-item"
                               type="button"
-                              onClick={() => startEditProject(p)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditProject(p);
+                              }}
                             >
                               <span className="row-menu-icon">✏️</span>
                               <span>Rename</span>
@@ -504,7 +537,10 @@ export default function ProjectsPanel({
                               className="row-menu-item danger"
                               type="button"
                               disabled={deletingProjectId === p.id}
-                              onClick={() => deleteProject(p.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteProject(p.id);
+                              }}
                             >
                               <span className="row-menu-icon">🗑</span>
                               <span>Delete</span>
