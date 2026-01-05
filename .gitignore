@@ -74,3 +74,4 @@ api/**/EMPTY_*
 /data/playlists/*.json
 !data/playlists/.keep
 
+data/playlists/*.json
