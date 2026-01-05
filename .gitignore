@@ -63,3 +63,9 @@ api/**/EMPTY_*
 # --- Python cache (extra safety) ---
 *.pyc
 *.pyo
+
+# runtime caches
+/data/playlists/tmdb_cache.json
+
+# runtime caches
+/data/playlists/tmdb_cache.json

@@ -20,7 +20,7 @@ TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342"
 
 # Playlist storage
-PLAYLIST_DIR = "/home/tamor/playlists"
+PLAYLIST_DIR = "/home/tamor/tamor-core/data/playlists"
 CHRISTMAS_PLAYLIST_FILE = os.path.join(PLAYLIST_DIR, "christmas.json")
 
 # Simple in-memory TMDb cache

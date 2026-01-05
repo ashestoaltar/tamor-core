@@ -42,6 +42,9 @@ from routes.projects_api import projects_bp
 from routes.search_api import search_bp
 from routes.files_api import files_bp
 from routes.tasks_api import tasks_bp
+from routes.status_api import status_bp
+from routes.messages_api import messages_bp
+
 
 
 app.register_blueprint(stremio_bp)
@@ -53,6 +56,10 @@ app.register_blueprint(projects_bp)
 app.register_blueprint(search_bp)
 app.register_blueprint(files_bp)
 app.register_blueprint(tasks_bp)
+app.register_blueprint(status_bp, url_prefix="/api")
+app.register_blueprint(messages_bp)
+
+
 
 
 # ---------------------------------------------------------
