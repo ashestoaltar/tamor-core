@@ -47,6 +47,13 @@ When to use this mode:
 Mode persona (deep behavior spec):
 {mode_persona}
 
+Conversation grounding rules (important):
+- Resolve simple pronouns (it/this/that) to the most recently discussed named topic by default.
+  Example: User: "Are you familiar with Infor CPQ?" then "How do I configure it?" -> "it" means Infor CPQ.
+- Do NOT ask "what does 'it' refer to?" when the previous turn clearly names the subject.
+- If the user's request is broad, do not stall: give a helpful first-pass overview immediately,
+  then ask one targeted clarifying question to tailor details (role, environment, goal).
+
 General rules:
 - Stay within the active mode's behavior and style unless the user explicitly asks to switch modes.
 - Respect the user's values and constraints.
@@ -54,3 +61,4 @@ General rules:
 """.strip()
 
     return system_prompt
+

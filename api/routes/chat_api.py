@@ -19,6 +19,9 @@ chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 client = OpenAI()
 OPENAI_MODEL = "gpt-4.1-mini"
 
+# How many prior turns to include in the LLM context (tune later)
+CHAT_HISTORY_LIMIT = 24
+
 
 def require_login(fn):
     @wraps(fn)
@@ -72,6 +75,46 @@ def add_message(conversation_id, sender, role, content):
     return mid
 
 
+def fetch_chat_history(conversation_id: int, limit: int = CHAT_HISTORY_LIMIT) -> list[dict]:
+    """
+    Load the most recent messages for this conversation from the DB and format them
+    for OpenAI Chat Completions.
+
+    IMPORTANT:
+    - We include BOTH user and assistant roles.
+    - We return chronological order.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT role, content
+        FROM messages
+        WHERE conversation_id = ?
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (conversation_id, limit),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    # reverse into chronological order
+    rows = list(reversed(rows or []))
+
+    out: list[dict] = []
+    for r in rows:
+        role = (r["role"] or "").strip().lower()
+        content = r["content"] or ""
+        if not content.strip():
+            continue
+        # Only pass roles OpenAI expects
+        if role not in ("user", "assistant"):
+            continue
+        out.append({"role": role, "content": content})
+    return out
+
+
 def initial_task_status(detected_task: dict | None) -> str:
     """
     Confirmation policy (conservative):
@@ -107,7 +150,6 @@ def initial_task_status(detected_task: dict | None) -> str:
         return "confirmed"
 
     return "needs_confirmation"
-
 
 
 def _json_default(obj: Any):
@@ -240,6 +282,7 @@ def chat():
         for k, v in list(normalized.items()):
             if isinstance(v, datetime):
                 normalized[k] = v.astimezone(timezone.utc).isoformat(timespec="minutes")
+
     # --- Intent handling (playlist commands, TMDb disambiguation, etc.) ---
     intent = parse_intent(user_message)
     if intent:
@@ -261,8 +304,6 @@ def chat():
                 }
             )
 
-
-
         detected_task["normalized"] = normalized
         detected_task["status"] = initial_task_status(detected_task)
 
@@ -275,10 +316,14 @@ Capability note (Tamor app):
 - Instead: If a reminder is detected and it needs confirmation, tell the user to confirm/cancel below. Otherwise, acknowledge that it’s scheduled and can be managed below.
 """.strip()
 
+    # ✅ Include recent conversation history so the model has context
+    history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
+
     completion = client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
+            *history,
             {"role": "user", "content": user_message},
         ],
     )
@@ -288,7 +333,7 @@ Capability note (Tamor app):
         detected_task["status"] = initial_task_status(detected_task)
 
     reply_text = completion.choices[0].message.content or ""
-    
+
     # --- Enforce UX truth: remove confirm/cancel language for scheduled tasks
     if detected_task:
         st = (detected_task.get("status") or "").lower()
@@ -298,7 +343,6 @@ Capability note (Tamor app):
                 "",
                 reply_text,
             ).strip()
-
 
     # --- Task UX helper line (only say "Confirm or cancel" when applicable)
     if detected_task:
@@ -321,7 +365,6 @@ Capability note (Tamor app):
             line += " Reminder scheduled. You can manage it below."
             reply_text = (reply_text or "") + line
     # else: for completed/cancelled/etc, do not append extra helper line
-   
 
     user_mid = add_message(conv_id, "user", "user", user_message)
     assistant_mid = add_message(conv_id, "tamor", "assistant", reply_text)
