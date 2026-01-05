@@ -11,6 +11,8 @@ from openai import OpenAI
 from utils.db import get_db
 from core.prompt import build_system_prompt
 from core.task_classifier import classify_task
+from core.intent import parse_intent, execute_intent
+
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 
@@ -238,6 +240,28 @@ def chat():
         for k, v in list(normalized.items()):
             if isinstance(v, datetime):
                 normalized[k] = v.astimezone(timezone.utc).isoformat(timespec="minutes")
+    # --- Intent handling (playlist commands, TMDb disambiguation, etc.) ---
+    intent = parse_intent(user_message)
+    if intent:
+        out = execute_intent(intent, user_id=user_id, conversation_id=conv_id)
+        if out and out.get("handled"):
+            reply_text = out.get("reply_text", "") or ""
+
+            # ✅ persist chat history even when handled by intent
+            user_mid = add_message(conv_id, "user", "user", user_message)
+            assistant_mid = add_message(conv_id, "tamor", "assistant", reply_text)
+
+            return jsonify(
+                {
+                    "tamor": reply_text,
+                    "conversation_id": conv_id,
+                    "detected_task": None,
+                    "message_ids": {"user": user_mid, "assistant": assistant_mid},
+                    "meta": out.get("meta", {}),
+                }
+            )
+
+
 
         detected_task["normalized"] = normalized
         detected_task["status"] = initial_task_status(detected_task)

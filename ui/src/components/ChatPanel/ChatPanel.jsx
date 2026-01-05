@@ -7,7 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import TaskPill from "./TaskPill";
 
 const EMPTY_STATE_TEXT =
-  "Shalom, I am Tamor. How can I help you today?";
+  "My name is Tamor. How can I help you today?";
 
 function getFileEmoji(filename, mimeType) {
   const name = (filename || "").toLowerCase();
@@ -184,8 +184,8 @@ export default function ChatPanel({
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
-
   const lastSeenMessageIdRef = useRef(0);
+  const lastLoadedConversationIdRef = useRef(null); // ← NEW REF
 
   const [toastText, setToastText] = useState("");
   const toastTimerRef = useRef(null);
@@ -251,61 +251,49 @@ export default function ChatPanel({
     }
   };
 
-const loadConversationHistory = async (convId) => {
-  // 🔒 IMPORTANT: Never wipe the UI just because convId is temporarily missing.
-  // This prevents "messages disappear" during brief state transitions.
-  if (!convId) {
-    // Keep what we have; only ensure at least the initial message exists.
-    setMessages((prev) => (prev?.length ? prev : []));
-    lastSeenMessageIdRef.current = 0;
-    return;
-  }
+  // PATCHED loadConversationHistory
+  const loadConversationHistory = async (convId) => {
+    // 🔒 Never wipe just because convId is temporarily missing
+    if (!convId) return;
 
-  setLoadingHistory(true);
-  try {
-    const data = await apiFetch(`/conversations/${convId}/messages`);
-    const msgs = data.messages || [];
-
-    if (msgs.length === 0) {
-      // 🔒 Don't wipe; keep local messages (optimistic/pending) if any.
-      setMessages((prev) => (prev?.length ? prev : []));
+    // ✅ If the user actually switched conversations, clear the UI immediately
+    if (lastLoadedConversationIdRef.current !== convId) {
+      lastLoadedConversationIdRef.current = convId;
+      setMessages([]);                 // show empty state if no messages
+      setFileRefsByMessageId({});
       lastSeenMessageIdRef.current = 0;
-    } else {
-      // ✅ Merge server history into local state (preserves pending optimistic)
-      setMessages((prev) => mergeMessages(prev, msgs));
-      lastSeenMessageIdRef.current = msgs[msgs.length - 1]?.id || 0;
     }
 
-    // hydrate file refs (best-effort)
-    const ids = (msgs || []).map((m) => m.id).filter((x) => typeof x === "number");
-    if (ids.length) {
-      try {
-        const refs = await apiFetch(`/messages/file_refs?conversation_id=${convId}`);
-        setFileRefsByMessageId(refs.by_message_id || {});
-      } catch {
-        // ignore
+    setLoadingHistory(true);
+    try {
+      const data = await apiFetch(`/conversations/${convId}/messages`);
+      const msgs = data.messages || [];
+
+      // ✅ Server tells us exactly what messages exist
+      setMessages(msgs);
+      lastSeenMessageIdRef.current = msgs.length ? (msgs[msgs.length - 1]?.id || 0) : 0;
+
+      // file refs…
+      if (msgs.length) {
+        try {
+          const refs = await apiFetch(`/messages/file_refs?conversation_id=${convId}`);
+          setFileRefsByMessageId(refs.by_message_id || {});
+        } catch {
+          // ignore
+        }
+      } else {
+        setFileRefsByMessageId({});
       }
-    } else {
-      // 🔒 Only clear refs if we truly have no server messages AND no local messages.
-      // Otherwise keep existing refs to avoid flicker.
-      setFileRefsByMessageId((prev) => prev || {});
+
+      setTimeout(() => hydrateTasksForConversation(convId), 120);
+      setTimeout(() => scrollToBottom("auto"), 40);
+    } catch (err) {
+      console.error("Failed to load conversation:", err);
+      // 🔒 Keep current UI on transient failure (don’t wipe)
+    } finally {
+      setLoadingHistory(false);
     }
-
-    // hydrate tasks shortly after messages render
-    setTimeout(() => hydrateTasksForConversation(convId), 120);
-    setTimeout(() => scrollToBottom("auto"), 40);
-  } catch (err) {
-    console.error("Failed to load conversation:", err);
-
-    // 🔒 Critical: do NOT wipe messages on transient failures.
-    // Keep current chat intact so the user doesn't see "disappearing" messages.
-    setMessages((prev) => (prev?.length ? prev : []));
-    // Keep lastSeenMessageIdRef as-is; resetting it can cause weird polling behavior.
-  } finally {
-    setLoadingHistory(false);
-  }
-};
-
+  };
 
   // Load history when conversation changes
   useEffect(() => {
@@ -588,4 +576,3 @@ const loadConversationHistory = async (convId) => {
     </div>
   );
 }
-
