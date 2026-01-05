@@ -69,3 +69,8 @@ api/**/EMPTY_*
 
 # runtime caches
 /data/playlists/tmdb_cache.json
+
+# runtime data
+/data/playlists/*.json
+!data/playlists/.keep
+
