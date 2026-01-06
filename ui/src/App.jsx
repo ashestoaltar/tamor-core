@@ -13,7 +13,7 @@ function App() {
 
   const [lastMemoryMatches, setLastMemoryMatches] = useState([]);
   const [memoryRefreshToken, setMemoryRefreshToken] = useState(0);
-  const [activeMode, setActiveMode] = useState("Scholar");
+  const [activeMode, setActiveMode] = useState("Auto");
 
   // For tablet/phone: which panel is visible?  "chat" | "left" | "right"
   const [mobileView, setMobileView] = useState("chat");
@@ -106,12 +106,14 @@ function App() {
             value={activeMode}
             onChange={(e) => setActiveMode(e.target.value)}
           >
-            <option value="Scholar">Scholar</option>
+            <option value="Auto">Auto</option>
             <option value="Forge">Forge</option>
-            <option value="Path">Path</option>
-            <option value="Anchor">Anchor</option>
-            <option value="Creative">Creative</option>
+            <option value="Scholar">Scholar</option>
             <option value="System">System</option>
+            <option value="Anchor">Anchor</option>
+            <option value="Path">Path</option>
+            <option value="Creative">Creative</option>
+
           </select>
         </div>
 

@@ -12,6 +12,8 @@ from utils.db import get_db
 from core.prompt import build_system_prompt
 from core.task_classifier import classify_task
 from core.intent import parse_intent, execute_intent
+from core.mode_router import route_mode
+
 
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
@@ -31,6 +33,24 @@ def require_login(fn):
         return fn(*args, **kwargs)
 
     return wrapper
+
+
+def get_conversation_mode(conversation_id: int, user_id: int) -> str | None:
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT mode FROM conversations WHERE id=? AND user_id=?", (conversation_id, user_id))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return row["mode"] if isinstance(row, dict) else row[0]
+
+def set_conversation_mode(conversation_id: int, mode: str):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE conversations SET mode=? WHERE id=?", (mode, conversation_id))
+    conn.commit()
+    conn.close()
 
 
 def get_or_create_conversation(user_id, conversation_id=None, title="New chat", project_id=None):
@@ -256,7 +276,13 @@ def get_mode(mode_name):
 def chat():
     data = request.json or {}
     user_message = (data.get("message") or "").strip()
-    mode = data.get("mode", "Scholar")
+    requested_mode = (data.get("mode") or "").strip()
+    ALLOWED_MODES = {"Scholar","Forge","Path","Anchor","Creative","System","Auto"}
+    if requested_mode and requested_mode not in ALLOWED_MODES:
+        requested_mode = "Auto"
+    mode = requested_mode
+
+
     conversation_id = data.get("conversation_id")
     project_id = data.get("project_id")
 
@@ -268,6 +294,23 @@ def chat():
         title=user_message[:80] if user_message else "New chat",
         project_id=project_id,
     )
+    
+    # --- Mode resolution ---
+    # If UI sends explicit mode (not Auto), respect it and persist as sticky mode.
+    # If Auto or empty, use conversation sticky mode; if missing, route and persist.
+    is_auto = (not mode) or (mode.lower() == "auto")
+
+    if not is_auto:
+        effective_mode = mode
+        set_conversation_mode(conv_id, effective_mode)
+    else:
+        sticky = get_conversation_mode(conv_id, user_id)
+        if sticky:
+            effective_mode = sticky
+        else:
+            effective_mode, _conf = route_mode(user_message)
+            set_conversation_mode(conv_id, effective_mode)
+
 
     detected_task = classify_task(user_message)
 
@@ -307,7 +350,7 @@ def chat():
         detected_task["normalized"] = normalized
         detected_task["status"] = initial_task_status(detected_task)
 
-    system_prompt = build_system_prompt(mode)
+    system_prompt = build_system_prompt(effective_mode)
     system_prompt += """
 
 Capability note (Tamor app):
