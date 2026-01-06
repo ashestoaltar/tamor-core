@@ -13,15 +13,13 @@ from core.prompt import build_system_prompt
 from core.task_classifier import classify_task
 from core.intent import parse_intent, execute_intent
 from core.mode_router import route_mode
-
-
+from core.task_normalizer import normalize_detected_task
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 
 client = OpenAI()
 OPENAI_MODEL = "gpt-4.1-mini"
 
-# How many prior turns to include in the LLM context (tune later)
 CHAT_HISTORY_LIMIT = 24
 
 
@@ -44,6 +42,7 @@ def get_conversation_mode(conversation_id: int, user_id: int) -> str | None:
     if not row:
         return None
     return row["mode"] if isinstance(row, dict) else row[0]
+
 
 def set_conversation_mode(conversation_id: int, mode: str):
     conn = get_db()
@@ -96,14 +95,6 @@ def add_message(conversation_id, sender, role, content):
 
 
 def fetch_chat_history(conversation_id: int, limit: int = CHAT_HISTORY_LIMIT) -> list[dict]:
-    """
-    Load the most recent messages for this conversation from the DB and format them
-    for OpenAI Chat Completions.
-
-    IMPORTANT:
-    - We include BOTH user and assistant roles.
-    - We return chronological order.
-    """
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
@@ -119,7 +110,6 @@ def fetch_chat_history(conversation_id: int, limit: int = CHAT_HISTORY_LIMIT) ->
     rows = cur.fetchall()
     conn.close()
 
-    # reverse into chronological order
     rows = list(reversed(rows or []))
 
     out: list[dict] = []
@@ -128,7 +118,6 @@ def fetch_chat_history(conversation_id: int, limit: int = CHAT_HISTORY_LIMIT) ->
         content = r["content"] or ""
         if not content.strip():
             continue
-        # Only pass roles OpenAI expects
         if role not in ("user", "assistant"):
             continue
         out.append({"role": role, "content": content})
@@ -136,13 +125,6 @@ def fetch_chat_history(conversation_id: int, limit: int = CHAT_HISTORY_LIMIT) ->
 
 
 def initial_task_status(detected_task: dict | None) -> str:
-    """
-    Confirmation policy (conservative):
-    - Recurring language => needs_confirmation
-    - No scheduled_for => needs_confirmation
-    - Explicit one-shot time ("in 10 minutes", "tomorrow at 3pm", "at 8:30") => confirmed
-    - Vague dates like "tomorrow" (no explicit time) => needs_confirmation
-    """
     if not detected_task:
         return "needs_confirmation"
 
@@ -152,19 +134,17 @@ def initial_task_status(detected_task: dict | None) -> str:
     normalized = detected_task.get("normalized") or {}
     scheduled_for = normalized.get("scheduled_for")
 
-    # 1) Always require confirmation for recurring-ish phrases (even before we add RRULE parsing)
-    if any(w in low for w in ("every ", "daily", "weekly", "monthly", "each ", "everyday")):
+    # Recurring language always requires confirmation for now
+    if any(w in low for w in ("every ", "everyday", "daily", "weekly", "monthly", "each ")):
         return "needs_confirmation"
 
-    # 2) If we don't have a concrete time, require confirmation
     if not scheduled_for:
         return "needs_confirmation"
 
-    # 3) Require explicit time indicators for auto-confirm (prevents "tomorrow" auto-confirming)
-    has_relative = " in " in low  # e.g. "in 10 minutes"
-    has_at = " at " in low        # e.g. "tomorrow at 3pm"
-    has_time_token = re.search(r"\b\d{1,2}(:\d{2})?\s*(am|pm)\b", low) is not None  # 3pm, 3:15pm
-    has_colon_time = re.search(r"\b\d{1,2}:\d{2}\b", low) is not None  # 15:30, 8:05
+    has_relative = " in " in low
+    has_at = " at " in low
+    has_time_token = re.search(r"\b\d{1,2}(:\d{2})?\s*(am|pm)\b", low) is not None
+    has_colon_time = re.search(r"\b\d{1,2}:\d{2}\b", low) is not None
 
     if has_relative or has_at or has_time_token or has_colon_time:
         return "confirmed"
@@ -185,14 +165,6 @@ def persist_detected_task(
     message_id: int,
     detected_task: Optional[dict],
 ) -> Optional[int]:
-    """
-    Persist a detected task into detected_tasks and return the inserted task id.
-
-    Invariants:
-    - If detected_task is None, do nothing.
-    - Always persist valid JSON strings (never NULL) for payload_json/normalized_json.
-    - Status defaults to needs_confirmation when missing.
-    """
     if not detected_task or not message_id:
         return None
 
@@ -204,7 +176,7 @@ def persist_detected_task(
     status = initial_task_status(detected_task)
     payload = detected_task.get("payload") or {}
 
-    # Ensure scheduled_for is string if classifier returned datetime
+    # Ensure scheduled_for is string if something upstream returned datetime
     sf = normalized.get("scheduled_for")
     if isinstance(sf, datetime):
         normalized["scheduled_for"] = sf.astimezone(timezone.utc).isoformat(timespec="minutes")
@@ -217,16 +189,8 @@ def persist_detected_task(
     cur.execute(
         """
         INSERT INTO detected_tasks (
-            user_id,
-            project_id,
-            conversation_id,
-            message_id,
-            task_type,
-            title,
-            confidence,
-            payload_json,
-            normalized_json,
-            status
+            user_id, project_id, conversation_id, message_id,
+            task_type, title, confidence, payload_json, normalized_json, status
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
@@ -249,26 +213,62 @@ def persist_detected_task(
     return task_id
 
 
-def _format_when(iso_str: str | None) -> str | None:
-    if not iso_str:
-        return None
-    try:
-        dt = datetime.fromisoformat(iso_str)
-        return dt.astimezone().strftime("%a %b %d, %I:%M %p")
-    except Exception:
-        return iso_str
+def _as_task_list(dt: Any) -> list[dict]:
+    if not dt:
+        return []
+    if isinstance(dt, list):
+        return [x for x in dt if isinstance(x, dict)]
+    if isinstance(dt, dict):
+        return [dt]
+    return []
+
+
+def _is_recurring_task(task: dict) -> bool:
+    n = (task or {}).get("normalized") or {}
+    return bool(n.get("recurrence") or n.get("rrule"))
+
+
+def _task_key(task: dict) -> tuple:
+    task_type = (task.get("task_type") or task.get("type") or "").strip().lower()
+    title = (task.get("title") or "").strip().lower()
+    return (task_type, title)
+
+
+def _dedupe_detected_tasks(tasks: list[dict]) -> list[dict]:
+    if not tasks:
+        return []
+
+    grouped: dict[tuple, list[dict]] = {}
+    for t in tasks:
+        if not isinstance(t, dict):
+            continue
+        grouped.setdefault(_task_key(t), []).append(t)
+
+    kept: list[dict] = []
+    for _k, bucket in grouped.items():
+        recurring = [t for t in bucket if _is_recurring_task(t)]
+        if recurring:
+            kept.extend(recurring)
+        else:
+            kept.extend(bucket)
+
+    kept_ids = {id(t) for t in kept}
+    ordered = [t for t in tasks if id(t) in kept_ids]
+
+    seen = set()
+    final = []
+    for t in ordered:
+        if id(t) in seen:
+            continue
+        seen.add(id(t))
+        final.append(t)
+    return final
 
 
 @chat_bp.get("/mode/<mode_name>")
 @require_login
 def get_mode(mode_name):
-    return jsonify(
-        {
-            "ok": True,
-            "mode": mode_name,
-            "system_prompt": build_system_prompt(mode_name),
-        }
-    )
+    return jsonify({"ok": True, "mode": mode_name, "system_prompt": build_system_prompt(mode_name)})
 
 
 @chat_bp.post("/chat")
@@ -276,16 +276,14 @@ def get_mode(mode_name):
 def chat():
     data = request.json or {}
     user_message = (data.get("message") or "").strip()
-    requested_mode = (data.get("mode") or "").strip()
-    ALLOWED_MODES = {"Scholar","Forge","Path","Anchor","Creative","System","Auto"}
-    if requested_mode and requested_mode not in ALLOWED_MODES:
-        requested_mode = "Auto"
-    mode = requested_mode
 
+    requested_mode = (data.get("mode") or "").strip()
+    allowed_modes = {"Scholar", "Forge", "Path", "Anchor", "Creative", "System", "Auto"}
+    if requested_mode and requested_mode not in allowed_modes:
+        requested_mode = "Auto"
 
     conversation_id = data.get("conversation_id")
     project_id = data.get("project_id")
-
     user_id = session.get("user_id")
 
     conv_id = get_or_create_conversation(
@@ -294,12 +292,10 @@ def chat():
         title=user_message[:80] if user_message else "New chat",
         project_id=project_id,
     )
-    
-    # --- Mode resolution ---
-    # If UI sends explicit mode (not Auto), respect it and persist as sticky mode.
-    # If Auto or empty, use conversation sticky mode; if missing, route and persist.
-    is_auto = (not mode) or (mode.lower() == "auto")
 
+    # Mode resolution (sticky)
+    mode = requested_mode
+    is_auto = (not mode) or (mode.lower() == "auto")
     if not is_auto:
         effective_mode = mode
         set_conversation_mode(conv_id, effective_mode)
@@ -311,32 +307,37 @@ def chat():
             effective_mode, _conf = route_mode(user_message)
             set_conversation_mode(conv_id, effective_mode)
 
+    # Timezone from browser (needed to interpret "9am" as 9am local)
+    tz_name = (data.get("tz_name") or "").strip() or None
+    tz_offset_minutes = data.get("tz_offset_minutes")
 
-    detected_task = classify_task(user_message)
+    detected_raw = classify_task(user_message, tz_name=tz_name, tz_offset_minutes=tz_offset_minutes)
+    detected_tasks = _as_task_list(detected_raw)
 
-    if detected_task:
-        normalized = detected_task.get("normalized") or {}
+    normalized_tasks: list[dict] = []
+    for t in detected_tasks:
+        if not isinstance(t, dict):
+            continue
 
-        # HARDEN datetime
-        sf = normalized.get("scheduled_for")
-        if isinstance(sf, datetime):
-            normalized["scheduled_for"] = sf.astimezone(timezone.utc).isoformat(timespec="minutes")
+        n = normalize_detected_task(t) or {}
+        t2 = dict(t)
+        if isinstance(n, dict) and n:
+            t2["normalized"] = n
 
-        for k, v in list(normalized.items()):
-            if isinstance(v, datetime):
-                normalized[k] = v.astimezone(timezone.utc).isoformat(timespec="minutes")
+        t2["status"] = initial_task_status(t2)
+        normalized_tasks.append(t2)
 
-    # --- Intent handling (playlist commands, TMDb disambiguation, etc.) ---
+    detected_tasks = _dedupe_detected_tasks(normalized_tasks)
+    detected_task = detected_tasks[0] if detected_tasks else None
+
+    # Intent handling
     intent = parse_intent(user_message)
     if intent:
         out = execute_intent(intent, user_id=user_id, conversation_id=conv_id)
         if out and out.get("handled"):
             reply_text = out.get("reply_text", "") or ""
-
-            # ✅ persist chat history even when handled by intent
             user_mid = add_message(conv_id, "user", "user", user_message)
             assistant_mid = add_message(conv_id, "tamor", "assistant", reply_text)
-
             return jsonify(
                 {
                     "tamor": reply_text,
@@ -347,72 +348,84 @@ def chat():
                 }
             )
 
-        detected_task["normalized"] = normalized
-        detected_task["status"] = initial_task_status(detected_task)
-
     system_prompt = build_system_prompt(effective_mode)
     system_prompt += """
-
 Capability note (Tamor app):
 - This app supports reminders and tasks via an internal task system.
 - If the user asks to "remind me" / set a reminder, do NOT say you cannot set reminders/alarms.
 - Instead: If a reminder is detected and it needs confirmation, tell the user to confirm/cancel below. Otherwise, acknowledge that it’s scheduled and can be managed below.
 """.strip()
 
-    # ✅ Include recent conversation history so the model has context
     history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
 
     completion = client.chat.completions.create(
         model=OPENAI_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            *history,
-            {"role": "user", "content": user_message},
-        ],
+        messages=[{"role": "system", "content": system_prompt}, *history, {"role": "user", "content": user_message}],
     )
-
-    # Ensure detected_task carries the final status for downstream UX copy
-    if detected_task and not detected_task.get("status"):
-        detected_task["status"] = initial_task_status(detected_task)
 
     reply_text = completion.choices[0].message.content or ""
 
-    # --- Enforce UX truth: remove confirm/cancel language for scheduled tasks
+    # Safe cleanup: if already scheduled, strip any confirm/cancel prompting from the LLM text
     if detected_task:
         st = (detected_task.get("status") or "").lower()
         if st in ("confirmed", "scheduled"):
-            reply_text = re.sub(
-                r"(?i)\b(confirm|cancel|confirmation)\b.*?$",
-                "",
-                reply_text,
-            ).strip()
+            text = reply_text or ""
+            
+            # If the model wrote "You can manage or ..." (often followed by confirm/cancel),
+            # strip that entire sentence to avoid dangling "You can manage or".
+            text = re.sub(
+                r"(?is)\s*you can manage\s+or\b[^.?!]*(?:[.?!]|$)",
+                " ",
+                text,
+            )
 
-    # --- Task UX helper line (only say "Confirm or cancel" when applicable)
+
+            # Remove common confirmation prompts (entire sentences)
+            text = re.sub(r"(?is)\s*(?:please\s+)?confirm\b[^.?!]*(?:[.?!]|$)", " ", text)
+            text = re.sub(r"(?is)\s*confirm\s+or\s+cancel\b[^.?!]*(?:[.?!]|$)", " ", text)
+            text = re.sub(r"(?is)\s*you\s+can\s+(?:confirm|cancel)\b[^.?!]*(?:[.?!]|$)", " ", text)
+
+            # Also remove the "if you want to confirm/cancel..." line (your original case)
+            text = re.sub(r"(?im)^\s*if you want to (?:confirm|cancel)\b.*$", " ", text)
+
+            # Clean whitespace
+            cleaned = re.sub(r"\s{2,}", " ", text).strip()
+
+            # Prevent awkward leftovers like "Please"
+            if not cleaned or cleaned.lower() in ("please", "please.", "please!"):
+                cleaned = "Got it."
+
+            reply_text = cleaned
+            
+    if detected_task and (reply_text or "").strip().lower() == "got it.":
+        reply_text = ""
+       
+
+
+    # Helper line (NO TIME HERE — pill is authoritative for local display)
     if detected_task:
         status = (detected_task.get("status") or "").lower()
-        norm = detected_task.get("normalized") or {}
-        when_txt = _format_when(norm.get("scheduled_for"))
         ttype = detected_task.get("task_type") or "task"
 
+        # Ensure exactly ONE helper line
         line = "\n\n—\n"
-        line += f"**Task detected:** {ttype}"
-        if when_txt:
-            line += f" for **{when_txt}**."
+
+        if detected_task.get("normalized", {}).get("recurrence"):
+            line += "**Daily recurring reminder.**"
         else:
-            line += "."
+            line += f"**{ttype.capitalize()} detected.**"
 
         if status == "needs_confirmation":
             line += " Confirm or cancel below."
-            reply_text = (reply_text or "") + line
-        elif status in ("confirmed", "scheduled"):
+        else:
             line += " Reminder scheduled. You can manage it below."
-            reply_text = (reply_text or "") + line
-    # else: for completed/cancelled/etc, do not append extra helper line
+
+        reply_text = (reply_text or "") + line
+
 
     user_mid = add_message(conv_id, "user", "user", user_message)
     assistant_mid = add_message(conv_id, "tamor", "assistant", reply_text)
 
-    # ✅ persist task against USER message, and capture DB id
     task_id = persist_detected_task(
         user_id=user_id,
         project_id=project_id,

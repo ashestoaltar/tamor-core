@@ -371,6 +371,9 @@ export default function ChatPanel({
           mode: activeMode,
           conversation_id: activeConversationId,
           project_id: currentProjectId,
+          // ✅ timezone context (client-local)
+          tz_name: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          tz_offset_minutes: new Date().getTimezoneOffset(),
         },
       });
 

@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../api/client";
 
-function fmtWhen(iso) {
+function formatLocalDateTime(iso) {
   if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "2-digit",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return String(iso);
-  }
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZoneName: "short",
+  });
 }
 
 function normalizeStatus(s) {
@@ -55,13 +54,13 @@ function statusStyle(status) {
   };
 
   if (status === "needs_confirmation") {
-  return {
-    ...base,
-    background: "rgba(255, 170, 0, 0.18)",
-    border: "1px solid rgba(255,170,0,0.45)",
-    fontWeight: 600,
-  };
-}
+    return {
+      ...base,
+      background: "rgba(255, 170, 0, 0.18)",
+      border: "1px solid rgba(255,170,0,0.45)",
+      fontWeight: 600,
+    };
+  }
 
   if (status === "dismissed") {
     return { ...base, background: "rgba(160,160,255,0.10)", border: "1px solid rgba(160,160,255,0.22)" };
@@ -114,7 +113,7 @@ export default function TaskPill({ task, onAppendMessage }) {
   const taskType = (task?.task_type || "task").toUpperCase();
   const title = task?.title || "";
   const whenIso = task?.normalized?.scheduled_for || "";
-  const whenTxt = fmtWhen(whenIso);
+  const whenTxt = formatLocalDateTime(whenIso);
   const isRecurring = Boolean(task?.normalized?.recurrence || task?.normalized?.rrule);
   const repeats = useMemo(() => recurrenceText(task), [task]);
 
@@ -199,21 +198,20 @@ export default function TaskPill({ task, onAppendMessage }) {
     <div
       className="task-pill"
       style={{
-  marginTop: 10,
-  border: "1px solid rgba(255,255,255,0.12)",
-  borderRadius: 14,
-  background: "rgba(255,255,255,0.03)",
-  overflow: "hidden",
-  borderLeft:
-    status === "needs_confirmation"
-      ? "4px solid rgba(255,170,0,0.7)"
-      : status === "confirmed"
-      ? "4px solid rgba(60,180,120,0.6)"
-      : status === "dismissed"
-      ? "4px solid rgba(160,160,255,0.6)"
-      : "4px solid rgba(255,255,255,0.12)",
-}}
-
+        marginTop: 10,
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 14,
+        background: "rgba(255,255,255,0.03)",
+        overflow: "hidden",
+        borderLeft:
+          status === "needs_confirmation"
+            ? "4px solid rgba(255,170,0,0.7)"
+            : status === "confirmed"
+            ? "4px solid rgba(60,180,120,0.6)"
+            : status === "dismissed"
+            ? "4px solid rgba(160,160,255,0.6)"
+            : "4px solid rgba(255,255,255,0.12)",
+      }}
     >
       <div
         className="task-pill-header"
@@ -288,7 +286,7 @@ export default function TaskPill({ task, onAppendMessage }) {
             </div>
           ) : null}
 
-          {whenTxt ? (
+          {isRecurring && whenTxt ? (
             <div style={{ marginBottom: 6 }}>
               <strong>Next run:</strong> <span>{whenTxt}</span>
             </div>
@@ -345,4 +343,3 @@ export default function TaskPill({ task, onAppendMessage }) {
     </div>
   );
 }
-
