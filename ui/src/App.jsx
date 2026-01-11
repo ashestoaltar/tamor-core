@@ -28,9 +28,10 @@ function App() {
   const [conversationRefreshToken, setConversationRefreshToken] = useState(0);
 
   const handleNewConversation = () => {
-    // Clear active conversation so ChatPanel shows a fresh welcome
     setActiveConversationId(null);
+    setMobileView("chat");
   };
+
 
   const handleConversationsChanged = () => {
     // Called when ChatPanel creates/updates a conversation
@@ -200,6 +201,7 @@ function App() {
               conversationRefreshToken={conversationRefreshToken}
               // attach new conversations to the current project
               currentProjectId={currentProjectId}
+              setCurrentProjectId={setCurrentProjectId}
             />
           </div>
 

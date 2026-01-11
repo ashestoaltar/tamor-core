@@ -6,8 +6,7 @@ import { apiFetch } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import TaskPill from "./TaskPill";
 
-const EMPTY_STATE_TEXT =
-  "My name is Tamor. How can I help you today?";
+const EMPTY_STATE_TEXT = "My name is Tamor. How can I help you today?";
 
 function getFileEmoji(filename, mimeType) {
   const name = (filename || "").toLowerCase();
@@ -29,7 +28,10 @@ function isTextLikeFile(file) {
   const name = (file?.filename || "").toLowerCase();
   if (mime.startsWith("text/")) return true;
 
-  const textExts = [".txt", ".md", ".markdown", ".json", ".js", ".ts", ".jsx", ".tsx", ".py", ".lisp", ".html", ".css", ".csv", ".yml", ".yaml"];
+  const textExts = [
+    ".txt", ".md", ".markdown", ".json", ".js", ".ts", ".jsx", ".tsx",
+    ".py", ".lisp", ".html", ".css", ".csv", ".yml", ".yaml"
+  ];
   return textExts.some((ext) => name.endsWith(ext));
 }
 
@@ -57,7 +59,10 @@ function FileBadgeWithPreview({ file }) {
         const data = await apiFetch(`/files/${fileId}/content`);
         const fullText = data.text || "";
         const maxChars = 800;
-        const snippet = fullText.length > maxChars ? fullText.slice(0, maxChars) + "\n\n[... truncated ...]" : fullText;
+        const snippet =
+          fullText.length > maxChars
+            ? fullText.slice(0, maxChars) + "\n\n[... truncated ...]"
+            : fullText;
         setText(snippet || "[File is empty or could not be read]");
       } catch (err) {
         console.error("Failed to load inline file preview:", err);
@@ -76,7 +81,11 @@ function FileBadgeWithPreview({ file }) {
         type="button"
         className={"chat-file-badge" + (loading ? " chat-file-badge-loading" : "")}
         onClick={handleClick}
-        title={textLike ? "Click to toggle inline preview (and scroll to file in Files tab)." : "Click to jump to this file in the Files tab."}
+        title={
+          textLike
+            ? "Click to toggle inline preview (and scroll to file in Files tab)."
+            : "Click to jump to this file in the Files tab."
+        }
       >
         <span className="chat-file-badge-icon">{getFileEmoji(file.filename, file.mime_type)}</span>
         <span className="chat-file-badge-name">{file.filename}</span>
@@ -128,7 +137,6 @@ function appendUnique(prev, msg) {
   return [...prev, msg];
 }
 
-// Merge server messages into client state without losing client-only fields (like detected_task)
 function mergeMessages(prev, serverMsgs) {
   const byId = new Map();
   for (const m of prev || []) {
@@ -147,7 +155,6 @@ function mergeMessages(prev, serverMsgs) {
     out.push(merged);
   }
 
-  // ✅ Preserve optimistic/pending messages with no id (last few only)
   const pending = (prev || []).filter((m) => m?.id == null && m?.content);
   for (const p of pending.slice(-4)) {
     const already = out.some(
@@ -159,6 +166,186 @@ function mergeMessages(prev, serverMsgs) {
   return out;
 }
 
+// -----------------------------
+// Project Required Modal
+// -----------------------------
+function ProjectRequiredModal({
+  open,
+  loading,
+  error,
+  projects,
+  selectedProjectId,
+  setSelectedProjectId,
+  newProjectName,
+  setNewProjectName,
+  onCreateProject,
+  onConfirm,
+  onClose,
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="modal-backdrop"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
+        padding: 16,
+      }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="modal-card"
+        style={{
+          width: "min(720px, 100%)",
+          borderRadius: 14,
+          background: "rgba(18,18,18,0.97)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
+          padding: 16,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>Choose where to attach this file</div>
+            <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>
+              Select an existing project or create a new one, then we’ll attach your file there.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Close"
+            style={{
+              background: "transparent",
+              border: "1px solid rgba(255,255,255,0.14)",
+              color: "#fff",
+              borderRadius: 10,
+              padding: "6px 10px",
+              cursor: "pointer",
+              height: 34,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Select project</div>
+
+            {loading && <div style={{ opacity: 0.85, fontSize: 13 }}>Loading projects…</div>}
+            {error && (
+              <div style={{ color: "#ffb4b4", fontSize: 13, whiteSpace: "pre-wrap" }}>{error}</div>
+            )}
+
+            {!loading && (
+              <select
+                value={selectedProjectId ?? ""}
+                onChange={(e) => setSelectedProjectId(e.target.value ? Number(e.target.value) : null)}
+                style={{
+                  width: "100%",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "#fff",
+                  colorScheme: "dark",
+                }}
+              >
+                <option value="">— Choose a project —</option>
+                {(projects || []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name ?? `Project ${p.id}`}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 10, alignItems: "end", }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Create new project</div>
+              <input
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="New project name…"
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "#fff",
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={onCreateProject}
+              disabled={!newProjectName.trim()}
+              style={{
+                alignSelf: "end",
+                width: 96,
+                borderRadius: 10,
+                padding: "10px 12px",
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: !newProjectName.trim()
+                  ? "rgba(255,255,255,0.06)"
+                  : "rgba(255,255,255,0.10)",
+                color: "#fff",
+                cursor: !newProjectName.trim() ? "not-allowed" : "pointer",
+                height: 42,
+              }}
+            >
+              Create
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              borderRadius: 10,
+              padding: "10px 12px",
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "transparent",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!selectedProjectId}
+            style={{
+              borderRadius: 10,
+              padding: "10px 12px",
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: selectedProjectId ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)",
+              color: "#fff",
+              cursor: selectedProjectId ? "pointer" : "not-allowed",
+            }}
+          >
+            Use selected project
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ChatPanel({
   setLastMemoryMatches,
@@ -168,6 +355,7 @@ export default function ChatPanel({
   setActiveConversationId,
   onConversationsChanged,
   currentProjectId,
+  setCurrentProjectId, // ✅ NEW (optional) - from App
   conversationRefreshToken,
 }) {
   const { user } = useAuth();
@@ -185,7 +373,7 @@ export default function ChatPanel({
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const lastSeenMessageIdRef = useRef(0);
-  const lastLoadedConversationIdRef = useRef(null); // ← NEW REF
+  const lastLoadedConversationIdRef = useRef(null);
 
   const [toastText, setToastText] = useState("");
   const toastTimerRef = useRef(null);
@@ -199,18 +387,97 @@ export default function ChatPanel({
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior });
   };
 
-  // ---- Task hydration: task.message_id is the USER message id; attach pill to the NEXT assistant message
+  // ---- Project required modal state ----
+  const LAST_PROJECT_KEY = "tamor_last_project_id";
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [projectModalLoading, setProjectModalLoading] = useState(false);
+  const [projectModalError, setProjectModalError] = useState("");
+  const [projectChoices, setProjectChoices] = useState([]);
+  const [pendingAttachProjectId, setPendingAttachProjectId] = useState(null);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [attachTargetProjectId, setAttachTargetProjectId] = useState(null);
+
+  const loadProjectsForModal = async () => {
+    setProjectModalLoading(true);
+    setProjectModalError("");
+    try {
+      const data = await apiFetch(`/projects`);
+      const projects = data?.projects || [];
+      setProjectChoices(projects);
+      return projects;
+    } catch (err) {
+      setProjectModalError(err?.message || "Failed to load projects.");
+      setProjectChoices([]);
+      return [];
+    } finally {
+      setProjectModalLoading(false);
+    }
+  };
+
+  const openProjectRequiredModal = async () => {
+    setShowProjectModal(true);
+
+    const last = Number(localStorage.getItem(LAST_PROJECT_KEY) || "0") || null;
+    setPendingAttachProjectId(last);
+
+    const projects = await loadProjectsForModal();
+
+    if (last && !projects.some((p) => p?.id === last)) {
+      setPendingAttachProjectId(projects?.[0]?.id ?? null);
+    }
+  };
+
+  const createProjectFromModal = async () => {
+    const name = newProjectName.trim();
+    if (!name) return;
+
+    setProjectModalLoading(true);
+    setProjectModalError("");
+    try {
+      const created = await apiFetch(`/projects`, { method: "POST", body: { name } });
+      const projId = created?.id;
+
+      const projects = await loadProjectsForModal();
+      if (projId) setPendingAttachProjectId(projId);
+      else setPendingAttachProjectId(projects?.[0]?.id ?? null);
+
+      setNewProjectName("");
+      // Let side panels refresh if they listen to this
+      window.dispatchEvent(new Event("tamor:projects-updated"));
+    } catch (err) {
+      setProjectModalError(err?.message || "Failed to create project.");
+    } finally {
+      setProjectModalLoading(false);
+    }
+  };
+
+  const confirmProjectForAttach = () => {
+    if (!pendingAttachProjectId) return;
+
+    localStorage.setItem(LAST_PROJECT_KEY, String(pendingAttachProjectId));
+    setAttachTargetProjectId(pendingAttachProjectId);
+
+    // If App passed setter, update global project context too
+    if (typeof setCurrentProjectId === "function") {
+      setCurrentProjectId(pendingAttachProjectId);
+    }
+
+    setShowProjectModal(false);
+
+    setTimeout(() => {
+      if (fileInputRef.current) fileInputRef.current.click();
+    }, 0);
+  };
+
+  // ---- Task hydration ----
   const hydrateTasksForConversation = async (convId) => {
     if (!convId) return;
 
     try {
-      // Backend supports /tasks?limit=... (no conversation_id filter); filter client-side
       const taskData = await apiFetch(`/tasks?limit=200`);
       const tasks = (taskData?.tasks || []).filter((t) => t?.conversation_id === convId);
-
       if (!tasks.length) return;
 
-      // Map by user message_id
       const byUserMsgId = new Map();
       for (const t of tasks) {
         if (t?.message_id != null) byUserMsgId.set(String(t.message_id), t);
@@ -230,11 +497,8 @@ export default function ChatPanel({
           if (a.role !== "assistant") continue;
 
           const t = m?.id != null ? byUserMsgId.get(String(m.id)) : null;
-
-          // Fallback: sometimes tasks might be stored against assistant id (older rows)
           const t2 = !t && a?.id != null ? byUserMsgId.get(String(a.id)) : null;
           const task = t || t2;
-
           if (!task) continue;
 
           const cur = a.detected_task;
@@ -251,15 +515,12 @@ export default function ChatPanel({
     }
   };
 
-  // PATCHED loadConversationHistory
   const loadConversationHistory = async (convId) => {
-    // 🔒 Never wipe just because convId is temporarily missing
     if (!convId) return;
 
-    // ✅ If the user actually switched conversations, clear the UI immediately
     if (lastLoadedConversationIdRef.current !== convId) {
       lastLoadedConversationIdRef.current = convId;
-      setMessages([]);                 // show empty state if no messages
+      setMessages([]);
       setFileRefsByMessageId({});
       lastSeenMessageIdRef.current = 0;
     }
@@ -269,11 +530,9 @@ export default function ChatPanel({
       const data = await apiFetch(`/conversations/${convId}/messages`);
       const msgs = data.messages || [];
 
-      // ✅ Server tells us exactly what messages exist
       setMessages(msgs);
       lastSeenMessageIdRef.current = msgs.length ? (msgs[msgs.length - 1]?.id || 0) : 0;
 
-      // file refs…
       if (msgs.length) {
         try {
           const refs = await apiFetch(`/messages/file_refs?conversation_id=${convId}`);
@@ -289,20 +548,27 @@ export default function ChatPanel({
       setTimeout(() => scrollToBottom("auto"), 40);
     } catch (err) {
       console.error("Failed to load conversation:", err);
-      // 🔒 Keep current UI on transient failure (don’t wipe)
     } finally {
       setLoadingHistory(false);
     }
   };
 
-  // Load history when conversation changes
   useEffect(() => {
     if (!user) return;
+
+    if (!activeConversationId) {
+      lastLoadedConversationIdRef.current = null;
+      lastSeenMessageIdRef.current = 0;
+      setMessages([]);
+      setFileRefsByMessageId({});
+      setLoadingHistory(false);
+      return;
+    }
+
     loadConversationHistory(activeConversationId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConversationId, conversationRefreshToken, user]);
 
-  // Poll for executor-inserted messages
   useEffect(() => {
     if (!user || !activeConversationId) return;
 
@@ -324,16 +590,12 @@ export default function ChatPanel({
           const reminderHit = newOnes.some((m) => String(m?.content || "").startsWith("⏰ Reminder:"));
           if (reminderHit) showToast("🔔 Reminder triggered");
 
-          // ✅ merge (don’t wipe detected_task)
           setMessages((prev) => mergeMessages(prev, msgs));
-
-          // ✅ rehydrate tasks after poll merge
           setTimeout(() => hydrateTasksForConversation(activeConversationId), 120);
-
           setTimeout(() => scrollToBottom("smooth"), 40);
         }
       } catch {
-        // ignore transient failures
+        // ignore
       }
     };
 
@@ -344,13 +606,10 @@ export default function ChatPanel({
       cancelled = true;
       clearInterval(interval);
     };
-    
   }, [user, activeConversationId]);
 
-  // Auto-scroll on new message count
   useEffect(() => {
     setTimeout(() => scrollToBottom("auto"), 30);
-    
   }, [messages.length]);
 
   const sendMessage = async () => {
@@ -359,7 +618,6 @@ export default function ChatPanel({
 
     setSending(true);
 
-    // optimistic user message
     setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
     setInput("");
 
@@ -371,7 +629,6 @@ export default function ChatPanel({
           mode: activeMode,
           conversation_id: activeConversationId,
           project_id: currentProjectId,
-          // ✅ timezone context (client-local)
           tz_name: Intl.DateTimeFormat().resolvedOptions().timeZone,
           tz_offset_minutes: new Date().getTimezoneOffset(),
         },
@@ -383,7 +640,6 @@ export default function ChatPanel({
         setActiveConversationId(data.conversation_id);
       }
 
-      // Update the last optimistic user message with the real server id (critical for task linking)
       const userMsgId = data?.message_ids?.user;
       if (userMsgId) {
         setMessages((prev) => {
@@ -398,9 +654,7 @@ export default function ChatPanel({
         });
       }
 
-      // Append assistant message
-      const assistantText =
-        (data?.reply ?? data?.tamor ?? data?.reply_text ?? "").toString();
+      const assistantText = (data?.reply ?? data?.tamor ?? data?.reply_text ?? "").toString();
 
       const assistantMsg = {
         id: data?.message_ids?.assistant,
@@ -411,14 +665,12 @@ export default function ChatPanel({
         meta: data?.meta || null,
       };
 
-
       setMessages((prev) => appendUnique(prev, assistantMsg));
 
       if (assistantMsg?.id) {
         lastSeenMessageIdRef.current = Math.max(lastSeenMessageIdRef.current || 0, assistantMsg.id);
       }
 
-      // ✅ hydrate tasks (will attach needs_confirmation pill to the assistant message)
       setTimeout(() => hydrateTasksForConversation(returnedConvId), 180);
 
       if (data?.memory_matches && setLastMemoryMatches) setLastMemoryMatches(data.memory_matches);
@@ -446,8 +698,14 @@ export default function ChatPanel({
     }
   };
 
-  const handleAttachClick = () => {
+  const handleAttachClick = async () => {
     setUploadError("");
+
+    if (!currentProjectId) {
+      await openProjectRequiredModal();
+      return;
+    }
+
     if (fileInputRef.current) fileInputRef.current.click();
   };
 
@@ -462,10 +720,20 @@ export default function ChatPanel({
       const form = new FormData();
       form.append("file", file);
 
-      const uploaded = await apiFetch(
-        `/files/upload?project_id=${currentProjectId || ""}&conversation_id=${activeConversationId || ""}`,
-        { method: "POST", body: form, isFormData: true }
-      );
+      if (activeConversationId) {
+        form.append("conversation_id", activeConversationId);
+      }
+
+      const projectIdForUpload = currentProjectId || attachTargetProjectId;
+      if (!projectIdForUpload) {
+        throw new Error("No project selected for upload.");
+      }
+
+      const uploaded = await apiFetch(`/projects/${projectIdForUpload}/files`, {
+        method: "POST",
+        body: form,
+        isFormData: true,
+      });
 
       setMessages((prev) =>
         appendUnique(prev, {
@@ -497,6 +765,20 @@ export default function ChatPanel({
     <div className="chat-panel">
       <Toast text={toastText} />
 
+      <ProjectRequiredModal
+        open={showProjectModal}
+        loading={projectModalLoading}
+        error={projectModalError}
+        projects={projectChoices}
+        selectedProjectId={pendingAttachProjectId}
+        setSelectedProjectId={setPendingAttachProjectId}
+        newProjectName={newProjectName}
+        setNewProjectName={setNewProjectName}
+        onCreateProject={createProjectFromModal}
+        onConfirm={confirmProjectForAttach}
+        onClose={() => setShowProjectModal(false)}
+      />
+
       <div className="messages">
         {loadingHistory && (
           <div className="chat-message tamor">
@@ -508,33 +790,37 @@ export default function ChatPanel({
           <div className="chat-empty-state">{EMPTY_STATE_TEXT}</div>
         )}
 
-        
         {messages.map((msg, idx) => {
           const isUser = msg.role === "user";
-          const fileRefs = msg.id && fileRefsByMessageId[msg.id] ? fileRefsByMessageId[msg.id] : [];
+          const fileRefs =
+            msg.id && fileRefsByMessageId[msg.id] ? fileRefsByMessageId[msg.id] : [];
           const dt = !isUser ? msg.detected_task : null;
 
           return (
-            <div key={msg.id ?? `tmp-${idx}`} className={isUser ? "chat-message user" : "chat-message tamor"}>
+            <div
+              key={msg.id ?? `tmp-${idx}`}
+              className={isUser ? "chat-message user" : "chat-message tamor"}
+            >
               <div className="chat-bubble">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
 
-                {/* TaskPill (primary UI) */}
                 {!isUser && dt && (
                   <TaskPill
                     task={dt}
                     onAppendMessage={(m) => {
                       setMessages((prev) => appendUnique(prev, { ...m, detected_task: null }));
-                      if (m?.id) lastSeenMessageIdRef.current = Math.max(lastSeenMessageIdRef.current || 0, m.id);
+                      if (m?.id)
+                        lastSeenMessageIdRef.current = Math.max(
+                          lastSeenMessageIdRef.current || 0,
+                          m.id
+                        );
                       setTimeout(() => scrollToBottom("smooth"), 40);
-                      // refresh task statuses across panels
                       window.dispatchEvent(new Event("tamor:tasks-updated"));
                     }}
                   />
                 )}
               </div>
 
-              {/* File badges */}
               {!isUser && fileRefs.length > 0 && (
                 <div className="chat-file-badges">
                   {fileRefs.map((file) => (
@@ -560,7 +846,12 @@ export default function ChatPanel({
           disabled={sending}
         />
         <div className="input-actions">
-          <button type="button" onClick={handleAttachClick} disabled={uploadingFile} title="Attach a file">
+          <button
+            type="button"
+            onClick={handleAttachClick}
+            disabled={uploadingFile}
+            title="Attach a file"
+          >
             {uploadingFile ? "Attaching…" : "📎"}
           </button>
           <button onClick={sendMessage} disabled={sending || !input.trim()}>
@@ -568,7 +859,12 @@ export default function ChatPanel({
           </button>
         </div>
 
-        <input type="file" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileSelected} />
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: "none" }}
+          onChange={handleFileSelected}
+        />
       </div>
 
       {uploadError && (
@@ -579,3 +875,4 @@ export default function ChatPanel({
     </div>
   );
 }
+

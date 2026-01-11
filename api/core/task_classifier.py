@@ -39,6 +39,21 @@ def _local_tz() -> ZoneInfo:
         return ZoneInfo("UTC")
 
 
+def _resolve_user_tz(tz_name: str | None, tz_offset_minutes: int | None) -> ZoneInfo | timezone:
+    if tz_name:
+        try:
+            return ZoneInfo(tz_name)
+        except Exception:
+            pass
+    if tz_offset_minutes is not None:
+        try:
+            # JS getTimezoneOffset(): minutes behind UTC (CST=360). Convert to tzinfo.
+            return timezone(timedelta(minutes=-int(tz_offset_minutes)))
+        except Exception:
+            pass
+    return _local_tz()
+
+
 def _resolve_tz(tz_name: str | None, tz_offset_minutes: int | None) -> timezone | ZoneInfo:
     # Prefer IANA timezone (DST-correct)
     if tz_name:
@@ -137,8 +152,8 @@ def classify_task(text: str, tz_name: str | None = None, tz_offset_minutes: int 
     if not text or not _REMIND_RE.search(text):
         return None
 
-    tz = _resolve_tz(tz_name, tz_offset_minutes)
-    now = datetime.now(tz)
+    user_tz = _resolve_user_tz(tz_name, tz_offset_minutes)
+    now = datetime.now(user_tz)
 
     scheduled_local = (
         _parse_in(text, now)

@@ -308,8 +308,8 @@ def chat():
             set_conversation_mode(conv_id, effective_mode)
 
     # Timezone from browser (needed to interpret "9am" as 9am local)
-    tz_name = (data.get("tz_name") or "").strip() or None
-    tz_offset_minutes = data.get("tz_offset_minutes")
+    tz_name = (data or {}).get("tz_name")
+    tz_offset_minutes = (data or {}).get("tz_offset_minutes")
 
     detected_raw = classify_task(user_message, tz_name=tz_name, tz_offset_minutes=tz_offset_minutes)
     detected_tasks = _as_task_list(detected_raw)

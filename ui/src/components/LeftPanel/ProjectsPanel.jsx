@@ -590,7 +590,12 @@ export default function ProjectsPanel({
             <button
               className="new-conversation-btn"
               type="button"
-              onClick={() => onNewConversation && onNewConversation()}
+              onClick={() =>
+                onNewConversation &&
+                onNewConversation({
+                  project_id: currentProjectId ?? null,
+                })
+              }
             >
               + New Chat
             </button>

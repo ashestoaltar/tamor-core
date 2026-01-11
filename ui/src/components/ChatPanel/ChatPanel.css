@@ -335,3 +335,14 @@
   transition: outline 0.2s ease;
 }
 
+/* Project Required Modal select dropdown */
+.modal-card select {
+  color-scheme: dark;
+}
+
+.modal-card select option {
+  background: #111;
+  color: #fff;
+}
+
+
