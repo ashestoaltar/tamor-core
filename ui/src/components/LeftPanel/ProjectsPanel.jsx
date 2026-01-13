@@ -1,25 +1,34 @@
 // src/components/LeftPanel/ProjectsPanel.jsx
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../../api/client";
+import { formatUtcTimestamp } from "../../utils/formatUtc";
 
-function formatDateLabel(value) {
-  if (!value) return "";
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
+
+
+function getConversationTitleFromResponse(data, fallback) {
+  if (!data) return fallback;
+  if (typeof data.title === "string" && data.title.trim()) return data.title.trim();
+  if (typeof data.name === "string" && data.name.trim()) return data.name.trim();
+  if (data.conversation) {
+    const c = data.conversation;
+    if (typeof c.title === "string" && c.title.trim()) return c.title.trim();
+    if (typeof c.name === "string" && c.name.trim()) return c.name.trim();
   }
+  return fallback;
 }
 
 export default function ProjectsPanel({
   activeConversationId,
   onSelectConversation,
-  onDeleteConversation, // kept for compatibility, no longer required for delete
+  onDeleteConversation,
   refreshToken,
   currentProjectId,
   setCurrentProjectId,
   onNewConversation,
 }) {
+  // ----------------------------
+  // State
+  // ----------------------------
   const [projects, setProjects] = useState([]);
   const [convos, setConvos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -37,9 +46,30 @@ export default function ProjectsPanel({
   const [openProjectMenuId, setOpenProjectMenuId] = useState(null);
 
   const panelRef = useRef(null);
+  const isMountedRef = useRef(true);
 
-  // ---- Load projects + conversations ----
-  async function loadAll() {
+  // ----------------------------
+  // Helpers
+  // ----------------------------
+  const closeMenus = useCallback(() => {
+    setOpenConvMenuId(null);
+    setOpenProjectMenuId(null);
+  }, []);
+
+  const cancelEditConversation = useCallback(() => {
+    setEditingConvId(null);
+    setEditingConvTitle("");
+  }, []);
+
+  const cancelEditProject = useCallback(() => {
+    setEditingProjectId(null);
+    setEditingProjectName("");
+  }, []);
+
+  // ----------------------------
+  // Load data
+  // ----------------------------
+  const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const [projData, convData] = await Promise.all([
@@ -47,65 +77,99 @@ export default function ProjectsPanel({
         apiFetch("/conversations"),
       ]);
 
-      const projList = projData.projects || [];
-      const convList = convData.conversations || convData || [];
+      const projList = projData?.projects || [];
+      const convList = convData?.conversations || convData || [];
+
+      if (!isMountedRef.current) return;
 
       setProjects(projList);
       setConvos(convList);
 
-      // If nothing is selected yet, default to first project or Unassigned
-      if (currentProjectId === undefined) {
-        if (projList.length > 0) {
-          setCurrentProjectId(projList[0].id);
-        } else {
-          setCurrentProjectId(null);
-        }
-      }
+      // Phase 3.2: do not auto-select defaults here.
+      // Selection should be owned by App.jsx.
     } catch (err) {
-      console.error("Failed to load projects/conversations:", err);
+      console.error("ProjectsPanel: failed to load projects/conversations:", err);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshToken]);
+  }, [loadAll, refreshToken]);
 
-  // ---- Click outside to close menus ----
+  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (panelRef.current && !panelRef.current.contains(event.target)) {
-        setOpenConvMenuId(null);
-        setOpenProjectMenuId(null);
+        closeMenus();
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [closeMenus]);
 
-  // ---- Project actions ----
+  // ----------------------------
+  // Derived data
+  // ----------------------------
+  const projectConversationCounts = useMemo(() => {
+    const counts = projects.reduce((acc, p) => {
+      acc[p.id] = 0;
+      return acc;
+    }, {});
+    for (const c of convos) {
+      if (c.project_id != null && counts[c.project_id] !== undefined) {
+        counts[c.project_id] += 1;
+      }
+    }
+    return counts;
+  }, [projects, convos]);
 
+  const unassignedCount = useMemo(() => {
+    let n = 0;
+    for (const c of convos) if (c.project_id == null) n += 1;
+    return n;
+  }, [convos]);
+
+  const selectedProjectId = currentProjectId ?? null;
+
+  const selectedProject = useMemo(() => {
+    if (selectedProjectId == null) return null;
+    return projects.find((p) => p.id === selectedProjectId) || null;
+  }, [projects, selectedProjectId]);
+
+  const displayedConvos = useMemo(() => {
+    return convos.filter((c) =>
+      selectedProjectId == null ? c.project_id == null : c.project_id === selectedProjectId
+    );
+  }, [convos, selectedProjectId]);
+
+  // ----------------------------
+  // Project actions
+  // ----------------------------
   const handleNewProject = async () => {
     const name = window.prompt("Project name?");
     if (!name) return;
 
     try {
       setSavingProject(true);
-      const data = await apiFetch("/projects", {
-        method: "POST",
-        body: { name },
-      });
+      const data = await apiFetch("/projects", { method: "POST", body: { name } });
+      const created = data?.project || data;
 
-      const created = data.project || data;
       setProjects((prev) => [...prev, created]);
-      setCurrentProjectId(created.id);
+      setCurrentProjectId?.(created.id);
+      closeMenus();
     } catch (err) {
-      console.error("Failed to create project:", err);
+      console.error("ProjectsPanel: failed to create project:", err);
+      alert(`Create project failed: ${err?.message || err}`);
     } finally {
       setSavingProject(false);
     }
@@ -115,11 +179,6 @@ export default function ProjectsPanel({
     setEditingProjectId(project.id);
     setEditingProjectName(project.name || "");
     setOpenProjectMenuId(null);
-  };
-
-  const cancelEditProject = () => {
-    setEditingProjectId(null);
-    setEditingProjectName("");
   };
 
   const saveProjectName = async () => {
@@ -134,13 +193,12 @@ export default function ProjectsPanel({
       });
 
       setProjects((prev) =>
-        prev.map((p) =>
-          p.id === editingProjectId ? { ...p, name: data.name || trimmed } : p
-        )
+        prev.map((p) => (p.id === editingProjectId ? { ...p, name: data?.name || trimmed } : p))
       );
       cancelEditProject();
     } catch (err) {
-      console.error("Failed to rename project:", err);
+      console.error("ProjectsPanel: failed to rename project:", err);
+      alert(`Rename project failed: ${err?.message || err}`);
     } finally {
       setSavingProject(false);
     }
@@ -151,41 +209,28 @@ export default function ProjectsPanel({
 
     try {
       setDeletingProjectId(projectId);
-      await apiFetch(`/projects/${projectId}`, {
-        method: "DELETE",
-      });
+      await apiFetch(`/projects/${projectId}`, { method: "DELETE" });
 
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      setConvos((prev) => prev.map((c) => (c.project_id === projectId ? { ...c, project_id: null } : c)));
 
-      // Any conversations that belonged to this project become unassigned
-      setConvos((prev) =>
-        prev.map((c) =>
-          c.project_id === projectId ? { ...c, project_id: null } : c
-        )
-      );
-
-      if (currentProjectId === projectId) {
-        setCurrentProjectId(null);
-      }
+      if (currentProjectId === projectId) setCurrentProjectId?.(null);
     } catch (err) {
-      console.error("Failed to delete project:", err);
+      console.error("ProjectsPanel: failed to delete project:", err);
+      alert(`Delete project failed: ${err?.message || err}`);
     } finally {
       setDeletingProjectId(null);
-      setOpenProjectMenuId(null);
+      closeMenus();
     }
   };
 
-  // ---- Conversation actions ----
-
+  // ----------------------------
+  // Conversation actions
+  // ----------------------------
   const startEditConversation = (conv) => {
     setEditingConvId(conv.id);
-    setEditingConvTitle(conv.title || "");
+    setEditingConvTitle(conv.title || conv.name || "");
     setOpenConvMenuId(null);
-  };
-
-  const cancelEditConversation = () => {
-    setEditingConvId(null);
-    setEditingConvTitle("");
   };
 
   const saveConversationTitle = async (convId) => {
@@ -194,19 +239,23 @@ export default function ProjectsPanel({
 
     try {
       setSavingConvId(convId);
+
+      // Backend allows PATCH (OPTIONS shows: OPTIONS, PATCH, DELETE)
       const data = await apiFetch(`/conversations/${convId}`, {
-        method: "PUT",
-        body: { title: trimmed },
+        method: "PATCH",
+        body: { title: trimmed, name: trimmed },
       });
 
+      const finalTitle = getConversationTitleFromResponse(data, trimmed);
+
       setConvos((prev) =>
-        prev.map((c) =>
-          c.id === convId ? { ...c, title: data.title || trimmed } : c
-        )
+        prev.map((c) => (c.id === convId ? { ...c, title: finalTitle, name: finalTitle } : c))
       );
+
       cancelEditConversation();
     } catch (err) {
-      console.error("Failed to rename conversation:", err);
+      console.error("ProjectsPanel: failed to rename conversation:", err);
+      alert(`Rename failed: ${err?.message || err}`);
     } finally {
       setSavingConvId(null);
     }
@@ -215,14 +264,22 @@ export default function ProjectsPanel({
   const moveConversation = async (convId, newProjectId) => {
     const project_id = newProjectId === "" ? null : Number(newProjectId);
 
+    // Backend requires title on PATCH. Include current title/name.
+    const conv = convos.find((c) => c.id === convId);
+    const currentTitle = (conv?.title || conv?.name || "").trim();
+
     try {
       const data = await apiFetch(`/conversations/${convId}`, {
-        method: "PUT",
-        body: { project_id },
+        method: "PATCH",
+        body: {
+          project_id,
+          title: currentTitle,
+          name: currentTitle,
+        },
       });
 
       const updatedProjectId =
-        data.project_id !== undefined ? data.project_id : project_id;
+        data?.project_id !== undefined ? data.project_id : project_id;
 
       setConvos((prev) =>
         prev.map((c) =>
@@ -230,82 +287,47 @@ export default function ProjectsPanel({
         )
       );
     } catch (err) {
-      console.error("Failed to move conversation:", err);
+      console.error("ProjectsPanel: failed to move conversation:", err);
+      alert(`Move failed: ${err?.message || err}`);
+    } finally {
+      setOpenConvMenuId(null);
     }
   };
 
-  // ✅ NEW: actually delete a conversation via API
+
   const deleteConversation = async (convId) => {
-    if (!window.confirm("Delete this conversation? This cannot be undone.")) {
-      return;
-    }
+    if (!window.confirm("Delete this conversation? This cannot be undone.")) return;
 
     try {
-      // Call the backend
       await apiFetch(`/conversations/${convId}`, { method: "DELETE" });
-
-      // Update local state
       setConvos((prev) => prev.filter((c) => c.id !== convId));
 
-      // If the active conversation was deleted, clear selection
-      if (activeConversationId === convId) {
-        onSelectConversation && onSelectConversation(null);
-      }
-
-      // Optional: inform parent (kept for compatibility)
-      if (onDeleteConversation) {
-        onDeleteConversation(convId);
-      }
+      if (activeConversationId === convId) onSelectConversation?.(null);
+      onDeleteConversation?.(convId);
     } catch (err) {
-      console.error("Failed to delete conversation:", err);
+      console.error("ProjectsPanel: failed to delete conversation:", err);
       alert(`Delete failed: ${err?.message || err}`);
     } finally {
       setOpenConvMenuId(null);
     }
   };
 
-  // ---- Derived data: counts, selection, filtered chats ----
-
-  const projectConversationCounts = projects.reduce((acc, p) => {
-    acc[p.id] = 0;
-    return acc;
-  }, {});
-  let unassignedCount = 0;
-
-  for (const c of convos) {
-    if (c.project_id == null) {
-      unassignedCount += 1;
-    } else if (projectConversationCounts[c.project_id] !== undefined) {
-      projectConversationCounts[c.project_id] += 1;
-    }
-  }
-
-  const selectedProjectId = currentProjectId ?? null;
-  const selectedProject =
-    selectedProjectId == null
-      ? null
-      : projects.find((p) => p.id === selectedProjectId) || null;
-
-  const displayedConvos = convos.filter((c) =>
-    selectedProjectId == null
-      ? c.project_id == null
-      : c.project_id === selectedProjectId
-  );
-
-  // ---- Render helpers ----
-
+  // ----------------------------
+  // Render helpers
+  // ----------------------------
   const renderConversationRow = (c) => {
     const isActive = c.id === activeConversationId;
     const isEditing = editingConvId === c.id;
-    const updatedLabel = formatDateLabel(c.updated_at);
+    const updatedLabel = formatUtcTimestamp(c.updated_at || c.created_at);
 
     return (
       <div
         key={c.id}
         className={"conversation-item" + (isActive ? " active" : "")}
-        onClick={() =>
-          !isEditing && onSelectConversation && onSelectConversation(c.id)
-        }
+        onClick={() => {
+          if (isEditing) return;
+          onSelectConversation?.(c.id);
+        }}
       >
         {isEditing ? (
           <div className="conversation-edit-row">
@@ -313,13 +335,18 @@ export default function ProjectsPanel({
               className="conversation-edit-input"
               value={editingConvTitle}
               onChange={(e) => setEditingConvTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveConversationTitle(c.id);
+                if (e.key === "Escape") cancelEditConversation();
+              }}
               onClick={(e) => e.stopPropagation()}
+              autoFocus
             />
             <div className="conversation-edit-controls">
               <button
                 className="conversation-save-btn"
                 type="button"
-                disabled={savingConvId === c.id}
+                disabled={savingConvId === c.id || !editingConvTitle.trim()}
                 onClick={(e) => {
                   e.stopPropagation();
                   saveConversationTitle(c.id);
@@ -342,9 +369,7 @@ export default function ProjectsPanel({
         ) : (
           <>
             <div className="conversation-main-row">
-              <div className="conversation-title">
-                {c.title || `Conversation ${c.id}`}
-              </div>
+              <div className="conversation-title">{c.title || c.name || `Conversation ${c.id}`}</div>
               <button
                 className="row-menu-toggle"
                 type="button"
@@ -360,43 +385,25 @@ export default function ProjectsPanel({
 
             {openConvMenuId === c.id && (
               <div className="row-menu" onClick={(e) => e.stopPropagation()}>
-                <button
-                  className="row-menu-item"
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startEditConversation(c);
-                  }}
-                >
+                <button className="row-menu-item" type="button" onClick={() => startEditConversation(c)}>
                   <span className="row-menu-icon">✏️</span>
                   <span>Rename</span>
                 </button>
 
                 <div className="row-menu-divider" />
-
                 <div className="row-menu-subheader">Move to project</div>
-                <button
-                  className="row-menu-item"
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    moveConversation(c.id, "");
-                    setOpenConvMenuId(null);
-                  }}
-                >
+
+                <button className="row-menu-item" type="button" onClick={() => moveConversation(c.id, "")}>
                   <span className="row-menu-icon">📂</span>
                   <span>Unassigned</span>
                 </button>
+
                 {projects.map((p) => (
                   <button
                     key={p.id}
                     className="row-menu-item"
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveConversation(c.id, String(p.id));
-                      setOpenConvMenuId(null);
-                    }}
+                    onClick={() => moveConversation(c.id, String(p.id))}
                   >
                     <span className="row-menu-icon">📁</span>
                     <span>{p.name}</span>
@@ -405,14 +412,7 @@ export default function ProjectsPanel({
 
                 <div className="row-menu-divider" />
 
-                <button
-                  className="row-menu-item danger"
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteConversation(c.id);
-                  }}
-                >
+                <button className="row-menu-item danger" type="button" onClick={() => deleteConversation(c.id)}>
                   <span className="row-menu-icon">🗑</span>
                   <span>Delete</span>
                 </button>
@@ -421,30 +421,23 @@ export default function ProjectsPanel({
           </>
         )}
 
-        {updatedLabel && !isEditing && (
-          <div className="conversation-updated">{updatedLabel}</div>
-        )}
+        {updatedLabel && !isEditing && <div className="conversation-updated">{updatedLabel}</div>}
       </div>
     );
   };
 
-  // ---- Render ----
-
+  // ----------------------------
+  // Render
+  // ----------------------------
   return (
     <div className="projects-panel" ref={panelRef}>
-      {/* Projects header */}
       <div className="conversation-header">
         <h3 className="panel-title">Projects</h3>
-        <button
-          className="new-project-btn"
-          type="button"
-          onClick={handleNewProject}
-        >
+        <button className="new-project-btn" type="button" onClick={handleNewProject} disabled={savingProject}>
           + New Project
         </button>
       </div>
 
-      {/* Project list (folders + Unassigned) */}
       {loading && <div className="memory-loading">Loading…</div>}
 
       {!loading && (
@@ -457,13 +450,10 @@ export default function ProjectsPanel({
               return (
                 <div className="project-section" key={p.id}>
                   <div
-                    className={
-                      "project-header" + (isActive ? " current-workspace" : "")
-                    }
+                    className={"project-header" + (isActive ? " current-workspace" : "")}
                     onClick={() => {
-                      setCurrentProjectId(p.id);
-                      setOpenProjectMenuId(null);
-                      setOpenConvMenuId(null);
+                      setCurrentProjectId?.(p.id);
+                      closeMenus();
                     }}
                   >
                     {isEditingProj ? (
@@ -472,12 +462,17 @@ export default function ProjectsPanel({
                           className="project-edit-input"
                           value={editingProjectName}
                           onChange={(e) => setEditingProjectName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveProjectName();
+                            if (e.key === "Escape") cancelEditProject();
+                          }}
                           onClick={(e) => e.stopPropagation()}
+                          autoFocus
                         />
                         <button
                           className="project-edit-save"
                           type="button"
-                          disabled={savingProject}
+                          disabled={savingProject || !editingProjectName.trim()}
                           onClick={(e) => {
                             e.stopPropagation();
                             saveProjectName();
@@ -501,7 +496,7 @@ export default function ProjectsPanel({
                         <span className="project-name">{p.name}</span>
                         <span className="project-count">
                           {projectConversationCounts[p.id] || 0} conversation
-                          {projectConversationCounts[p.id] === 1 ? "" : "s"}
+                          {(projectConversationCounts[p.id] || 0) === 1 ? "" : "s"}
                         </span>
                         <button
                           className="row-menu-toggle"
@@ -509,41 +504,29 @@ export default function ProjectsPanel({
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenConvMenuId(null);
-                            setOpenProjectMenuId((prev) =>
-                              prev === p.id ? null : p.id
-                            );
+                            setOpenProjectMenuId((prev) => (prev === p.id ? null : p.id));
                           }}
                         >
                           ⋯
                         </button>
+
                         {openProjectMenuId === p.id && (
-                          <div
-                            className="row-menu"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              className="row-menu-item"
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEditProject(p);
-                              }}
-                            >
+                          <div className="row-menu" onClick={(e) => e.stopPropagation()}>
+                            <button className="row-menu-item" type="button" onClick={() => startEditProject(p)}>
                               <span className="row-menu-icon">✏️</span>
                               <span>Rename</span>
                             </button>
+
                             <div className="row-menu-divider" />
+
                             <button
                               className="row-menu-item danger"
                               type="button"
                               disabled={deletingProjectId === p.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteProject(p.id);
-                              }}
+                              onClick={() => deleteProject(p.id)}
                             >
                               <span className="row-menu-icon">🗑</span>
-                              <span>Delete</span>
+                              <span>{deletingProjectId === p.id ? "Deleting…" : "Delete"}</span>
                             </button>
                           </div>
                         )}
@@ -554,48 +537,32 @@ export default function ProjectsPanel({
               );
             })}
 
-            {/* Unassigned pseudo-project */}
             <div className="project-section">
               <div
-                className={
-                  "project-header" +
-                  (currentProjectId == null ? " current-workspace" : "")
-                }
+                className={"project-header" + (currentProjectId == null ? " current-workspace" : "")}
                 onClick={() => {
-                  setCurrentProjectId(null);
-                  setOpenProjectMenuId(null);
-                  setOpenConvMenuId(null);
+                  setCurrentProjectId?.(null);
+                  closeMenus();
                 }}
               >
                 <span className="project-name">Unassigned</span>
                 <span className="project-count">
-                  {unassignedCount} conversation
-                  {unassignedCount === 1 ? "" : "s"}
+                  {unassignedCount} conversation{unassignedCount === 1 ? "" : "s"}
                 </span>
               </div>
             </div>
 
             {projects.length === 0 && (
-              <div className="memory-empty small">
-                No projects yet. Use &ldquo;+ New Project&rdquo; to create one.
-              </div>
+              <div className="memory-empty small">No projects yet. Use “+ New Project” to create one.</div>
             )}
           </div>
 
-          {/* Chats for selected project */}
           <div className="conversation-header" style={{ marginTop: "0.35rem" }}>
-            <h3 className="panel-title">
-              {selectedProject ? selectedProject.name : "Unassigned"}
-            </h3>
+            <h3 className="panel-title">{selectedProject ? selectedProject.name : "Unassigned"}</h3>
             <button
               className="new-conversation-btn"
               type="button"
-              onClick={() =>
-                onNewConversation &&
-                onNewConversation({
-                  project_id: currentProjectId ?? null,
-                })
-              }
+              onClick={() => onNewConversation?.({ project_id: currentProjectId ?? null })}
             >
               + New Chat
             </button>
@@ -605,9 +572,7 @@ export default function ProjectsPanel({
             {displayedConvos.length > 0 ? (
               displayedConvos.map(renderConversationRow)
             ) : (
-              <div className="memory-empty small">
-                No conversations in this project yet.
-              </div>
+              <div className="memory-empty small">No conversations in this project yet.</div>
             )}
           </div>
         </>

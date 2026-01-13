@@ -64,7 +64,7 @@ export default function useSemanticSearch({
         },
       });
 
-      if (onConversationsChanged) {
+      if (typeof onConversationsChanged === "function") {
         onConversationsChanged();
       }
     } catch (err) {

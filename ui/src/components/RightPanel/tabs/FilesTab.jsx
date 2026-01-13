@@ -161,7 +161,7 @@ function FilesTab({
         },
       });
 
-      if (onConversationsChanged) {
+      if (typeof onConversationsChanged === "function") {
         onConversationsChanged();
       }
     } catch (err) {
@@ -186,7 +186,7 @@ function FilesTab({
         },
       });
 
-      if (onConversationsChanged) {
+      if (typeof onConversationsChanged === "function") {
         onConversationsChanged();
       }
     } catch (err) {

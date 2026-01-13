@@ -57,7 +57,7 @@ function KnowledgeTab({
         },
       });
 
-      if (onConversationsChanged) {
+      if (typeof onConversationsChanged === "function") {
         onConversationsChanged();
       }
     } catch (err) {

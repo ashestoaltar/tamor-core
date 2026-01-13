@@ -1,6 +1,7 @@
 // src/components/LeftPanel/ConversationList.jsx
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../api/client";
+import { formatUtcTimestamp } from "../../utils/formatUtc";
 
 export default function ConversationList({
   activeConversationId,
@@ -17,7 +18,6 @@ export default function ConversationList({
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  // ✅ Single, aligned kebab-menu system
   const [openMenuId, setOpenMenuId] = useState(null);
   const listRef = useRef(null);
 
@@ -27,7 +27,7 @@ export default function ConversationList({
       const data = await apiFetch("/conversations");
       setConvos(data.conversations || []);
     } catch (err) {
-      console.error("Failed to load conversations:", err);
+      console.error("ConversationList: failed to load conversations:", err);
       setConvos([]);
     } finally {
       setLoading(false);
@@ -38,14 +38,11 @@ export default function ConversationList({
     loadConversations();
   }, [refreshToken]);
 
-  // ✅ Close menus on outside click + Esc
   useEffect(() => {
     const onDocMouseDown = (e) => {
       if (!openMenuId) return;
       if (!listRef.current) return;
-      if (!listRef.current.contains(e.target)) {
-        setOpenMenuId(null);
-      }
+      if (!listRef.current.contains(e.target)) setOpenMenuId(null);
     };
 
     const onKeyDown = (e) => {
@@ -57,17 +54,17 @@ export default function ConversationList({
 
     document.addEventListener("mousedown", onDocMouseDown);
     document.addEventListener("keydown", onKeyDown);
+
     return () => {
       document.removeEventListener("mousedown", onDocMouseDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-    
   }, [openMenuId, editingId]);
 
   const startEdit = (conv) => {
     setOpenMenuId(null);
     setEditingId(conv.id);
-    setEditingTitle(conv.title || "");
+    setEditingTitle(conv.title || conv.name || "");
   };
 
   const cancelEdit = () => {
@@ -86,18 +83,19 @@ export default function ConversationList({
 
     try {
       setSaving(true);
+
       const data = await apiFetch(`/conversations/${editingId}`, {
         method: "PATCH",
-        body: { title: nextTitle },
+        body: { title: nextTitle, name: nextTitle },
       });
 
-      setConvos((prev) =>
-        prev.map((c) => (c.id === editingId ? { ...c, title: data.title } : c))
-      );
+      const finalTitle = data?.title || data?.name || nextTitle;
 
+      setConvos((prev) => prev.map((c) => (c.id === editingId ? { ...c, title: finalTitle, name: finalTitle } : c)));
       cancelEdit();
     } catch (err) {
-      console.error("Failed to rename conversation:", err);
+      console.error("ConversationList: failed to rename conversation:", err);
+      alert(`Rename failed: ${err?.message || err}`);
     } finally {
       setSaving(false);
     }
@@ -106,29 +104,19 @@ export default function ConversationList({
   const deleteConv = async (convId) => {
     setOpenMenuId(null);
 
-    if (!window.confirm("Delete this conversation? This cannot be undone.")) {
-      return;
-    }
+    if (!window.confirm("Delete this conversation? This cannot be undone.")) return;
 
     try {
       setDeletingId(convId);
 
-      await apiFetch(`/conversations/${convId}`, {
-        method: "DELETE",
-      });
-
-      // Remove from local list
+      await apiFetch(`/conversations/${convId}`, { method: "DELETE" });
       setConvos((prev) => prev.filter((c) => c.id !== convId));
 
-      // If we just deleted the active conversation, clear selection
-      if (activeConversationId === convId) {
-        onSelect?.(null);
-      }
-
-      // Inform parent if needed
-      onDeleteConversation?.(convId);
+      if (activeConversationId === convId) onSelect?.(null);
+      if (typeof onDeleteConversation === "function") onDeleteConversation(convId);
     } catch (err) {
-      console.error("Failed to delete conversation:", err);
+      console.error("ConversationList: failed to delete conversation:", err);
+      alert(`Delete failed: ${err?.message || err}`);
     } finally {
       setDeletingId(null);
     }
@@ -138,20 +126,13 @@ export default function ConversationList({
     <div className="conversation-list" ref={listRef}>
       <div className="conversation-header">
         <h3 className="panel-title">Conversations</h3>
-        <button
-          className="new-conversation-btn"
-          type="button"
-          onClick={() => onNewConversation?.()}
-        >
+        <button className="new-conversation-btn" type="button" onClick={() => onNewConversation?.()}>
           + New
         </button>
       </div>
 
-      {loading && <div className="memory-loading">Loading...</div>}
-
-      {!loading && convos.length === 0 && (
-        <div className="memory-empty">No conversations yet.</div>
-      )}
+      {loading && <div className="memory-loading">Loading…</div>}
+      {!loading && convos.length === 0 && <div className="memory-empty">No conversations yet.</div>}
 
       {!loading &&
         convos.map((c) => {
@@ -159,14 +140,8 @@ export default function ConversationList({
           const isEditing = c.id === editingId;
           const isMenuOpen = c.id === openMenuId;
 
-          let updatedLabel = "";
-          if (c.updated_at) {
-            try {
-              updatedLabel = new Date(c.updated_at).toLocaleString();
-            } catch {
-              updatedLabel = c.updated_at;
-            }
-          }
+          const ts = c.updated_at || c.created_at || "";
+          const updatedLabel = formatUtcTimestamp(ts);
 
           return (
             <div
@@ -193,27 +168,20 @@ export default function ConversationList({
                     <button
                       className="conversation-save-btn"
                       type="button"
-                      disabled={saving}
+                      disabled={saving || !editingTitle.trim()}
                       onClick={saveEdit}
                     >
                       {saving ? "Saving…" : "Save"}
                     </button>
-                    <button
-                      className="conversation-cancel-btn"
-                      type="button"
-                      onClick={cancelEdit}
-                    >
+                    <button className="conversation-cancel-btn" type="button" onClick={cancelEdit}>
                       Cancel
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="conversation-main-row">
-                  <div className="conversation-title">
-                    {c.title || `Conversation ${c.id}`}
-                  </div>
+                  <div className="conversation-title">{c.title || c.name || `Conversation ${c.id}`}</div>
 
-                  {/* ✅ Single aligned kebab toggle */}
                   <button
                     className="row-menu-toggle"
                     type="button"
@@ -226,17 +194,9 @@ export default function ConversationList({
                     ⋯
                   </button>
 
-                  {/* ✅ One menu pattern, wired to actions */}
                   {isMenuOpen && (
-                    <div
-                      className="row-menu"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        className="row-menu-item"
-                        type="button"
-                        onClick={() => startEdit(c)}
-                      >
+                    <div className="row-menu" onClick={(e) => e.stopPropagation()}>
+                      <button className="row-menu-item" type="button" onClick={() => startEdit(c)}>
                         <span className="row-menu-icon">✎</span>
                         Rename
                       </button>
@@ -257,9 +217,7 @@ export default function ConversationList({
                 </div>
               )}
 
-              {updatedLabel && !isEditing && (
-                <div className="conversation-updated">{updatedLabel}</div>
-              )}
+              {updatedLabel && !isEditing && <div className="conversation-updated">{updatedLabel}</div>}
             </div>
           );
         })}

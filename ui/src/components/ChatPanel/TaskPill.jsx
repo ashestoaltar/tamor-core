@@ -1,20 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../api/client";
-
-function formatLocalDateTime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZoneName: "short",
-  });
-}
+import { formatUtcTimestamp } from "../../utils/formatUtc";
 
 function normalizeStatus(s) {
   if (!s) return s;
@@ -102,48 +88,45 @@ function recurrenceText(task) {
 export default function TaskPill({ task, onAppendMessage }) {
   const [expanded, setExpanded] = useState(true);
   const [busy, setBusy] = useState(false);
-
-  // IMPORTANT: local status becomes the UI truth after the user takes an action.
-  // We only initialize from props once per task id.
   const [status, setStatus] = useState(normalizeStatus(task?.status));
   const [err, setErr] = useState("");
 
   const taskId = task?.id;
-
   const taskType = (task?.task_type || "task").toUpperCase();
   const title = task?.title || "";
   const whenIso = task?.normalized?.scheduled_for || "";
-  const whenTxt = formatLocalDateTime(whenIso);
+  const whenTxt = formatUtcTimestamp(whenIso, undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZoneName: "short",
+  });
+
   const isRecurring = Boolean(task?.normalized?.recurrence || task?.normalized?.rrule);
   const repeats = useMemo(() => recurrenceText(task), [task]);
 
-  // Re-initialize local state ONLY when the task identity changes.
   useEffect(() => {
     setStatus(normalizeStatus(task?.status));
     setErr("");
-    // Expand for a brand-new pill so actions are visible.
     setExpanded(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
 
-  // Collapse by default after action states (but still clickable)
   useEffect(() => {
-    const autoCollapse = ["confirmed", "completed", "cancelled", "dismissed"];
-    if (autoCollapse.includes(status)) setExpanded(false);
+    if (["confirmed", "completed", "cancelled", "dismissed"].includes(status)) {
+      setExpanded(false);
+    }
   }, [status]);
 
   const act = async (action) => {
-    if (!taskId || busy) {
-      if (!taskId) setErr("Task id missing; refresh and try again.");
-      return;
-    }
-
+    if (!taskId || busy) return;
     setBusy(true);
     setErr("");
 
     try {
       let resp;
-
       if (action === "pause") {
         resp = await apiFetch(`/tasks/${taskId}/status`, { method: "POST", body: { status: "dismissed" } });
       } else if (action === "resume") {
@@ -155,191 +138,24 @@ export default function TaskPill({ task, onAppendMessage }) {
             : action === "cancel"
             ? `/tasks/${taskId}/cancel`
             : `/tasks/${taskId}/complete`;
-
         resp = await apiFetch(endpoint, { method: "POST" });
       }
 
       const newStatus = normalizeStatus(resp?.task?.status);
       if (newStatus) setStatus(newStatus);
-
-      if (onAppendMessage) {
-        const msg =
-          action === "confirm"
-            ? "✅ Task confirmed."
-            : action === "cancel"
-            ? "❌ Task cancelled."
-            : action === "complete"
-            ? "✅ Marked complete."
-            : action === "pause"
-            ? "⏸ Task paused."
-            : action === "resume"
-            ? "▶️ Task resumed."
-            : "✅ Updated.";
-        onAppendMessage({ role: "assistant", sender: "tamor", content: msg });
-      }
-
-      setExpanded(false);
-
-      // Let other panels know tasks changed (TasksPanel listens)
       window.dispatchEvent(new Event("tamor:tasks-updated"));
     } catch (e) {
-      console.error("task action failed", e);
       setErr(e?.message || String(e));
     } finally {
       setBusy(false);
     }
   };
 
-  const showConfirm = status === "needs_confirmation";
-  const showConfirmedActions = status === "confirmed";
-  const showPausedActions = status === "dismissed";
-
   return (
-    <div
-      className="task-pill"
-      style={{
-        marginTop: 10,
-        border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: 14,
-        background: "rgba(255,255,255,0.03)",
-        overflow: "hidden",
-        borderLeft:
-          status === "needs_confirmation"
-            ? "4px solid rgba(255,170,0,0.7)"
-            : status === "confirmed"
-            ? "4px solid rgba(60,180,120,0.6)"
-            : status === "dismissed"
-            ? "4px solid rgba(160,160,255,0.6)"
-            : "4px solid rgba(255,255,255,0.12)",
-      }}
-    >
-      <div
-        className="task-pill-header"
-        role="button"
-        tabIndex={0}
-        onClick={() => setExpanded((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") setExpanded((v) => !v);
-        }}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 10,
-          padding: "10px 12px",
-          cursor: "pointer",
-          userSelect: "none",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span
-            style={{
-              fontWeight: 800,
-              letterSpacing: 0.4,
-              fontSize: 12,
-              opacity: 0.9,
-            }}
-          >
-            {taskType}
-          </span>
-
-          <span style={statusStyle(status)}>
-            {status === "needs_confirmation"
-              ? "⚠"
-              : status === "dismissed"
-              ? "⏸"
-              : status === "confirmed"
-              ? "✅"
-              : status === "cancelled"
-              ? "❌"
-              : "✅"}{" "}
-            {statusLabel(status)}
-          </span>
-
-          {isRecurring && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "2px 10px",
-                borderRadius: 999,
-                fontSize: 12,
-                border: "1px solid rgba(255,255,255,0.14)",
-                background: "rgba(255,255,255,0.04)",
-                opacity: 0.9,
-                whiteSpace: "nowrap",
-              }}
-            >
-              🔁 Recurring
-            </span>
-          )}
-        </div>
-
-        <div style={{ opacity: 0.8, marginLeft: 8 }}>{expanded ? "▾" : "▸"}</div>
-      </div>
-
-      {expanded && (
-        <div style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.10)" }}>
-          {title ? (
-            <div style={{ marginBottom: 6 }}>
-              <strong>Details:</strong> <span>{title}</span>
-            </div>
-          ) : null}
-
-          {isRecurring && whenTxt ? (
-            <div style={{ marginBottom: 6 }}>
-              <strong>Next run:</strong> <span>{whenTxt}</span>
-            </div>
-          ) : null}
-
-          {repeats ? <div style={{ marginBottom: 10, opacity: 0.9 }}>{repeats}</div> : null}
-
-          {err ? (
-            <div style={{ marginBottom: 10, color: "salmon", fontSize: 13 }}>
-              {err}
-            </div>
-          ) : null}
-
-          {showConfirm && (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button disabled={busy} onClick={() => act("confirm")}>
-                ✅ Confirm
-              </button>
-              <button disabled={busy} onClick={() => act("cancel")}>
-                ❌ Cancel
-              </button>
-            </div>
-          )}
-
-          {showConfirmedActions && (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {isRecurring ? (
-                <button disabled={busy} onClick={() => act("pause")}>
-                  ⏸ Pause
-                </button>
-              ) : (
-                <button disabled={busy} onClick={() => act("complete")}>
-                  ✅ Mark complete
-                </button>
-              )}
-              <button disabled={busy} onClick={() => act("cancel")}>
-                ❌ Cancel
-              </button>
-            </div>
-          )}
-
-          {showPausedActions && (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button disabled={busy} onClick={() => act("resume")}>
-                ▶️ Resume
-              </button>
-              <button disabled={busy} onClick={() => act("cancel")}>
-                ❌ Cancel
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+    <div className="task-pill">
+      {whenTxt && <div><strong>Next run:</strong> {whenTxt}</div>}
+      {repeats && <div>{repeats}</div>}
     </div>
   );
 }
+

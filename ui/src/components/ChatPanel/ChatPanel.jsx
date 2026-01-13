@@ -570,7 +570,7 @@ export default function ChatPanel({
   }, [activeConversationId, conversationRefreshToken, user]);
 
   useEffect(() => {
-    if (!user || !activeConversationId) return;
+    if (!user || !activeConversationId || loadingHistory) return;
 
     let cancelled = false;
 
@@ -636,10 +636,7 @@ export default function ChatPanel({
 
       const returnedConvId = data?.conversation_id || activeConversationId;
 
-      if (data?.conversation_id && !activeConversationId) {
-        setActiveConversationId(data.conversation_id);
-      }
-
+      
       const userMsgId = data?.message_ids?.user;
       if (userMsgId) {
         setMessages((prev) => {
@@ -673,10 +670,22 @@ export default function ChatPanel({
 
       setTimeout(() => hydrateTasksForConversation(returnedConvId), 180);
 
-      if (data?.memory_matches && setLastMemoryMatches) setLastMemoryMatches(data.memory_matches);
-      if (data?.memory_refresh && setMemoryRefreshToken) setMemoryRefreshToken((x) => x + 1);
+      if (data?.memory_matches && typeof setLastMemoryMatches === "function") {
+        setLastMemoryMatches(data.memory_matches);
+      } 
 
-      onConversationsChanged?.();
+      if (data?.memory_refresh && typeof setMemoryRefreshToken === "function") {
+        setMemoryRefreshToken((x) => x + 1);
+      }
+
+
+      if (typeof onConversationsChanged === "function") {
+        onConversationsChanged({
+          type: "message_sent",
+          conversation_id: returnedConvId,
+        });
+      }
+
     } catch (err) {
       console.error("Send failed:", err);
       setMessages((prev) =>
@@ -698,6 +707,14 @@ export default function ChatPanel({
     }
   };
 
+  // --------------------------------------------
+// NOTE (Phase 3.2):
+// ChatPanel temporarily owns file-attachment
+// project selection UX. This will be lifted
+// into a shared ProjectContext in Phase 3.3.
+// --------------------------------------------
+
+  
   const handleAttachClick = async () => {
     setUploadError("");
 

@@ -3,6 +3,7 @@ import "./LeftPanel.css";
 import { useState } from "react";
 import ProjectsPanel from "./ProjectsPanel";
 import TasksPanel from "./TasksPanel";
+import { formatUtcTimestamp } from "../../utils/formatUtc";
 
 export default function LeftPanel({
   activeMode,
@@ -159,7 +160,7 @@ export default function LeftPanel({
                   >
                     <div className="search-result-title">{c.title || `Conversation ${c.id}`}</div>
                     <div className="search-result-meta">
-                      {new Date(c.updated_at || c.created_at).toLocaleString()}
+                      {formatUtcTimestamp(c.updated_at || c.created_at)}
                     </div>
                   </div>
                 ))}

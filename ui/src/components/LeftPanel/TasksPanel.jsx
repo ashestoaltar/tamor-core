@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../api/client";
+import { formatUtcTimestamp } from "../../utils/formatUtc";
 
 const CHIP = {
   padding: "6px 10px",
@@ -12,21 +13,7 @@ const CHIP = {
   userSelect: "none",
 };
 
-function fmt(iso) {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "2-digit",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
+
 
 export default function TasksPanel({ onOpenConversation }) {
   const [status, setStatus] = useState("needs_confirmation");
@@ -192,11 +179,17 @@ export default function TasksPanel({ onOpenConversation }) {
 
               <div style={{ marginTop: 6, opacity: 0.95 }}>{t.title}</div>
 
-              {scheduledFor ? (
+              {scheduledFor && (
                 <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
-                  Next run: {fmt(scheduledFor)}
+                  Next run: {formatUtcTimestamp(scheduledFor, undefined, {
+                    weekday: "short",
+                    month: "short",
+                    day: "2-digit",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
                 </div>
-              ) : null}
+              )}
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
                 {t.status === "needs_confirmation" && (

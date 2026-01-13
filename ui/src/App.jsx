@@ -11,43 +11,64 @@ import LoginPanel from "./components/LoginPanel";
 function App() {
   const { user, users, loading, login, logout } = useAuth();
 
-  const [lastMemoryMatches, setLastMemoryMatches] = useState([]);
-  const [memoryRefreshToken, setMemoryRefreshToken] = useState(0);
+  // --------------------------------------------
+  // Global UI + mode state
+  // --------------------------------------------
   const [activeMode, setActiveMode] = useState("Auto");
+  const [mobileView, setMobileView] = useState("chat"); // "chat" | "left" | "right"
 
-  // For tablet/phone: which panel is visible?  "chat" | "left" | "right"
-  const [mobileView, setMobileView] = useState("chat");
-
-  // Which conversation is active?
+  // --------------------------------------------
+  // Conversation + project authority (Phase 3.2)
+  // --------------------------------------------
   const [activeConversationId, setActiveConversationId] = useState(null);
-
-  // Which project is currently selected in the workspace?
   const [currentProjectId, setCurrentProjectId] = useState(null);
 
-  // When this increments, side panels reload conversation lists / stats
+  // --------------------------------------------
+  // Refresh orchestration
+  // --------------------------------------------
   const [conversationRefreshToken, setConversationRefreshToken] = useState(0);
+  const [memoryRefreshToken, setMemoryRefreshToken] = useState(0);
 
+  // --------------------------------------------
+  // Right panel context
+  // --------------------------------------------
+  const [lastMemoryMatches, setLastMemoryMatches] = useState([]);
+
+  // --------------------------------------------
+  // Intent handlers
+  // --------------------------------------------
+
+  // Explicit "new chat" intent: clears conversation selection
   const handleNewConversation = () => {
     setActiveConversationId(null);
     setMobileView("chat");
   };
 
-
-  const handleConversationsChanged = () => {
-    // Called when ChatPanel creates/updates a conversation
+  // ChatPanel reports a server-created or updated conversation
+  const handleConversationsChanged = (event) => {
+    // event may be undefined (legacy callers)
     setConversationRefreshToken((prev) => prev + 1);
+
+    // Accept server-created conversation ID only if no conversation is selected
+    if (
+      event?.type === "message_sent" &&
+      event.conversation_id &&
+      activeConversationId === null
+    ) {
+      setActiveConversationId(event.conversation_id);
+    }
   };
 
   const handleDeleteConversation = (deletedId) => {
-    // If we just deleted the active conversation, reset chat
     if (activeConversationId === deletedId) {
       setActiveConversationId(null);
     }
-    // Also bump refresh token so LeftPanel / RightPanel reload from server
     setConversationRefreshToken((prev) => prev + 1);
   };
 
-  // While we're checking /api/me
+  // --------------------------------------------
+  // Auth boundary
+  // --------------------------------------------
   if (loading) {
     return (
       <div className="app-shell">
@@ -61,7 +82,6 @@ function App() {
           <div className="app-header-mode">
             <span>Loading…</span>
           </div>
-          <div className="app-header-user" />
         </header>
         <main className="app-main">
           <div className="auth-panel-wrapper">
@@ -72,7 +92,6 @@ function App() {
     );
   }
 
-  // If not logged in, show login panel only
   if (!user) {
     return (
       <div className="app-shell">
@@ -91,6 +110,9 @@ function App() {
     );
   }
 
+  // --------------------------------------------
+  // Main application shell
+  // --------------------------------------------
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -114,7 +136,6 @@ function App() {
             <option value="Anchor">Anchor</option>
             <option value="Path">Path</option>
             <option value="Creative">Creative</option>
-
           </select>
         </div>
 
@@ -150,7 +171,7 @@ function App() {
       </header>
 
       <main className={`app-main view-${mobileView}`}>
-        {/* Mobile / tablet nav (hidden on desktop via CSS) */}
+        {/* Mobile navigation */}
         <div className="mobile-nav">
           <button
             className={mobileView === "chat" ? "active" : ""}
@@ -172,7 +193,6 @@ function App() {
           </button>
         </div>
 
-        {/* Main panel row (desktop: 3 columns, mobile: 1 at a time) */}
         <div className="panel-row">
           <div className="left-panel">
             <LeftPanel
@@ -184,7 +204,6 @@ function App() {
               conversationRefreshToken={conversationRefreshToken}
               onNewConversation={handleNewConversation}
               onDeleteConversation={handleDeleteConversation}
-              // workspace project selection
               currentProjectId={currentProjectId}
               setCurrentProjectId={setCurrentProjectId}
             />
@@ -192,14 +211,12 @@ function App() {
 
           <div className="chat-panel-wrapper">
             <ChatPanel
-              setLastMemoryMatches={setLastMemoryMatches}
-              setMemoryRefreshToken={setMemoryRefreshToken}
               activeMode={activeMode}
               activeConversationId={activeConversationId}
-              setActiveConversationId={setActiveConversationId}
               onConversationsChanged={handleConversationsChanged}
               conversationRefreshToken={conversationRefreshToken}
-              // attach new conversations to the current project
+              setLastMemoryMatches={setLastMemoryMatches}
+              setMemoryRefreshToken={setMemoryRefreshToken}
               currentProjectId={currentProjectId}
               setCurrentProjectId={setCurrentProjectId}
             />
