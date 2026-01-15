@@ -1,5 +1,6 @@
+// ui/src/components/ChatPanel/ChatPanel.jsx
 import "./ChatPanel.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { apiFetch } from "../../api/client";
@@ -19,7 +20,8 @@ function getFileEmoji(filename, mimeType) {
   if (name.match(/\.(xls|xlsx|csv)$/)) return "📊";
   if (name.match(/\.(doc|docx)$/)) return "📝";
   if (name.match(/\.(zip|rar|7z)$/)) return "🖜️";
-  if (name.match(/\.(js|ts|jsx|tsx|py|rb|go|java|c|cpp|cs|php|html|css|json|yml|yaml|lisp)$/)) return "💻";
+  if (name.match(/\.(js|ts|jsx|tsx|py|rb|go|java|c|cpp|cs|php|html|css|json|yml|yaml|lisp)$/))
+    return "💻";
   return "📁";
 }
 
@@ -29,8 +31,21 @@ function isTextLikeFile(file) {
   if (mime.startsWith("text/")) return true;
 
   const textExts = [
-    ".txt", ".md", ".markdown", ".json", ".js", ".ts", ".jsx", ".tsx",
-    ".py", ".lisp", ".html", ".css", ".csv", ".yml", ".yaml"
+    ".txt",
+    ".md",
+    ".markdown",
+    ".json",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".py",
+    ".lisp",
+    ".html",
+    ".css",
+    ".csv",
+    ".yml",
+    ".yaml",
   ];
   return textExts.some((ext) => name.endsWith(ext));
 }
@@ -60,9 +75,7 @@ function FileBadgeWithPreview({ file }) {
         const fullText = data.text || "";
         const maxChars = 800;
         const snippet =
-          fullText.length > maxChars
-            ? fullText.slice(0, maxChars) + "\n\n[... truncated ...]"
-            : fullText;
+          fullText.length > maxChars ? fullText.slice(0, maxChars) + "\n\n[... truncated ...]" : fullText;
         setText(snippet || "[File is empty or could not be read]");
       } catch (err) {
         console.error("Failed to load inline file preview:", err);
@@ -156,14 +169,63 @@ function mergeMessages(prev, serverMsgs) {
   }
 
   const pending = (prev || []).filter((m) => m?.id == null && m?.content);
-  for (const p of pending.slice(-4)) {
-    const already = out.some(
-      (m) => m?.id == null && m?.role === p.role && m?.content === p.content
-    );
+  for (const p of pending.slice(-6)) {
+    const already = out.some((m) => m?.id == null && m?.role === p.role && m?.content === p.content);
     if (!already) out.push(p);
   }
 
   return out;
+}
+
+function getThinkingLabel(activeMode) {
+  const m = String(activeMode || "").toLowerCase();
+
+  // tweak these labels to your exact mode names
+  if (m.includes("search") || m.includes("semantic") || m.includes("files")) return "Searching";
+  if (m.includes("task") || m.includes("reminder") || m.includes("plan")) return "Planning";
+  if (m.includes("code") || m.includes("debug") || m.includes("analy")) return "Analyzing";
+
+  return "Thinking";
+}
+
+
+// -----------------------------
+// Markdown Code Blocks (Copy)
+// -----------------------------
+function CodeBlock({ inline, className, children }) {
+  const raw = String(children ?? "");
+  const code = raw.replace(/\n$/, "");
+  const lang = (className || "").replace("language-", "").trim();
+
+  const [copied, setCopied] = useState(false);
+
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // ignore
+    }
+  };
+
+  if (inline) {
+    return <code className="inlineCode">{children}</code>;
+  }
+
+  return (
+    <div className="codeWrap">
+      <div className="codeTop">
+        <div className="codeLang">{lang || "code"}</div>
+        <button type="button" className="codeCopyBtn" onClick={onCopy}>
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre className="codePre">
+        <code className={className}>{code}</code>
+      </pre>
+    </div>
+  );
 }
 
 // -----------------------------
@@ -242,9 +304,7 @@ function ProjectRequiredModal({
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Select project</div>
 
             {loading && <div style={{ opacity: 0.85, fontSize: 13 }}>Loading projects…</div>}
-            {error && (
-              <div style={{ color: "#ffb4b4", fontSize: 13, whiteSpace: "pre-wrap" }}>{error}</div>
-            )}
+            {error && <div style={{ color: "#ffb4b4", fontSize: 13, whiteSpace: "pre-wrap" }}>{error}</div>}
 
             {!loading && (
               <select
@@ -270,7 +330,14 @@ function ProjectRequiredModal({
             )}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 10, alignItems: "end", }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) auto",
+              gap: 10,
+              alignItems: "end",
+            }}
+          >
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Create new project</div>
               <input
@@ -298,9 +365,7 @@ function ProjectRequiredModal({
                 borderRadius: 10,
                 padding: "10px 12px",
                 border: "1px solid rgba(255,255,255,0.14)",
-                background: !newProjectName.trim()
-                  ? "rgba(255,255,255,0.06)"
-                  : "rgba(255,255,255,0.10)",
+                background: !newProjectName.trim() ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.10)",
                 color: "#fff",
                 cursor: !newProjectName.trim() ? "not-allowed" : "pointer",
                 height: 42,
@@ -347,6 +412,15 @@ function ProjectRequiredModal({
   );
 }
 
+// -----------------------------
+// Smart Scroll Helpers
+// -----------------------------
+function isNearBottom(el, px = 30) {
+  if (!el) return true;
+  const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+  return remaining < px;
+}
+
 export default function ChatPanel({
   setLastMemoryMatches,
   setMemoryRefreshToken,
@@ -355,7 +429,7 @@ export default function ChatPanel({
   setActiveConversationId,
   onConversationsChanged,
   currentProjectId,
-  setCurrentProjectId, // ✅ NEW (optional) - from App
+  setCurrentProjectId, // optional
   conversationRefreshToken,
 }) {
   const { user } = useAuth();
@@ -370,21 +444,66 @@ export default function ChatPanel({
 
   const [fileRefsByMessageId, setFileRefsByMessageId] = useState({});
 
+  // scroll / anchors
   const messagesEndRef = useRef(null);
+  const messagesScrollRef = useRef(null);
+  const [stickToBottom, setStickToBottom] = useState(true);
+
   const fileInputRef = useRef(null);
   const lastSeenMessageIdRef = useRef(0);
   const lastLoadedConversationIdRef = useRef(null);
 
+  // local ids (stable keys + DOM ids)
+  const localSeqRef = useRef(1);
+  const nextLocalId = () => `local-${Date.now()}-${localSeqRef.current++}`;
+
+  const ensureLocalIds = (list) =>
+    (list || []).map((m) => {
+      if (m && !m._local_id) return { ...m, _local_id: m?.id != null ? `id-${m.id}` : nextLocalId() };
+      return m;
+    });
+
+  const getMsgKey = (m, fallbackIdx) => m?._local_id || (m?.id != null ? `id-${m.id}` : `tmp-${fallbackIdx}`);
+  const getMsgDomId = (m, fallbackIdx) => `msg-${getMsgKey(m, fallbackIdx)}`;
+
+  const scrollToBottom = (behavior = "auto") => {
+    if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior });
+  };
+
+
+
+  const scrollToMessageStart = (msg) => {
+    const el = document.getElementById(getMsgDomId(msg, 0));
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const onMessagesScroll = () => {
+    const el = messagesScrollRef.current;
+    if (!el) return;
+
+    // 🚫 During assistant generation, never auto-enable stickiness
+    const hasThinking = messages.some(
+      (m) => m?.role === "assistant" && m?.status === "thinking"
+    );
+    if (hasThinking) return;
+
+    setStickToBottom(isNearBottom(el));
+  };
+
+
+  // Jump to latest button
+  const jumpToLatest = () => {
+    scrollToBottom("auto");
+    setStickToBottom(true);
+  };
+
+  // toast
   const [toastText, setToastText] = useState("");
   const toastTimerRef = useRef(null);
   const showToast = (txt, ms = 2500) => {
     setToastText(txt);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToastText(""), ms);
-  };
-
-  const scrollToBottom = (behavior = "auto") => {
-    if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior });
   };
 
   // ---- Project required modal state ----
@@ -442,7 +561,6 @@ export default function ChatPanel({
       else setPendingAttachProjectId(projects?.[0]?.id ?? null);
 
       setNewProjectName("");
-      // Let side panels refresh if they listen to this
       window.dispatchEvent(new Event("tamor:projects-updated"));
     } catch (err) {
       setProjectModalError(err?.message || "Failed to create project.");
@@ -457,7 +575,6 @@ export default function ChatPanel({
     localStorage.setItem(LAST_PROJECT_KEY, String(pendingAttachProjectId));
     setAttachTargetProjectId(pendingAttachProjectId);
 
-    // If App passed setter, update global project context too
     if (typeof setCurrentProjectId === "function") {
       setCurrentProjectId(pendingAttachProjectId);
     }
@@ -483,7 +600,8 @@ export default function ChatPanel({
         if (t?.message_id != null) byUserMsgId.set(String(t.message_id), t);
       }
 
-      setMessages((prev) => {
+      setMessages((prevRaw) => {
+        const prev = ensureLocalIds(prevRaw);
         if (!Array.isArray(prev) || prev.length < 2) return prev;
 
         const next = [...prev];
@@ -520,18 +638,18 @@ export default function ChatPanel({
 
     if (lastLoadedConversationIdRef.current !== convId) {
       lastLoadedConversationIdRef.current = convId;
+      lastSeenMessageIdRef.current = 0;
       setMessages([]);
       setFileRefsByMessageId({});
-      lastSeenMessageIdRef.current = 0;
     }
 
     setLoadingHistory(true);
     try {
       const data = await apiFetch(`/conversations/${convId}/messages`);
-      const msgs = data.messages || [];
+      const msgs = ensureLocalIds(data.messages || []);
 
       setMessages(msgs);
-      lastSeenMessageIdRef.current = msgs.length ? (msgs[msgs.length - 1]?.id || 0) : 0;
+      lastSeenMessageIdRef.current = msgs.length ? msgs[msgs.length - 1]?.id || 0 : 0;
 
       if (msgs.length) {
         try {
@@ -545,7 +663,10 @@ export default function ChatPanel({
       }
 
       setTimeout(() => hydrateTasksForConversation(convId), 120);
-      setTimeout(() => scrollToBottom("auto"), 40);
+      setTimeout(() => {
+        if (isNearBottom(messagesScrollRef.current)) scrollToBottom("auto");
+      }, 40);
+
     } catch (err) {
       console.error("Failed to load conversation:", err);
     } finally {
@@ -553,6 +674,14 @@ export default function ChatPanel({
     }
   };
 
+  useEffect(() => {
+    const hasThinking = messages.some(
+      (m) => m?.role === "assistant" && m?.status === "thinking"
+    );
+    if (hasThinking) setStickToBottom(false);
+  }, [messages]);
+
+  
   useEffect(() => {
     if (!user) return;
 
@@ -569,6 +698,7 @@ export default function ChatPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConversationId, conversationRefreshToken, user]);
 
+  // Polling: only auto-scroll if user is near bottom
   useEffect(() => {
     if (!user || !activeConversationId || loadingHistory) return;
 
@@ -579,20 +709,26 @@ export default function ChatPanel({
         const data = await apiFetch(`/conversations/${activeConversationId}/messages`);
         if (cancelled) return;
 
-        const msgs = data.messages || [];
-        const latestId = msgs.length ? msgs[msgs.length - 1].id : 0;
+        const msgsRaw = data.messages || [];
+        const latestId = msgsRaw.length ? msgsRaw[msgsRaw.length - 1].id : 0;
 
         if (latestId && latestId > (lastSeenMessageIdRef.current || 0)) {
           const prevLast = lastSeenMessageIdRef.current || 0;
           lastSeenMessageIdRef.current = latestId;
 
-          const newOnes = msgs.filter((m) => (m?.id || 0) > prevLast);
+          const newOnes = msgsRaw.filter((m) => (m?.id || 0) > prevLast);
           const reminderHit = newOnes.some((m) => String(m?.content || "").startsWith("⏰ Reminder:"));
           if (reminderHit) showToast("🔔 Reminder triggered");
 
-          setMessages((prev) => mergeMessages(prev, msgs));
-          setTimeout(() => hydrateTasksForConversation(activeConversationId), 120);
-          setTimeout(() => scrollToBottom("smooth"), 40);
+          setMessages((prev) => ensureLocalIds(mergeMessages(prev, msgsRaw)));
+          setTimeout(() => {
+            if (isNearBottom(messagesScrollRef.current)) scrollToBottom("smooth");
+          }, 40);
+
+
+          if (stickToBottom) {
+            
+          }
         }
       } catch {
         // ignore
@@ -606,20 +742,53 @@ export default function ChatPanel({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [user, activeConversationId]);
+  }, [user, activeConversationId, loadingHistory, stickToBottom]);
 
+  // Keep pinned only if user is near bottom
   useEffect(() => {
-    setTimeout(() => scrollToBottom("auto"), 30);
-  }, [messages.length]);
+    const hasThinking = messages.some(
+      (m) => m?.role === "assistant" && m?.status === "thinking"
+    );
+
+    // 🚫 Never pin during generation
+    if (!stickToBottom || hasThinking) return;
+
+    const t = setTimeout(() => scrollToBottom("auto"), 20);
+    return () => clearTimeout(t);
+  }, [messages, stickToBottom]);
+
 
   const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed || sending) return;
 
+    // snapshot whether we should auto-follow
+    const shouldFollow = isNearBottom(messagesScrollRef.current);
+    setStickToBottom(shouldFollow);
+
     setSending(true);
 
-    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    // create local user + assistant placeholder
+    const userLocal = { _local_id: nextLocalId(), role: "user", content: trimmed };
+    const assistantLocal = {
+      _local_id: nextLocalId(),
+      role: "assistant",
+      sender: "tamor",
+      content: "",
+      status: "thinking",
+    };
+
+    setMessages((prev) => ensureLocalIds([...prev, userLocal, assistantLocal]));
     setInput("");
+
+    // move viewport to start of new assistant reply (not the end)
+    if (shouldFollow) {
+      setTimeout(() => scrollToMessageStart(assistantLocal), 0);
+      
+      // IMPORTANT: stop auto-pinning so long replies don't yank you to the bottom
+      setStickToBottom(false);
+    }
+
 
     try {
       const data = await apiFetch(`/chat`, {
@@ -636,13 +805,14 @@ export default function ChatPanel({
 
       const returnedConvId = data?.conversation_id || activeConversationId;
 
-      
+      // attach server ids back onto the local user msg (best-effort)
       const userMsgId = data?.message_ids?.user;
       if (userMsgId) {
-        setMessages((prev) => {
+        setMessages((prevRaw) => {
+          const prev = ensureLocalIds(prevRaw);
           const next = [...prev];
           for (let i = next.length - 1; i >= 0; i--) {
-            if (next[i]?.role === "user" && !next[i]?.id && next[i]?.content === trimmed) {
+            if (next[i]?.role === "user" && next[i]?._local_id === userLocal._local_id) {
               next[i] = { ...next[i], id: userMsgId };
               break;
             }
@@ -652,49 +822,68 @@ export default function ChatPanel({
       }
 
       const assistantText = (data?.reply ?? data?.tamor ?? data?.reply_text ?? "").toString();
+      const assistantMsgId = data?.message_ids?.assistant;
 
-      const assistantMsg = {
-        id: data?.message_ids?.assistant,
-        role: "assistant",
-        sender: "tamor",
-        content: assistantText || "(No reply returned.)",
-        detected_task: data?.detected_task || null,
-        meta: data?.meta || null,
-      };
+      // replace placeholder content (best-effort, by local id)
+      setMessages((prevRaw) => {
+        const prev = ensureLocalIds(prevRaw);
+        const next = [...prev];
 
-      setMessages((prev) => appendUnique(prev, assistantMsg));
+        for (let i = next.length - 1; i >= 0; i--) {
+          if (next[i]?.role === "assistant" && next[i]?._local_id === assistantLocal._local_id) {
+            next[i] = {
+              ...next[i],
+              id: assistantMsgId ?? next[i].id,
+              content: assistantText || "(No reply returned.)",
+              status: "done",
+              detected_task: data?.detected_task || null,
+              meta: data?.meta || null,
+            };
+            break;
+          }
+        }
+        return next;
+      });
 
-      if (assistantMsg?.id) {
-        lastSeenMessageIdRef.current = Math.max(lastSeenMessageIdRef.current || 0, assistantMsg.id);
+      if (assistantMsgId) {
+        lastSeenMessageIdRef.current = Math.max(lastSeenMessageIdRef.current || 0, assistantMsgId);
       }
 
       setTimeout(() => hydrateTasksForConversation(returnedConvId), 180);
 
       if (data?.memory_matches && typeof setLastMemoryMatches === "function") {
         setLastMemoryMatches(data.memory_matches);
-      } 
+      }
 
       if (data?.memory_refresh && typeof setMemoryRefreshToken === "function") {
         setMemoryRefreshToken((x) => x + 1);
       }
 
-
       if (typeof onConversationsChanged === "function") {
-        onConversationsChanged({
-          type: "message_sent",
-          conversation_id: returnedConvId,
-        });
+        onConversationsChanged({ type: "message_sent", conversation_id: returnedConvId });
       }
 
+      
     } catch (err) {
       console.error("Send failed:", err);
-      setMessages((prev) =>
-        appendUnique(prev, {
-          role: "assistant",
-          sender: "tamor",
-          content: `(Error talking to Tamor: ${err.message || "API error"})`,
-        })
-      );
+
+      // replace placeholder with error
+      setMessages((prevRaw) => {
+        const prev = ensureLocalIds(prevRaw);
+        const next = [...prev];
+
+        for (let i = next.length - 1; i >= 0; i--) {
+          if (next[i]?.role === "assistant" && next[i]?._local_id === assistantLocal._local_id) {
+            next[i] = {
+              ...next[i],
+              status: "error",
+              content: `(Error talking to Tamor: ${err.message || "API error"})`,
+            };
+            break;
+          }
+        }
+        return next;
+      });
     } finally {
       setSending(false);
     }
@@ -708,13 +897,11 @@ export default function ChatPanel({
   };
 
   // --------------------------------------------
-// NOTE (Phase 3.2):
-// ChatPanel temporarily owns file-attachment
-// project selection UX. This will be lifted
-// into a shared ProjectContext in Phase 3.3.
-// --------------------------------------------
-
-  
+  // NOTE (Phase 3.2):
+  // ChatPanel temporarily owns file-attachment
+  // project selection UX. This will be lifted
+  // into a shared ProjectContext in Phase 3.3.
+  // --------------------------------------------
   const handleAttachClick = async () => {
     setUploadError("");
 
@@ -753,12 +940,19 @@ export default function ChatPanel({
       });
 
       setMessages((prev) =>
-        appendUnique(prev, {
-          role: "assistant",
-          sender: "tamor",
-          content: `✅ Attached: ${uploaded?.filename || file.name}`,
-        })
+        ensureLocalIds(
+          appendUnique(prev, {
+            role: "assistant",
+            sender: "tamor",
+            content: `✅ Attached: ${uploaded?.filename || file.name}`,
+          })
+        )
       );
+
+      setTimeout(() => {
+        if (isNearBottom(messagesScrollRef.current)) scrollToBottom("smooth");
+      }, 40);
+
     } catch (err) {
       console.error("File upload error:", err);
       setUploadError(err.message || "File upload failed.");
@@ -767,6 +961,9 @@ export default function ChatPanel({
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  // markdown components (memoized)
+  const mdComponents = useMemo(() => ({ code: CodeBlock }), []);
 
   if (!user) {
     return (
@@ -796,42 +993,77 @@ export default function ChatPanel({
         onClose={() => setShowProjectModal(false)}
       />
 
-      <div className="messages">
+      {!stickToBottom && messages.length > 0 && (
+        <button
+          type="button"
+          className="jumpLatestBtn"
+          onClick={jumpToLatest}
+          style={{
+            position: "absolute",
+            right: 18,
+            bottom: 92,
+            zIndex: 50,
+            borderRadius: 999,
+            padding: "10px 12px",
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: "rgba(18,18,18,0.92)",
+            color: "#fff",
+            cursor: "pointer",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+          }}
+          title="Jump to latest"
+        >
+          Jump to latest ↓
+        </button>
+      )}
+
+      <div className="messages" ref={messagesScrollRef} onScroll={onMessagesScroll}>
         {loadingHistory && (
           <div className="chat-message tamor">
             <div className="chat-bubble">Loading conversation history…</div>
           </div>
         )}
 
-        {!loadingHistory && messages.length === 0 && (
-          <div className="chat-empty-state">{EMPTY_STATE_TEXT}</div>
-        )}
+        {!loadingHistory && messages.length === 0 && <div className="chat-empty-state">{EMPTY_STATE_TEXT}</div>}
 
-        {messages.map((msg, idx) => {
+        {ensureLocalIds(messages).map((msg, idx) => {
           const isUser = msg.role === "user";
-          const fileRefs =
-            msg.id && fileRefsByMessageId[msg.id] ? fileRefsByMessageId[msg.id] : [];
+          const fileRefs = msg.id && fileRefsByMessageId[msg.id] ? fileRefsByMessageId[msg.id] : [];
           const dt = !isUser ? msg.detected_task : null;
+
+          const domId = getMsgDomId(msg, idx);
 
           return (
             <div
-              key={msg.id ?? `tmp-${idx}`}
+              id={domId}
+              key={getMsgKey(msg, idx)}
               className={isUser ? "chat-message user" : "chat-message tamor"}
             >
               <div className="chat-bubble">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                  {msg.content}
+                </ReactMarkdown>
 
+              
+                {!isUser && msg.status === "thinking" && (
+                  <div className="thinkingLine">
+                    {getThinkingLabel(activeMode)}
+                    <span className="ellipsis" aria-hidden="true"></span>
+                  </div>
+                )}
+              
                 {!isUser && dt && (
                   <TaskPill
                     task={dt}
                     onAppendMessage={(m) => {
-                      setMessages((prev) => appendUnique(prev, { ...m, detected_task: null }));
+                      setMessages((prev) => ensureLocalIds(appendUnique(prev, { ...m, detected_task: null })));
                       if (m?.id)
-                        lastSeenMessageIdRef.current = Math.max(
-                          lastSeenMessageIdRef.current || 0,
-                          m.id
-                        );
-                      setTimeout(() => scrollToBottom("smooth"), 40);
+                        lastSeenMessageIdRef.current = Math.max(lastSeenMessageIdRef.current || 0, m.id);
+
+                      setTimeout(() => {
+                        if (isNearBottom(messagesScrollRef.current)) scrollToBottom("smooth");
+                      }, 40);
+
                       window.dispatchEvent(new Event("tamor:tasks-updated"));
                     }}
                   />
@@ -863,12 +1095,7 @@ export default function ChatPanel({
           disabled={sending}
         />
         <div className="input-actions">
-          <button
-            type="button"
-            onClick={handleAttachClick}
-            disabled={uploadingFile}
-            title="Attach a file"
-          >
+          <button type="button" onClick={handleAttachClick} disabled={uploadingFile} title="Attach a file">
             {uploadingFile ? "Attaching…" : "📎"}
           </button>
           <button onClick={sendMessage} disabled={sending || !input.trim()}>
@@ -876,12 +1103,7 @@ export default function ChatPanel({
           </button>
         </div>
 
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: "none" }}
-          onChange={handleFileSelected}
-        />
+        <input type="file" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileSelected} />
       </div>
 
       {uploadError && (
