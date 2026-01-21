@@ -23,6 +23,11 @@ export default function TasksPanel({ onOpenConversation }) {
   const [err, setErr] = useState("");
   const [tasks, setTasks] = useState([]);
 
+  // Edit mode state
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editScheduledFor, setEditScheduledFor] = useState("");
+
   const queryString = useMemo(() => {
     const qs = new URLSearchParams();
     if (status) qs.set("status", status);
@@ -99,6 +104,48 @@ export default function TasksPanel({ onOpenConversation }) {
       await load();
     } catch (e) {
       setErr(e?.message || "Failed to delete task.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEdit = (task) => {
+    setEditingId(task.id);
+    setEditTitle(task.title || "");
+    // Convert UTC ISO string to local datetime-local format
+    const sf = task.normalized?.scheduled_for;
+    if (sf) {
+      const d = new Date(sf);
+      const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+      setEditScheduledFor(local.toISOString().slice(0, 16));
+    } else {
+      setEditScheduledFor("");
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditScheduledFor("");
+  };
+
+  const saveEdit = async (taskId) => {
+    setBusy(true);
+    setErr("");
+
+    try {
+      const body = {};
+      if (editTitle.trim()) body.title = editTitle.trim();
+      if (editScheduledFor) {
+        // Convert local datetime to UTC ISO string
+        body.scheduled_for = new Date(editScheduledFor).toISOString();
+      }
+
+      await apiFetch(`/tasks/${taskId}`, { method: "PATCH", body });
+      cancelEdit();
+      await load();
+    } catch (e) {
+      setErr(e?.message || "Failed to save task.");
     } finally {
       setBusy(false);
     }
@@ -193,20 +240,51 @@ export default function TasksPanel({ onOpenConversation }) {
                 </div>
               </div>
 
-              <div style={{ marginTop: 6, opacity: 0.95 }}>{t.title}</div>
+              {editingId === t.id ? (
+                <>
+                  <div style={{ marginTop: 6 }}>
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      placeholder="Task title"
+                      style={{ width: "100%", marginBottom: 6 }}
+                    />
+                    <input
+                      type="datetime-local"
+                      value={editScheduledFor}
+                      onChange={(e) => setEditScheduledFor(e.target.value)}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button disabled={busy} onClick={() => saveEdit(t.id)}>
+                      Save
+                    </button>
+                    <button disabled={busy} onClick={cancelEdit} style={{ opacity: 0.7 }}>
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ marginTop: 6, opacity: 0.95 }}>{t.title}</div>
 
-              {scheduledFor && (
-                <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
-                  Next run: {formatUtcTimestamp(scheduledFor, undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "2-digit",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </div>
+                  {scheduledFor && (
+                    <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
+                      Next run: {formatUtcTimestamp(scheduledFor, undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "2-digit",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  )}
+                </>
               )}
 
+              {editingId !== t.id && (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
                 {t.status === "needs_confirmation" && (
                   <>
@@ -247,6 +325,16 @@ export default function TasksPanel({ onOpenConversation }) {
                   </>
                 )}
 
+                {/* Edit button */}
+                <button
+                  disabled={busy}
+                  onClick={() => startEdit(t)}
+                  style={{ opacity: 0.7 }}
+                  title="Edit task"
+                >
+                  Edit
+                </button>
+
                 {/* Delete available for all non-running tasks */}
                 <button
                   disabled={busy}
@@ -257,6 +345,7 @@ export default function TasksPanel({ onOpenConversation }) {
                   Delete
                 </button>
               </div>
+              )}
 
               {t.conversation_id ? (
                 <div style={{ fontSize: 11, opacity: 0.6, marginTop: 8 }}>

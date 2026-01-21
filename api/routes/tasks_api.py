@@ -312,6 +312,81 @@ def set_task_status(task_id: int):
 
 
 # -----------------------------
+# Edit
+# -----------------------------
+
+@tasks_bp.patch("/tasks/<int:task_id>")
+@require_login
+def edit_task(task_id: int):
+    """
+    Edit task fields: title, scheduled_for.
+
+    Body: { "title": "...", "scheduled_for": "ISO datetime" }
+    Only provided fields are updated.
+    Cannot edit a task that is currently running.
+    """
+    task = _get_task(task_id)
+    if not task:
+        return jsonify({"error": "not_found"}), 404
+
+    if task["status"] == "running":
+        return jsonify({"error": "task_running", "task_id": task_id}), 409
+
+    data = request.json or {}
+    new_title = data.get("title")
+    new_scheduled_for = data.get("scheduled_for")
+
+    if new_title is None and new_scheduled_for is None:
+        return jsonify({"error": "no_fields_to_update"}), 400
+
+    user_id = session.get("user_id")
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Update title if provided
+    if new_title is not None:
+        new_title = str(new_title).strip()
+        if not new_title:
+            conn.close()
+            return jsonify({"error": "title_cannot_be_empty"}), 400
+
+        cur.execute(
+            "UPDATE detected_tasks SET title = ? WHERE id = ? AND user_id = ?",
+            (new_title, task_id, user_id),
+        )
+
+    # Update scheduled_for if provided (stored in normalized_json)
+    if new_scheduled_for is not None:
+        normalized = task.get("normalized") or {}
+        normalized["scheduled_for"] = new_scheduled_for
+
+        cur.execute(
+            "UPDATE detected_tasks SET normalized_json = ? WHERE id = ? AND user_id = ?",
+            (json.dumps(normalized), task_id, user_id),
+        )
+
+    conn.commit()
+
+    # Fetch updated task
+    cur.execute(
+        """
+        SELECT
+            id, user_id, project_id, conversation_id, message_id,
+            task_type, title, confidence,
+            payload_json, normalized_json,
+            status, created_at
+        FROM detected_tasks
+        WHERE id = ? AND user_id = ?
+        """,
+        (task_id, user_id),
+    )
+    row = cur.fetchone()
+    conn.close()
+
+    return jsonify({"ok": True, "task": _row_to_task(row) if row else None})
+
+
+# -----------------------------
 # Delete
 # -----------------------------
 

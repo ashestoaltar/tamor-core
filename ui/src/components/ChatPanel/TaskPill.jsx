@@ -91,6 +91,11 @@ export default function TaskPill({ task, onAppendMessage }) {
   const [status, setStatus] = useState(normalizeStatus(task?.status));
   const [err, setErr] = useState("");
 
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editScheduledFor, setEditScheduledFor] = useState("");
+
   const taskId = task?.id;
   const taskType = (task?.task_type || "task").toUpperCase();
   const title = task?.title || "";
@@ -151,10 +156,146 @@ export default function TaskPill({ task, onAppendMessage }) {
     }
   };
 
+  const startEdit = () => {
+    setIsEditing(true);
+    setEditTitle(title);
+    // Convert UTC ISO string to local datetime-local format
+    if (whenIso) {
+      const d = new Date(whenIso);
+      const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+      setEditScheduledFor(local.toISOString().slice(0, 16));
+    } else {
+      setEditScheduledFor("");
+    }
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditTitle("");
+    setEditScheduledFor("");
+  };
+
+  const saveEdit = async () => {
+    if (!taskId || busy) return;
+    setBusy(true);
+    setErr("");
+
+    try {
+      const body = {};
+      if (editTitle.trim()) body.title = editTitle.trim();
+      if (editScheduledFor) {
+        body.scheduled_for = new Date(editScheduledFor).toISOString();
+      }
+
+      await apiFetch(`/tasks/${taskId}`, { method: "PATCH", body });
+      cancelEdit();
+      window.dispatchEvent(new Event("tamor:tasks-updated"));
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteTask = async () => {
+    if (!taskId || busy) return;
+    if (!window.confirm("Delete this task permanently?")) return;
+
+    setBusy(true);
+    setErr("");
+
+    try {
+      await apiFetch(`/tasks/${taskId}`, { method: "DELETE" });
+      setStatus("deleted");
+      window.dispatchEvent(new Event("tamor:tasks-updated"));
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Don't render if deleted
+  if (status === "deleted") {
+    return (
+      <div className="task-pill" style={{ opacity: 0.5, fontStyle: "italic" }}>
+        Task deleted
+      </div>
+    );
+  }
+
   return (
     <div className="task-pill">
-      {whenTxt && <div><strong>Next run:</strong> {whenTxt}</div>}
-      {repeats && <div>{repeats}</div>}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span style={statusStyle(status)}>{statusLabel(status)}</span>
+        {isRecurring && <span style={{ opacity: 0.7 }}>🔁</span>}
+      </div>
+
+      {isEditing ? (
+        <>
+          <div style={{ marginTop: 6 }}>
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Task title"
+              style={{ width: "100%", marginBottom: 6 }}
+            />
+            <input
+              type="datetime-local"
+              value={editScheduledFor}
+              onChange={(e) => setEditScheduledFor(e.target.value)}
+              style={{ width: "100%" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button disabled={busy} onClick={saveEdit}>Save</button>
+            <button disabled={busy} onClick={cancelEdit} style={{ opacity: 0.7 }}>Cancel</button>
+          </div>
+        </>
+      ) : (
+        <>
+          {whenTxt && <div><strong>Next run:</strong> {whenTxt}</div>}
+          {repeats && <div style={{ opacity: 0.8, fontSize: 13 }}>{repeats}</div>}
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+            {status === "needs_confirmation" && (
+              <>
+                <button disabled={busy} onClick={() => act("confirm")}>Confirm</button>
+                <button disabled={busy} onClick={() => act("cancel")}>Cancel</button>
+              </>
+            )}
+
+            {status === "confirmed" && (
+              <>
+                {isRecurring ? (
+                  <button disabled={busy} onClick={() => act("pause")}>Pause</button>
+                ) : (
+                  <button disabled={busy} onClick={() => act("complete")}>Complete</button>
+                )}
+                <button disabled={busy} onClick={() => act("cancel")}>Cancel</button>
+              </>
+            )}
+
+            {status === "dismissed" && (
+              <>
+                <button disabled={busy} onClick={() => act("resume")}>Resume</button>
+                <button disabled={busy} onClick={() => act("cancel")}>Cancel</button>
+              </>
+            )}
+
+            {/* Edit & Delete for non-terminal states */}
+            {!["completed", "cancelled"].includes(status) && (
+              <>
+                <button disabled={busy} onClick={startEdit} style={{ opacity: 0.7 }}>Edit</button>
+                <button disabled={busy} onClick={deleteTask} style={{ opacity: 0.7 }}>Delete</button>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {err && <div style={{ color: "salmon", marginTop: 6, fontSize: 12 }}>{err}</div>}
     </div>
   );
 }
