@@ -310,3 +310,41 @@ def set_task_status(task_id: int):
 
     return jsonify({"error": "invalid_status"}), 400
 
+
+# -----------------------------
+# Delete
+# -----------------------------
+
+@tasks_bp.delete("/tasks/<int:task_id>")
+@require_login
+def delete_task(task_id: int):
+    """
+    Permanently delete a task and its run history.
+
+    Cannot delete a task that is currently running.
+    """
+    task = _get_task(task_id)
+    if not task:
+        return jsonify({"error": "not_found"}), 404
+
+    if task["status"] == "running":
+        return jsonify({"error": "task_running", "task_id": task_id}), 409
+
+    user_id = session.get("user_id")
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Delete associated task_runs first (foreign key)
+    cur.execute("DELETE FROM task_runs WHERE task_id = ?", (task_id,))
+
+    # Delete the task itself
+    cur.execute(
+        "DELETE FROM detected_tasks WHERE id = ? AND user_id = ?",
+        (task_id, user_id),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"ok": True, "deleted": task_id})
+

@@ -88,6 +88,22 @@ export default function TasksPanel({ onOpenConversation }) {
     }
   };
 
+  const deleteTask = async (taskId) => {
+    if (!window.confirm("Delete this task permanently?")) return;
+
+    setBusy(true);
+    setErr("");
+
+    try {
+      await apiFetch(`/tasks/${taskId}`, { method: "DELETE" });
+      await load();
+    } catch (e) {
+      setErr(e?.message || "Failed to delete task.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const chips = [
     { label: "Needs confirmation", value: "needs_confirmation" },
     { label: "Scheduled", value: "confirmed" },
@@ -230,6 +246,16 @@ export default function TasksPanel({ onOpenConversation }) {
                     </button>
                   </>
                 )}
+
+                {/* Delete available for all non-running tasks */}
+                <button
+                  disabled={busy}
+                  onClick={() => deleteTask(t.id)}
+                  style={{ opacity: 0.7 }}
+                  title="Delete permanently"
+                >
+                  Delete
+                </button>
               </div>
 
               {t.conversation_id ? (
