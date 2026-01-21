@@ -1,12 +1,19 @@
 // src/App.jsx
 import "./styles/dark.css";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "./context/AuthContext";
 
 import LeftPanel from "./components/LeftPanel/LeftPanel";
 import ChatPanel from "./components/ChatPanel/ChatPanel";
 import RightPanel from "./components/RightPanel/RightPanel";
 import LoginPanel from "./components/LoginPanel";
+
+function getTimeGreeting(d = new Date()) {
+  const h = d.getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
 
 function App() {
   const { user, users, loading, login, logout } = useAuth();
@@ -33,6 +40,11 @@ function App() {
   // Right panel context
   // --------------------------------------------
   const [lastMemoryMatches, setLastMemoryMatches] = useState([]);
+
+  // --------------------------------------------
+  // Greeting (local time)
+  // --------------------------------------------
+  const greeting = useMemo(() => getTimeGreeting(new Date()), []);
 
   // --------------------------------------------
   // Intent handlers
@@ -76,7 +88,7 @@ function App() {
           <div className="app-header-left">
             <span className="app-header-logo">TAMOR</span>
             <span className="app-header-subtitle">
-              Wholeness • Light • Insight
+              Context • Insight • Action
             </span>
           </div>
           <div className="app-header-mode">
@@ -99,7 +111,7 @@ function App() {
           <div className="app-header-left">
             <span className="app-header-logo">TAMOR</span>
             <span className="app-header-subtitle">
-              Wholeness • Light • Insight
+              Context • Insight • Action
             </span>
           </div>
         </header>
@@ -119,7 +131,7 @@ function App() {
         <div className="app-header-left">
           <span className="app-header-logo">TAMOR</span>
           <span className="app-header-subtitle">
-            Wholeness • Light • Insight
+            Context • Insight • Action
           </span>
         </div>
 
@@ -140,7 +152,7 @@ function App() {
         </div>
 
         <div className="app-header-user">
-          <span className="user-greeting-label">Shalom,</span>
+          <span className="user-greeting-label">{greeting},</span>
 
           {users && users.length > 1 ? (
             <select

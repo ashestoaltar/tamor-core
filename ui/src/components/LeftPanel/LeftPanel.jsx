@@ -6,8 +6,8 @@ import TasksPanel from "./TasksPanel";
 import { formatUtcTimestamp } from "../../utils/formatUtc";
 
 export default function LeftPanel({
-  activeMode,
-  setActiveMode,
+  activeMode, // kept for compatibility (used elsewhere / future UI)
+  setActiveMode, // kept for compatibility
   activeConversationId,
   onSelectConversation,
   conversationRefreshToken,
@@ -16,8 +16,6 @@ export default function LeftPanel({
   currentProjectId,
   setCurrentProjectId,
 }) {
-  const modes = ["Scholar", "Forge", "Path", "Anchor", "Creative", "System"];
-
   // Conversations | Tasks tab
   const [activeTab, setActiveTab] = useState("conversations"); // "conversations" | "tasks"
 
@@ -89,11 +87,6 @@ export default function LeftPanel({
 
   return (
     <div className="left-panel">
-      <div className="identity">
-        <h1 className="logo">TAMOR</h1>
-        <div className="subtitle">Wholeness • Light • Insight</div>
-      </div>
-
       {/* Search bar */}
       <div className="left-search-bar">
         <input
@@ -221,22 +214,6 @@ export default function LeftPanel({
             setCurrentProjectId={setCurrentProjectId}
           />
         )}
-      </div>
-
-      {/* Modes */}
-      <div className="section mode-section">
-        <h2>Modes</h2>
-        <ul className="mode-list">
-          {modes.map((mode) => (
-            <li
-              key={mode}
-              className={mode === activeMode ? "mode active" : "mode"}
-              onClick={() => setActiveMode(mode)}
-            >
-              {mode}
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   );

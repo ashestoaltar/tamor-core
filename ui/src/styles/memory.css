@@ -246,3 +246,64 @@
   font-size: 0.65rem;
   color: #4b5563;
 }
+
+/* ===========================
+   MOBILE TOUCH TARGET FIXES
+   Minimum 44px touch targets per Apple/Google guidelines
+   =========================== */
+
+@media (max-width: 899px) {
+  /* Memory search input */
+  .memory-search input {
+    padding: 10px 12px;
+    font-size: 0.875rem;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  /* Memory search button */
+  .memory-search button {
+    padding: 10px 14px;
+    font-size: 0.875rem;
+    min-height: 44px;
+  }
+
+  /* Memory filter pills - critical fix */
+  .memory-filter-btn {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+    min-height: 36px;
+  }
+
+  /* Memory delete button */
+  .memory-delete-btn {
+    padding: 8px 10px;
+    min-height: 40px;
+    min-width: 40px;
+    font-size: 1rem;
+  }
+
+  /* Memory card - slightly larger for easier tapping */
+  .memory-card {
+    padding: 0.6rem 0.65rem;
+  }
+}
+
+/* Phone portrait */
+@media (max-width: 599px) {
+  .memory-filter-btn {
+    font-size: 0.85rem;
+    padding: 10px 14px;
+    min-height: 40px;
+  }
+
+  .memory-search input {
+    padding: 12px 14px;
+    font-size: 1rem;
+  }
+
+  .memory-search button {
+    padding: 12px 16px;
+    min-height: 48px;
+  }
+}

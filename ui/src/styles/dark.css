@@ -1,10 +1,18 @@
+/*
+  LAYOUT CONTRACT:
+  - dark.css owns viewport height & panel layout
+  - component CSS owns internal scrolling
+  - do not add chat-specific rules here
+*/
+
+
 /* ===========================
    COLOR THEME & VARIABLES
    =========================== */
 
 :root {
-  --bg: #020617;              /* overall background */
-  --bg-elevated: #02091a;     /* cards / panels */
+  --bg: #020617; /* overall background */
+  --bg-elevated: #02091a; /* cards / panels */
   --bg-soft: #020617;
   --border-subtle: #111827;
   --border-strong: #1f2937;
@@ -15,7 +23,7 @@
   --text-soft: #9ca3af;
   --text-muted: #6b7280;
 
-  --accent: #fbbf24;          /* amber gold */
+  --accent: #fbbf24; /* amber gold */
   --accent-soft: #f59e0b;
   --accent-strong: #f97316;
 
@@ -25,7 +33,9 @@
   --danger: #f87171;
 }
 
-/* Global background & text for safety */
+/* ===========================
+   GLOBAL BASE
+   =========================== */
 
 html,
 body,
@@ -38,19 +48,24 @@ body,
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Prevent mobile gesture-bar overlap */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* ===========================
-   APP SHELL
+   APP SHELL (viewport authority)
    =========================== */
 
 .app-shell {
+  /* Mobile-safe viewport sizing */
+  height: 100dvh;
   min-height: 100vh;
-  height: 100%;
+
   display: flex;
   flex-direction: column;
+
   background: var(--bg);
   color: var(--text);
 }
@@ -59,49 +74,121 @@ body {
 
 .app-header {
   flex: 0 0 auto;
+  height: 56px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.6rem 1rem;
+
+  padding: 0 16px;
   border-bottom: 1px solid var(--border-subtle);
   background: #020617f5;
   backdrop-filter: blur(12px);
 }
 
+/* Gold accent line under header when app-shell has project-active */
+.app-shell.project-active .app-header {
+  box-shadow: inset 0 -1px 0 rgba(251, 191, 36, 0.35);
+}
+
 .app-header-left {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .app-header-logo {
-  font-size: 1.2rem;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.08em;
   color: var(--accent);
 }
 
 .app-header-subtitle {
-  font-size: 0.75rem;
+  font-size: 11px;
   color: var(--text-muted);
+  opacity: 0.7;
+  letter-spacing: 0.05em;
 }
 
+/* Mode selector — subtle */
 .app-header-mode {
-  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   color: var(--text-soft);
+  opacity: 0.75;
 }
 
 .app-header-mode span {
-  color: var(--accent);
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+
+.app-header-mode select {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: inherit;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.app-header-mode select:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* User greeting / account */
+.app-header-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-greeting-label {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.user-greeting,
+.app-header-user select {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.app-header-user select {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Logout button should not shout */
+.logout-button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.logout-button:hover {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: underline;
 }
 
 /* ---------- Main ---------- */
 
 .app-main {
+  /* Critical: remaining height after header */
   flex: 1 1 auto;
+  min-height: 0;
+
   display: flex;
   flex-direction: column;
-  min-height: 0; /* allows inner flex children to scroll */
 }
 
 /* ===========================
@@ -109,10 +196,14 @@ body {
    =========================== */
 
 .mobile-nav {
-  display: none; /* shown only on small screens */
+  /* shown only on small screens (see media query) */
+  display: none;
+
+  flex: 0 0 auto;
   width: 100%;
   box-sizing: border-box;
   padding: 0.35rem 0.6rem;
+
   border-bottom: 1px solid var(--border-subtle);
   background: #020617f0;
   backdrop-filter: blur(8px);
@@ -145,173 +236,92 @@ body {
    =========================== */
 
 .panel-row {
+  /* Critical: remaining height after mobile-nav (when present) */
   flex: 1 1 auto;
+  min-height: 0;
+
   display: flex;
-  min-height: 0; /* critical for flex children to scroll */
 }
 
-/* ---------- LEFT PANEL (Memory + Modes) ---------- */
+/* Panel containers inside panel-row MUST be flex columns and height-aware */
+.panel-row > .left-panel,
+.panel-row > .chat-panel-wrapper,
+.panel-row > .right-panel {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+}
+
+/* ---------- LEFT PANEL ---------- */
 
 .panel-row > .left-panel {
   width: 22%;
   min-width: 230px;
   max-width: 320px;
+
   padding: 0.75rem 0.75rem 0.75rem 1rem;
   border-right: 1px solid var(--border-subtle);
   background: var(--bg);
   box-sizing: border-box;
 
-  display: flex;
   flex-direction: column;
   gap: 0.75rem;
 
-  overflow: hidden; /* internal scroll handled inside memory list */
+  overflow: hidden; /* internal scroll handled in LeftPanel.css */
 }
 
-/* ---------- CENTER PANEL (Chat) ---------- */
+/* Slight top padding to reduce "crowding" */
+.left-panel {
+  padding-top: 8px;
+}
+
+/* Reduce visual weight of left tabs (Conversations / Tasks) */
+.left-tab {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.left-tab.active {
+  opacity: 1;
+  font-weight: 600;
+}
+
+/* ---------- CENTER PANEL (Chat wrapper only) ---------- */
 
 .chat-panel-wrapper {
   flex: 1.4;
   min-width: 420px;
-  display: flex;
+
   flex-direction: column;
   border-right: 1px solid var(--border-subtle);
   background: var(--bg);
   box-sizing: border-box;
+
+  /* allow ChatPanel internal scrollers to work */
+  min-height: 0;
 }
 
-/* Where your ChatPanel root div lives */
-.chat-panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
+/*
+  IMPORTANT:
+  Do NOT style .chat-panel/.messages/.input-area here.
+  Those are owned by ui/src/components/ChatPanel/ChatPanel.css.
+  Keeping layout ownership separate prevents mobile regressions.
+*/
 
-/* Top strip above messages (mode indicator) */
-.mode-indicator {
-  padding: 0.4rem 0.75rem;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 0.8rem;
-  color: var(--text-soft);
-}
-
-/* Messages region */
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-/* Message bubble */
-.msg {
-  max-width: 80%;
-  padding: 0.55rem 0.75rem;
-  border-radius: 0.75rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.msg.user {
-  align-self: flex-end;
-  background: #0f172a;
-}
-
-.msg.assistant {
-  align-self: flex-start;
-  background: var(--bg-elevated);
-}
-
-/* Inner markdown content */
-.msg-content {
-  color: var(--text);
-}
-
-/* Store button on each msg */
-.store-btn {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  border: 1px solid var(--accent-soft);
-  background: transparent;
-  color: var(--accent);
-}
-
-/* Chat placeholder (no messages yet) */
-.chat-placeholder {
-  margin-top: 2rem;
-  max-width: 540px;
-  color: var(--text-soft);
-}
-
-.chat-placeholder h2 {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-  color: var(--accent);
-}
-
-.chat-placeholder p {
-  font-size: 0.85rem;
-  margin-bottom: 0.35rem;
-}
-
-.chat-placeholder-hint {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-/* Input area */
-.input-area {
-  border-top: 1px solid var(--border-subtle);
-  padding: 0.5rem 0.75rem;
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.input-area input[type="text"] {
-  flex: 1;
-  padding: 0.45rem 0.6rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
-  color: var(--text);
-  font-size: 0.9rem;
-}
-
-.input-area input::placeholder {
-  color: var(--text-muted);
-}
-
-.input-area button {
-  padding: 0.45rem 0.9rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--accent-soft);
-  background: var(--accent);
-  color: #111827;
-  font-weight: 600;
-}
-
-/* ---------- RIGHT PANEL (Insights) ---------- */
+/* ---------- RIGHT PANEL ---------- */
 
 .panel-row > .right-panel {
   width: 24%;
   min-width: 260px;
   max-width: 360px;
+
   padding: 0.6rem 0.6rem;
   background: var(--bg);
   box-sizing: border-box;
 
-  display: flex;
   flex-direction: column;
   gap: 0.5rem;
+
   overflow: hidden;
   min-height: 0;
 }
@@ -334,59 +344,104 @@ body {
 }
 
 /* ===========================
-   LEFT PANEL: MEMORY / MODES (cosmetic)
+   LEFT PANEL: ACTIVE PROJECT ACCENT + TIGHTER RHYTHM
    =========================== */
 
-.memory-section-title {
-  margin-top: 0.75rem;
-  margin-bottom: 0.35rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-soft);
-}
-
-/* Memory list scroll area */
-.memory-list {
-  padding-right: 0.25rem;
-  margin-right: -0.25rem;
-}
-
-/* Memory card */
-.memory-card {
-  background: var(--bg-elevated);
-  border-radius: 0.65rem;
-  border: 1px solid var(--border-subtle);
-  padding: 0.45rem 0.5rem;
-  margin-bottom: 0.4rem;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  cursor: default;
+/* Support a few common classnames */
+.left-panel .project-item.active,
+.left-panel .project-row.active,
+.left-panel .project-item.selected,
+.left-panel .project-row.selected {
   position: relative;
 }
 
-/* Category pill on memory card */
-.memory-category-pill {
-  display: inline-block;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  background: var(--pill-memory);
-  border: 1px solid var(--pill-outline);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-soft);
-  margin-bottom: 0.25rem;
+/* Rail */
+.left-panel .project-item.active::before,
+.left-panel .project-row.active::before,
+.left-panel .project-item.selected::before,
+.left-panel .project-row.selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, #c9a24d, #e6c77a, #c9a24d);
+
+  transform-origin: top;
+  transform: scaleY(0.6);
+  opacity: 0;
+  transition: transform 180ms ease, opacity 180ms ease;
 }
 
-/* Memory delete icon/button */
-.memory-delete-btn {
-  position: absolute;
-  top: 0.3rem;
-  right: 0.35rem;
-  border: none;
-  background: transparent;
-  color: var(--danger);
-  font-size: 0.75rem;
+/* Animate in when active */
+.left-panel .project-item.active::before,
+.left-panel .project-row.active::before,
+.left-panel .project-item.selected::before,
+.left-panel .project-row.selected::before {
+  transform: scaleY(1);
+  opacity: 0.95;
+}
+
+.left-panel .project-item.active:hover::before,
+.left-panel .project-row.active:hover::before,
+.left-panel .project-item.selected:hover::before,
+.left-panel .project-row.selected:hover::before {
+  opacity: 1;
+}
+
+/* Tighter vertical rhythm */
+.left-panel .conversation-item,
+.left-panel .project-item,
+.left-panel .project-row,
+.left-panel .search-result-item {
+  padding: 6px 10px;
+  line-height: 1.25;
+}
+
+.left-panel .conversation-item + .conversation-item,
+.left-panel .project-item + .project-item,
+.left-panel .project-row + .project-row,
+.left-panel .search-result-item + .search-result-item {
+  margin-top: 2px;
+}
+
+.left-panel .conversation-title,
+.left-panel .project-title,
+.left-panel .search-result-title {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.left-panel .conversation-meta,
+.left-panel .project-meta,
+.left-panel .search-result-meta {
+  font-size: 11px;
+  margin-top: 2px;
+  opacity: 0.65;
+}
+
+.left-panel .section-title,
+.left-panel .search-group-title {
+  margin: 8px 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+/* Hover + active calm highlight */
+.left-panel .conversation-item:hover,
+.left-panel .project-item:hover,
+.left-panel .project-row:hover,
+.left-panel .search-result-item:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.left-panel .conversation-item.active,
+.left-panel .project-item.active,
+.left-panel .project-row.active {
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 /* ===========================
@@ -416,12 +471,45 @@ body {
    - Switch via .view-chat / .view-left / .view-right
 */
 @media (max-width: 899px) {
-  .panel-row {
-    flex-direction: column;
-  }
-
   .mobile-nav {
     display: flex;
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Mobile nav buttons - increase touch targets to 44px+ */
+  .mobile-nav button {
+    padding: 10px 12px;
+    font-size: 0.875rem;
+    min-height: 44px;
+    font-weight: 500;
+  }
+
+  /* Header controls - larger touch targets */
+  .app-header-mode select {
+    padding: 8px 12px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  .app-header-user select {
+    padding: 8px 12px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  .logout-button {
+    padding: 10px 14px;
+    font-size: 13px;
+    min-height: 44px;
+  }
+
+  /* Panel row fills remaining space under mobile-nav */
+  .panel-row {
+    flex: 1 1 auto;
+    min-height: 0;
+
+    /* one panel at a time; no need for row columns */
+    flex-direction: column;
   }
 
   /* Default: hide all; show via view-* classes */
@@ -431,10 +519,15 @@ body {
     width: 100%;
     max-width: 100%;
     min-width: 0;
+
     border-left: none;
     border-right: none;
     border-bottom: 1px solid var(--border-subtle);
     box-sizing: border-box;
+
+    /* This is the key: the active one must be allowed to fill height */
+    flex: 1 1 auto;
+    min-height: 0;
 
     display: none;
   }
@@ -444,23 +537,20 @@ body {
     display: flex;
   }
 
-  /* Active: Left (Memory) */
+  /* Active: Left */
   .app-main.view-left .panel-row > .left-panel {
     display: flex;
   }
 
-  /* Active: Right (Insights) */
+  /* Active: Right */
   .app-main.view-right .panel-row > .right-panel {
     display: flex;
-  }
-
-  .messages {
-    padding: 0.75rem;
   }
 }
 
 /* <600px: phone portrait
-   - Tighten spacing and fonts
+   - Tighten spacing and fonts (layout only)
+   - Even larger touch targets for small screens
 */
 @media (max-width: 599px) {
   .panel-row > .left-panel,
@@ -468,28 +558,38 @@ body {
     padding: 0.5rem 0.5rem;
   }
 
-  .messages {
-    padding: 0.5rem;
+  .panel-row > .chat-panel-wrapper {
+    min-width: 0;
   }
 
-  .input-area {
-    padding: 0.45rem 0.5rem;
-    gap: 0.4rem;
+  .app-header {
+    padding: 0 12px;
   }
 
-  .input-area input[type="text"] {
-    padding: 0.4rem 0.5rem;
-    font-size: 0.85rem;
+  .app-header-subtitle {
+    display: none; /* reclaim space */
   }
 
-  .input-area button {
-    padding: 0.4rem 0.7rem;
-    font-size: 0.85rem;
+  /* Even larger touch targets on phones */
+  .mobile-nav {
+    padding: 0.6rem 0.5rem;
   }
 
-  .msg {
-    max-width: 100%;
-    font-size: 0.85rem;
+  .mobile-nav button {
+    padding: 12px 10px;
+    font-size: 0.9rem;
+    min-height: 48px;
+  }
+
+  .app-header-mode select,
+  .app-header-user select {
+    padding: 10px 14px;
+    min-height: 48px;
+  }
+
+  .logout-button {
+    padding: 12px 16px;
+    min-height: 48px;
   }
 }
 

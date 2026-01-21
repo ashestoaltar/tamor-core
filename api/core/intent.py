@@ -33,108 +33,63 @@ from utils.db import get_db
 # Regex patterns
 # ---------------------------------------------------------------------------
 
+
+# Optional owner/determiner: "my ", "the ", or nothing
+_OWNER_OPT = r"(?:(?:my|the)\s+)?"
+
+# Allow both "christmas playlist" and "christmas list"
+_CHRISTMAS_TARGET = r"christmas\s+(?:playlist|list)"
+
+# Common end punctuation/whitespace
+_END = r"\s*[.!?']*\s*$"
+
 # Add movie to Christmas playlist/list
 _ADD_CHRISTMAS_MOVIE_PATTERNS = [
-    # add <title> to the christmas playlist
+    # "add <title> to (my/the) christmas playlist|list"
     re.compile(
-        r"^\s*add\s+(?P<title>.+?)\s+to\s+the\s+christmas\s+playlist\s*[.!?']*$",
+        rf"^\s*add\s+(?P<title>.+?)\s+to\s+{_OWNER_OPT}{_CHRISTMAS_TARGET}{_END}",
         re.IGNORECASE,
     ),
+    # "put <title> on (my/the) christmas playlist|list"
     re.compile(
-        r"^\s*add\s+(?P<title>.+?)\s+to\s+my\s+christmas\s+playlist\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    # add <title> to the christmas list
-    re.compile(
-        r"^\s*add\s+(?P<title>.+?)\s+to\s+the\s+christmas\s+list\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*add\s+(?P<title>.+?)\s+to\s+my\s+christmas\s+list\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    # put <title> on the christmas playlist/list
-    re.compile(
-        r"^\s*put\s+(?P<title>.+?)\s+on\s+the\s+christmas\s+playlist\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*put\s+(?P<title>.+?)\s+on\s+my\s+christmas\s+playlist\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*put\s+(?P<title>.+?)\s+on\s+the\s+christmas\s+list\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*put\s+(?P<title>.+?)\s+on\s+my\s+christmas\s+list\s*[.!?']*$",
+        rf"^\s*put\s+(?P<title>.+?)\s+on\s+{_OWNER_OPT}{_CHRISTMAS_TARGET}{_END}",
         re.IGNORECASE,
     ),
 ]
 
 # Remove a movie from the Christmas playlist/list
 _REMOVE_CHRISTMAS_MOVIE_PATTERNS = [
+    # "remove <title> from (my/the) christmas playlist|list"
     re.compile(
-        r"^\s*remove\s+(?P<title>.+?)\s+from\s+the\s+christmas\s+playlist\s*[.!?']*$",
+        rf"^\s*remove\s+(?P<title>.+?)\s+from\s+{_OWNER_OPT}{_CHRISTMAS_TARGET}{_END}",
         re.IGNORECASE,
     ),
+    # "take <title> off (my/the) christmas playlist|list"
     re.compile(
-        r"^\s*remove\s+(?P<title>.+?)\s+from\s+my\s+christmas\s+playlist\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*remove\s+(?P<title>.+?)\s+from\s+the\s+christmas\s+list\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*remove\s+(?P<title>.+?)\s+from\s+my\s+christmas\s+list\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*take\s+(?P<title>.+?)\s+off\s+the\s+christmas\s+playlist\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*take\s+(?P<title>.+?)\s+off\s+my\s+christmas\s+playlist\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*take\s+(?P<title>.+?)\s+off\s+the\s+christmas\s+list\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*take\s+(?P<title>.+?)\s+off\s+my\s+christmas\s+list\s*[.!?']*$",
+        rf"^\s*take\s+(?P<title>.+?)\s+off\s+{_OWNER_OPT}{_CHRISTMAS_TARGET}{_END}",
         re.IGNORECASE,
     ),
 ]
 
 # Show / list the Christmas playlist/list
 _SHOW_CHRISTMAS_PLAYLIST_PATTERNS = [
+    # "show (me) (my/the) christmas playlist|list"
     re.compile(
-        r"^\s*show\s+(me\s+)?(my\s+)?christmas\s+playlist\s*[.!?']*$",
+        rf"^\s*show\s+(?:me\s+)?{_OWNER_OPT}{_CHRISTMAS_TARGET}{_END}",
         re.IGNORECASE,
     ),
+    # "list (my/the) christmas playlist|list"
     re.compile(
-        r"^\s*show\s+(me\s+)?(my\s+)?christmas\s+list\s*[.!?']*$",
+        rf"^\s*list\s+{_OWNER_OPT}{_CHRISTMAS_TARGET}{_END}",
         re.IGNORECASE,
     ),
+    # "what's on (my/the) christmas playlist|list"
     re.compile(
-        r"^\s*what'?s\s+on\s+(my\s+)?christmas\s+playlist\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*what'?s\s+on\s+(my\s+)?christmas\s+list\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*list\s+(my\s+)?christmas\s+playlist\s*[.!?']*$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*list\s+(my\s+)?christmas\s+list\s*[.!?']*$",
+        rf"^\s*what'?s\s+on\s+{_OWNER_OPT}{_CHRISTMAS_TARGET}{_END}",
         re.IGNORECASE,
     ),
 ]
+
 
 # Rename the current conversation
 _RENAME_CONVERSATION_PATTERNS = [
