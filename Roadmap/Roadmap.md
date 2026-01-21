@@ -73,32 +73,38 @@ CSS cleanup
 
 Improved interactions
 
-2.6 Structured Tasking (Partially Complete)
+2.6 Structured Tasking (Mostly Complete)
 
-Detect tasks embedded in project content
+✅ Task database schema and API endpoints
 
-Represent tasks structurally (not reminders yet)
+✅ Reminder detection from chat messages
 
-Task database schema and API endpoints implemented
+✅ Task confirmation/cancel/complete/pause/resume workflows
 
-Phase 3 – Stability, Cleanup, and Refactoring (Next Active Phase)
+✅ Task deletion and editing (title, scheduled time)
+
+✅ TaskPill (chat) and TasksPanel (sidebar) UI
+
+⬜ Detect tasks embedded in project content (deferred to Phase 4.x)
+
+Phase 3 – Stability, Cleanup, and Refactoring (Active)
 3.1 Backend Refactor & Deterministic Safety
 
-Remove legacy and dead code
+⬜ Remove legacy and dead code
 
-Standardize API error responses
+⬜ Standardize API error responses
 
-Add /health endpoint
+✅ Add /health endpoint (database + LLM status checks)
 
-Review and align migrations
+⬜ Review and align migrations
 
-LLM Provider Abstraction Layer:
+✅ LLM Provider Abstraction Layer:
 
-Create unified LLM service interface
+✅ Create unified LLM service interface (services/llm_service.py)
 
-Centralize client initialization and configuration
+✅ Centralize client initialization and configuration
 
-Enable future multi-provider support (Phase 6.2 dependency)
+✅ Enable future multi-provider support (Phase 6.2 dependency)
 
 Deterministic Safety Enforcement (Promoted):
 
@@ -240,6 +246,18 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.2 – 2026-01-21
+
+Completed LLM provider abstraction layer (Phase 3.1)
+
+Added /health endpoint with component checks (Phase 3.1)
+
+Added task deletion and editing (Phase 2.6)
+
+Enhanced TaskPill with full action buttons (Phase 2.6)
+
+Updated Phase 2.6 to "Mostly Complete"; deferred content extraction to Phase 4.x
+
 v1.1 – 2026-01-20
 
 Promoted deterministic safety enforcement into Phase 3.1
@@ -255,7 +273,7 @@ Key Architectural Decisions
 | Local-first deployment | Privacy, no cloud dependency, full data ownership |
 | Flask + Gunicorn | Simplicity over async; sufficient for single-user workload |
 | Sentence-Transformers (local) | No API cost for embeddings; works offline |
-| OpenAI for LLM (with abstraction planned) | Best quality/cost for chat; Phase 3.1 enables switching |
+| OpenAI for LLM (abstraction layer done) | Best quality/cost for chat; services/llm_service.py enables provider switching |
 | SQLite | Single-user, file-based, zero config |
 | React + Vite frontend | Fast dev iteration, familiar tooling |
 | Cloudflare Tunnel | Secure remote access without exposing ports |
