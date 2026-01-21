@@ -19,11 +19,8 @@ from flask import (
 
 from utils.db import get_db
 
-# Optional: OpenAI for summarize / explain / search flows
-try:
-    from openai import OpenAI
-except ImportError:  # lets the server run even if openai isn't installed yet
-    OpenAI = None
+# LLM service for summarize / explain / search flows
+from services.llm_service import get_llm_client, get_model_name, llm_is_configured
 
 # Optional: PDF text extraction
 try:
@@ -93,12 +90,6 @@ def _get_file_record_for_user(file_id: int, user_id: int):
     return row
 
 
-def _get_openai_client():
-    """Return an OpenAI client if configured, else None."""
-    api_key = current_app.config.get("OPENAI_API_KEY")
-    if not api_key or OpenAI is None:
-        return None
-    return OpenAI(api_key=api_key)
 
 
 # ---------------------------------------------------------------------------
@@ -707,9 +698,8 @@ def summarize_or_qa_file(file_id: int):
     text, meta, _parser = get_or_extract_file_text_for_row(row)
     structure_hint = _build_structure_hint(meta)
 
-    client = _get_openai_client()
-    if client is None:
-        # Graceful fallback if OpenAI isn't configured on this server
+    if not llm_is_configured():
+        # Graceful fallback if LLM isn't configured on this server
         if task == "summary":
             pseudo = text[:2000]
             return jsonify(
@@ -722,7 +712,7 @@ def summarize_or_qa_file(file_id: int):
                     "task": "summary",
                     "query": query,
                     "result": (
-                        "OpenAI is not configured on this server, so this is a "
+                        "LLM is not configured on this server, so this is a "
                         "truncated preview of the file instead of a real LLM summary:\n\n"
                         + pseudo
                     ),
@@ -733,7 +723,7 @@ def summarize_or_qa_file(file_id: int):
                 jsonify(
                     {
                         "error": "llm_not_configured",
-                        "message": "OpenAI is not configured on this server.",
+                        "message": "LLM is not configured on this server.",
                     }
                 ),
                 501,
@@ -769,15 +759,14 @@ def summarize_or_qa_file(file_id: int):
             + text
         )
 
-    completion = client.chat.completions.create(
-        model=current_app.config.get("OPENAI_MODEL", "gpt-4o-mini"),
+    llm = get_llm_client()
+    answer = llm.chat_completion(
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
+        model=get_model_name(),
     )
-
-    answer = completion.choices[0].message.content
 
     return jsonify(
         {

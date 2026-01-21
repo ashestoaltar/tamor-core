@@ -24,7 +24,7 @@ import numpy as np
 
 from utils.db import get_db
 from core.memory_core import embed, embed_many
-from core.config import client, OPENAI_MODEL
+from services.llm_service import get_llm_client, get_model_name, llm_is_configured
 from routes.files_api import get_or_extract_file_text_for_row
 
 # Chunking config – keep local and simple
@@ -187,7 +187,7 @@ def _embed_query_and_chunks(
     if not chunks:
         return None, None
 
-    if client is None:
+    if not llm_is_configured():
         return None, None
 
     texts = [c["text"] for c in chunks]
@@ -284,7 +284,7 @@ def semantic_search_project_files(
 
     result: Dict[str, Any] = {"query": query, "results": hits, "answer": None}
 
-    if not include_answer or not hits or client is None:
+    if not include_answer or not hits or not llm_is_configured():
         return result
 
     # Build a context window out of the top chunks
@@ -331,11 +331,8 @@ def semantic_search_project_files(
         },
     ]
 
-    completion = client.chat.completions.create(
-        model=OPENAI_MODEL,
-        messages=messages,
-    )
-    answer = completion.choices[0].message.content
+    llm = get_llm_client()
+    answer = llm.chat_completion(messages=messages, model=get_model_name())
     result["answer"] = answer
 
     return result
@@ -365,11 +362,11 @@ def summarize_project_files(
     if not all_text.strip():
         return {"summary": "", "used_model": None, "total_chunks": 0}
 
-    if client is None:
+    if not llm_is_configured():
         pseudo = all_text[:3000]
         return {
             "summary": (
-                "OpenAI is not configured on this server, so this is a "
+                "LLM is not configured on this server, so this is a "
                 "truncated preview of the project file chunks:\n\n" + pseudo
             ),
             "used_model": None,
@@ -399,16 +396,13 @@ def summarize_project_files(
         {"role": "user", "content": all_text},
     ]
 
-    completion = client.chat.completions.create(
-        model=OPENAI_MODEL,
-        messages=messages,
-    )
-
-    answer = completion.choices[0].message.content
+    llm = get_llm_client()
+    model_name = get_model_name()
+    answer = llm.chat_completion(messages=messages, model=model_name)
 
     return {
         "summary": answer,
-        "used_model": OPENAI_MODEL,
+        "used_model": model_name,
         "total_chunks": len(chunks),
     }
 

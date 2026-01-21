@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from flask import Blueprint, jsonify, request, session
-from openai import OpenAI
 
 from utils.db import get_db
+from services.llm_service import get_llm_client, get_model_name
 from core.prompt import build_system_prompt
 from core.task_classifier import classify_task
 from core.intent import parse_intent, execute_intent
@@ -16,9 +16,6 @@ from core.mode_router import route_mode
 from core.task_normalizer import normalize_detected_task
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
-
-client = OpenAI()
-OPENAI_MODEL = "gpt-4.1-mini"
 
 CHAT_HISTORY_LIMIT = 24
 
@@ -358,12 +355,11 @@ Capability note (Tamor app):
 
     history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
 
-    completion = client.chat.completions.create(
-        model=OPENAI_MODEL,
+    llm = get_llm_client()
+    reply_text = llm.chat_completion(
         messages=[{"role": "system", "content": system_prompt}, *history, {"role": "user", "content": user_message}],
+        model=get_model_name(),
     )
-
-    reply_text = completion.choices[0].message.content or ""
 
     # Safe cleanup: if already scheduled, strip any confirm/cancel prompting from the LLM text
     if detected_task:

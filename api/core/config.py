@@ -4,7 +4,6 @@ import sqlite3
 
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
-from openai import OpenAI
 
 # Load .env
 load_dotenv()
@@ -31,8 +30,9 @@ TMDB_CACHE: dict[str, dict] = {}
 FILE_CHUNK_SIZE = int(os.getenv("FILE_CHUNK_SIZE", "800"))
 FILE_CHUNK_OVERLAP = int(os.getenv("FILE_CHUNK_OVERLAP", "200"))
 
-# ---- OPENAI ----
-client = OpenAI()
+# ---- LLM ----
+# LLM client is now centralized in services.llm_service
+# Import from there: from services.llm_service import get_llm_client, get_model_name
 
 # ---- PERSONALITY / MODES ----
 with open(PERSONALITY_FILE, "r", encoding="utf-8") as f:
