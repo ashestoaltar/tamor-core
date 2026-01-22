@@ -19,6 +19,13 @@ from services.insights_service import (
     aggregate_project_insights,
     invalidate_project_insights,
 )
+from services.reasoning_service import (
+    analyze_file_relationships,
+    detect_cross_file_contradictions,
+    analyze_logic_flow,
+    get_full_reasoning,
+    invalidate_reasoning,
+)
 
 
 # Blueprint for all project-related routes (and playlist helpers)
@@ -171,9 +178,10 @@ def delete_project(project_id):
         conn.close()
         return jsonify({"error": "not_found"}), 404
 
-    # Invalidate embedding cache and insights for this project
+    # Invalidate caches for this project
     invalidate_cache_for_project(project_id)
     invalidate_project_insights(project_id)
+    invalidate_reasoning(project_id)
 
     cur.execute(
         """
@@ -641,6 +649,122 @@ def get_insights_for_project(project_id: int):
             "aggregated": False,
             "files": insights_list,
         })
+
+
+# ---------------------------------------------------------------------------
+# Multi-File Reasoning (Phase 4.2)
+# ---------------------------------------------------------------------------
+
+
+@projects_bp.get("/projects/<int:project_id>/reasoning")
+def get_project_reasoning(project_id: int):
+    """
+    Get full multi-file reasoning analysis for a project.
+
+    Includes: relationships, contradictions, and logic flow analysis.
+
+    Query params:
+        force=true - Force regeneration even if cached
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Verify project belongs to user
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    force = request.args.get("force", "").lower() == "true"
+
+    result = get_full_reasoning(project_id, user_id, force)
+    return jsonify(result)
+
+
+@projects_bp.get("/projects/<int:project_id>/reasoning/relationships")
+def get_file_relationships(project_id: int):
+    """
+    Analyze relationships and dependencies between project files.
+
+    Query params:
+        force=true - Force regeneration even if cached
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    force = request.args.get("force", "").lower() == "true"
+
+    result = analyze_file_relationships(project_id, user_id, force)
+    return jsonify({"project_id": project_id, **result})
+
+
+@projects_bp.get("/projects/<int:project_id>/reasoning/contradictions")
+def get_cross_file_contradictions(project_id: int):
+    """
+    Detect contradictions and inconsistencies between project files.
+
+    Query params:
+        force=true - Force regeneration even if cached
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    force = request.args.get("force", "").lower() == "true"
+
+    result = detect_cross_file_contradictions(project_id, user_id, force)
+    return jsonify({"project_id": project_id, **result})
+
+
+@projects_bp.get("/projects/<int:project_id>/reasoning/logic-flow")
+def get_logic_flow_analysis(project_id: int):
+    """
+    Analyze logical coherence and assumption coverage across files.
+
+    Query params:
+        force=true - Force regeneration even if cached
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    force = request.args.get("force", "").lower() == "true"
+
+    result = analyze_logic_flow(project_id, user_id, force)
+    return jsonify({"project_id": project_id, **result})
 
 
 # ---------------------------------------------------------------------------

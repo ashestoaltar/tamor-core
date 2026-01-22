@@ -149,11 +149,17 @@ Phase 4 – Research & Intelligence Expansion
 
 ✅ Project-level aggregation with file attribution
 
-4.2 Multi-File Reasoning Mode
+4.2 Multi-File Reasoning Mode (Complete)
 
-System-wide reasoning across all project documents
+✅ Cross-document relationship analysis (dependencies, references)
 
-Dependency and logic consistency checks
+✅ Cross-file contradiction detection
+
+✅ Logic flow and coherence checking
+
+✅ Cached results in project_reasoning table
+
+✅ API endpoints: GET /projects/{id}/reasoning[/relationships|contradictions|logic-flow]
 
 4.3 On-Disk Caching Layer (Complete)
 
@@ -244,6 +250,22 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.7 – 2026-01-21
+
+Completed Phase 4.2 Multi-File Reasoning Mode:
+
+✅ Created services/reasoning_service.py with cross-document analysis
+
+✅ Added project_reasoning table (migration 003_project_reasoning.sql)
+
+✅ Relationship analysis: file dependencies and references
+
+✅ Cross-file contradiction detection
+
+✅ Logic flow analysis: assumption coverage and coherence
+
+✅ API endpoints for individual and combined reasoning results
+
 v1.6 – 2026-01-21
 
 Completed Phase 4.1 Auto-Insights Engine:
