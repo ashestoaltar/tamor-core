@@ -1,15 +1,15 @@
 .memory-list {
   max-height: 220px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: var(--space-xs);
 }
 
 .memory-item {
-  margin-bottom: 12px;
-  padding: 8px;
-  background-color: var(--bg-alt);
-  border-radius: 6px;
-  border: 1px solid var(--border-light);
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm);
+  background-color: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
 }
 
 .memory-content {
@@ -19,7 +19,7 @@
 
 .memory-meta {
   font-size: 0.7rem;
-  color: var(--text-dim);
-  margin-top: 4px;
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
 }
 

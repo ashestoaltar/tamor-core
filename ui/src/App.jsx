@@ -236,10 +236,8 @@ function App() {
 
           <div className="right-panel">
             <RightPanel
-              lastMemoryMatches={lastMemoryMatches}
               activeMode={activeMode}
               currentProjectId={currentProjectId}
-              conversationRefreshToken={conversationRefreshToken}
               activeConversationId={activeConversationId}
               onConversationsChanged={handleConversationsChanged}
             />

@@ -196,19 +196,19 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px;
-  border-radius: 8px;
+  padding: 6px var(--space-sm);
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--text);
   position: relative;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 /* ✅ Make hover SOLID (removes washed-out stacking rgba haze) */
 .project-header:hover {
-  background-color: #141a2e;
-  color: rgba(255, 255, 255, 0.94);
+  background-color: var(--bg-soft);
+  color: var(--text-bright);
 }
 
 .project-header.current-workspace {
@@ -233,23 +233,23 @@
 .row-menu-toggle {
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 0.95rem;
   line-height: 1;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .project-header:hover .row-menu-toggle,
 .conversation-item:hover .row-menu-toggle {
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-soft);
 }
 
 .row-menu-toggle:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.92);
+  background-color: var(--bg-soft);
+  color: var(--text);
 }
 
 /* ✅ Context menu popover: opaque + readable */
@@ -260,10 +260,10 @@
   margin-top: 6px;
   min-width: 190px;
   padding: 6px 0;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 
-  background: #0f1426; /* solid = no transparency haze */
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-soft); /* solid = no transparency haze */
+  border: 1px solid var(--border-subtle);
   box-shadow: 0 14px 38px rgba(0, 0, 0, 0.45);
 
   z-index: 50;
@@ -274,20 +274,20 @@
 .row-menu-item {
   width: 100%;
   text-align: left;
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-md);
   border: none;
   background: transparent;
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.86); /* readable */
+  color: var(--text); /* readable */
   cursor: pointer;
   display: flex;
   align-items: center;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .row-menu-item:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.95);
+  background-color: var(--bg-hover);
+  color: var(--text-bright);
 }
 
 .row-menu-item:disabled {
@@ -296,12 +296,12 @@
 }
 
 .row-menu-item.danger {
-  color: rgba(255, 140, 140, 0.9);
+  color: var(--danger);
 }
 
 .row-menu-item.danger:hover {
-  background-color: rgba(255, 120, 120, 0.12);
-  color: rgba(255, 170, 170, 0.98);
+  background-color: rgba(248, 113, 113, 0.12);
+  color: var(--danger-soft);
 }
 
 .row-menu-icon {
@@ -313,15 +313,15 @@
 .row-menu-divider {
   height: 1px;
   margin: 6px 0;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--border-subtle);
 }
 
 .row-menu-subheader {
-  padding: 6px 12px;
+  padding: 6px var(--space-md);
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-muted);
 }
 
 /* Chats list area underneath projects */
@@ -331,28 +331,28 @@
 
 /* Conversation rows */
 .conversation-item {
-  padding: 6px 8px;
-  border-radius: 8px;
+  padding: 6px var(--space-sm);
+  border-radius: var(--radius-md);
   margin-bottom: 2px;
   cursor: pointer;
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   gap: 2px;
   position: relative;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 /* ✅ Solid hover */
 .conversation-item:hover:not(.active) {
-  background-color: #141a2e;
-  color: rgba(255, 255, 255, 0.94);
+  background-color: var(--bg-soft);
+  color: var(--text-bright);
 }
 
 .conversation-item.active {
   background-color: var(--accent-soft);
-  color: #041016;
+  color: var(--bg);
   border-left: 3px solid var(--accent);
 }
 
@@ -455,18 +455,18 @@
 
 .left-tab {
   flex: 1;
-  padding: 8px 10px;
+  padding: var(--space-sm) 10px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-soft);
   cursor: pointer;
 }
 
 .left-tab.active {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.95);
+  background: var(--bg-soft);
+  border-color: var(--border-strong);
+  color: var(--text-bright);
 }
 
 /* ===========================
