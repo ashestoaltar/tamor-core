@@ -136,6 +136,22 @@ CREATE TABLE IF NOT EXISTS file_chunks (
     FOREIGN KEY (file_id) REFERENCES project_files(id)
 );
 
+-- File insights for auto-analysis (Phase 4.1)
+CREATE TABLE IF NOT EXISTS file_insights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id INTEGER NOT NULL UNIQUE,
+    project_id INTEGER NOT NULL,
+    insights_json TEXT,
+    summary TEXT,
+    generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    model_used TEXT,
+    FOREIGN KEY (file_id) REFERENCES project_files(id),
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_file_insights_project ON file_insights(project_id);
+CREATE INDEX IF NOT EXISTS idx_file_insights_file ON file_insights(file_id);
+
 -- Message to file references
 CREATE TABLE IF NOT EXISTS message_file_refs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

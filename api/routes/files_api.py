@@ -20,6 +20,13 @@ from services.structured_parsing import extract_structure_for_mime
 # LLM service for summarize / explain / search flows
 from services.llm_service import get_llm_client, get_model_name, llm_is_configured
 
+# Auto-insights service (Phase 4.1)
+from services.insights_service import (
+    generate_insights,
+    get_cached_insights,
+    invalidate_insights,
+)
+
 # Optional: PDF text extraction
 try:
     from PyPDF2 import PdfReader
@@ -420,6 +427,22 @@ def get_or_extract_file_text_for_row(file_row):
         conn.commit()
     except Exception:
         # Failing to cache should not break the main flow
+        pass
+
+    # Phase 4.1: Trigger auto-insights generation (non-blocking)
+    try:
+        project_id = file_row.get("project_id")
+        filename = file_row.get("filename", "")
+        if project_id and text and len(text.strip()) >= 100:
+            generate_insights(
+                file_id=file_id,
+                project_id=project_id,
+                text=text,
+                filename=filename,
+                mime_type=mime_type,
+            )
+    except Exception:
+        # Insights generation failure should not break the main flow
         pass
 
     return text, meta, parser
@@ -862,4 +885,70 @@ def _verify_message_belongs_to_user(message_id: int, user_id: int) -> bool:
     )
     row = cur.fetchone()
     return row is not None
+
+
+# ---------------------------------------------------------------------------
+# File Insights (Phase 4.1)
+# ---------------------------------------------------------------------------
+
+
+@files_bp.get("/files/<int:file_id>/insights")
+def get_file_insights(file_id: int):
+    """
+    Get auto-generated insights for a file.
+
+    If insights haven't been generated yet and the file has extracted text,
+    they will be generated on-demand.
+
+    Query params:
+        force=true - Force regeneration even if cached
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Verify file belongs to user
+    file_row = _get_file_record_for_user(file_id, user_id)
+    if not file_row:
+        return jsonify({"error": "not_found"}), 404
+
+    force = request.args.get("force", "").lower() == "true"
+
+    # Check for cached insights first (unless forcing)
+    if not force:
+        cached = get_cached_insights(file_id)
+        if cached:
+            return jsonify(cached)
+
+    # Try to generate insights
+    # First, we need the extracted text
+    text, meta, parser = get_or_extract_file_text_for_row(file_row)
+
+    if not text or len(text.strip()) < 100:
+        return jsonify({
+            "file_id": file_id,
+            "insights": None,
+            "error": "insufficient_content",
+            "details": "File has insufficient text content for insights generation",
+        })
+
+    # Generate insights (this will also cache them)
+    result = generate_insights(
+        file_id=file_id,
+        project_id=file_row["project_id"],
+        text=text,
+        filename=file_row.get("filename", ""),
+        mime_type=file_row.get("mime_type"),
+        force=force,
+    )
+
+    if not result:
+        return jsonify({
+            "file_id": file_id,
+            "insights": None,
+            "error": "generation_failed",
+            "details": "Failed to generate insights (LLM may not be configured)",
+        })
+
+    return jsonify(result)
 

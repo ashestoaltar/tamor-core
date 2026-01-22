@@ -14,6 +14,11 @@ from services.knowledge_graph import (
     query_symbol,
 )
 from services.embedding_cache import invalidate_cache_for_project
+from services.insights_service import (
+    get_project_insights,
+    aggregate_project_insights,
+    invalidate_project_insights,
+)
 
 
 # Blueprint for all project-related routes (and playlist helpers)
@@ -166,8 +171,9 @@ def delete_project(project_id):
         conn.close()
         return jsonify({"error": "not_found"}), 404
 
-    # Invalidate embedding cache for this project
+    # Invalidate embedding cache and insights for this project
     invalidate_cache_for_project(project_id)
+    invalidate_project_insights(project_id)
 
     cur.execute(
         """
@@ -589,6 +595,52 @@ def update_project_notes(project_id: int):
             "content": final_content,
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Project Insights (Phase 4.1)
+# ---------------------------------------------------------------------------
+
+
+@projects_bp.get("/projects/<int:project_id>/insights")
+def get_insights_for_project(project_id: int):
+    """
+    Get auto-generated insights for all files in a project.
+
+    Query params:
+        aggregate=true - Return combined insights across all files (default)
+        aggregate=false - Return individual insights per file
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Verify project belongs to user
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    aggregate = request.args.get("aggregate", "true").lower() != "false"
+
+    if aggregate:
+        result = aggregate_project_insights(project_id, user_id)
+        return jsonify({
+            "project_id": project_id,
+            "aggregated": True,
+            **result,
+        })
+    else:
+        insights_list = get_project_insights(project_id, user_id)
+        return jsonify({
+            "project_id": project_id,
+            "aggregated": False,
+            "files": insights_list,
+        })
 
 
 # ---------------------------------------------------------------------------

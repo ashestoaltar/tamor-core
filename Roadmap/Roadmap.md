@@ -137,17 +137,17 @@ Phase 3 – Stability, Cleanup, and Refactoring (Complete)
 ✅ Add rollback and validation utilities (run_migrations.py, db_validate.py)
 
 Phase 4 – Research & Intelligence Expansion
-4.1 Auto-Insights Engine
+4.1 Auto-Insights Engine (Complete)
 
-Automatically generate insights on project upload
+✅ Auto-generate insights on file text extraction (lazy, on-demand)
 
-Detect:
+✅ Detect themes, contradictions, missing info, and assumptions via LLM
 
-Contradictions
+✅ Cache insights in file_insights table
 
-Missing information
+✅ API endpoints: GET /files/{id}/insights, GET /projects/{id}/insights
 
-Key themes and assumptions
+✅ Project-level aggregation with file attribution
 
 4.2 Multi-File Reasoning Mode
 
@@ -244,6 +244,20 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.6 – 2026-01-21
+
+Completed Phase 4.1 Auto-Insights Engine:
+
+✅ Created services/insights_service.py with LLM-powered document analysis
+
+✅ Added file_insights table via migration 002_file_insights.sql
+
+✅ Hooked insights generation into file text extraction flow
+
+✅ Added GET /files/{id}/insights and GET /projects/{id}/insights endpoints
+
+✅ Detects: themes, contradictions, missing information, assumptions
+
 v1.5 – 2026-01-21
 
 Completed Phase 4.3 On-Disk Caching Layer:
