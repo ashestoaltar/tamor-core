@@ -182,17 +182,17 @@ Phase 5 – Automation & Actions
 
 ✅ API endpoints: POST /files/{id}/rewrite, /generate-spec, /extract-parameters
 
-5.2 Project Pipelines
+5.2 Project Pipelines (Complete)
 
-Define structured workflows:
+✅ Pipeline templates: Research, Writing, Study, Long-form
 
-Research
+✅ State tracking with step progress and notes
 
-Writing
+✅ Step guidance with available actions
 
-Study
+✅ LLM-generated progress summaries
 
-Long-form projects
+✅ API: GET /pipelines, /projects/{id}/pipeline[/start|advance|abandon|reset|guidance|summary]
 
 5.3 Media & Transcript Integration
 
@@ -252,6 +252,22 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.9 – 2026-01-21
+
+Completed Phase 5.2 Project Pipelines:
+
+✅ Created services/pipeline_service.py with workflow management
+
+✅ Four pipeline templates: research, writing, study, long_form
+
+✅ Pipeline state tracking (project_pipelines table)
+
+✅ Step guidance with action recommendations
+
+✅ LLM-generated progress summaries
+
+✅ Full API for pipeline lifecycle management
+
 v1.8 – 2026-01-21
 
 Completed Phase 5.1 File Actions:

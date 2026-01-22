@@ -26,6 +26,16 @@ from services.reasoning_service import (
     get_full_reasoning,
     invalidate_reasoning,
 )
+from services.pipeline_service import (
+    get_pipeline,
+    start_pipeline,
+    advance_pipeline,
+    abandon_pipeline,
+    reset_pipeline,
+    get_step_guidance,
+    get_pipeline_summary,
+    list_pipeline_templates,
+)
 
 
 # Blueprint for all project-related routes (and playlist helpers)
@@ -764,6 +774,203 @@ def get_logic_flow_analysis(project_id: int):
     force = request.args.get("force", "").lower() == "true"
 
     result = analyze_logic_flow(project_id, user_id, force)
+    return jsonify({"project_id": project_id, **result})
+
+
+# ---------------------------------------------------------------------------
+# Project Pipelines (Phase 5.2)
+# ---------------------------------------------------------------------------
+
+
+@projects_bp.get("/pipelines")
+def list_pipelines():
+    """List all available pipeline templates."""
+    templates = list_pipeline_templates()
+    return jsonify({"pipelines": templates})
+
+
+@projects_bp.get("/projects/<int:project_id>/pipeline")
+def get_project_pipeline(project_id: int):
+    """Get current pipeline status for a project."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    pipeline = get_pipeline(project_id)
+    if not pipeline:
+        return jsonify({
+            "project_id": project_id,
+            "pipeline": None,
+            "message": "No active pipeline for this project",
+        })
+
+    return jsonify({"project_id": project_id, "pipeline": pipeline})
+
+
+@projects_bp.post("/projects/<int:project_id>/pipeline/start")
+def start_project_pipeline(project_id: int):
+    """
+    Start a new pipeline for a project.
+
+    Request JSON:
+        {"pipeline_type": "research|writing|study|long_form"}
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    body = request.json or {}
+    pipeline_type = body.get("pipeline_type")
+
+    if not pipeline_type:
+        templates = list_pipeline_templates()
+        return jsonify({
+            "error": "missing_pipeline_type",
+            "available_pipelines": templates,
+        }), 400
+
+    result = start_pipeline(project_id, pipeline_type)
+    if result.get("error"):
+        return jsonify(result), 400
+
+    return jsonify({"project_id": project_id, **result})
+
+
+@projects_bp.post("/projects/<int:project_id>/pipeline/advance")
+def advance_project_pipeline(project_id: int):
+    """
+    Advance pipeline to next step.
+
+    Request JSON:
+        {"notes": "optional notes about completed step"}
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    body = request.json or {}
+    notes = body.get("notes")
+
+    result = advance_pipeline(project_id, notes)
+    if result.get("error"):
+        return jsonify(result), 400
+
+    return jsonify({"project_id": project_id, **result})
+
+
+@projects_bp.post("/projects/<int:project_id>/pipeline/abandon")
+def abandon_project_pipeline(project_id: int):
+    """Abandon/cancel current pipeline."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    result = abandon_pipeline(project_id)
+    if result.get("error"):
+        return jsonify(result), 400
+
+    return jsonify(result)
+
+
+@projects_bp.post("/projects/<int:project_id>/pipeline/reset")
+def reset_project_pipeline(project_id: int):
+    """Reset pipeline to first step."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    result = reset_pipeline(project_id)
+    if result.get("error"):
+        return jsonify(result), 400
+
+    return jsonify({"project_id": project_id, **result})
+
+
+@projects_bp.get("/projects/<int:project_id>/pipeline/guidance")
+def get_pipeline_guidance(project_id: int):
+    """Get detailed guidance for current pipeline step."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    result = get_step_guidance(project_id, user_id)
+    if result.get("error"):
+        return jsonify(result), 400
+
+    return jsonify({"project_id": project_id, **result})
+
+
+@projects_bp.get("/projects/<int:project_id>/pipeline/summary")
+def get_pipeline_progress_summary(project_id: int):
+    """Get LLM-generated summary of pipeline progress."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    result = get_pipeline_summary(project_id, user_id)
     return jsonify({"project_id": project_id, **result})
 
 
