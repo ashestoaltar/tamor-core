@@ -155,11 +155,15 @@ System-wide reasoning across all project documents
 
 Dependency and logic consistency checks
 
-4.3 On-Disk Caching Layer
+4.3 On-Disk Caching Layer (Complete)
 
-Cache summaries, embeddings, and insights
+✅ Persistent embedding cache in file_chunks table
 
-Improve performance for large libraries
+✅ Cache-first retrieval with on-demand generation
+
+✅ Cache invalidation on project/file deletion
+
+✅ Batch embedding with embed_many for efficiency
 
 Phase 5 – Automation & Actions
 5.1 File Actions
@@ -240,6 +244,18 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.5 – 2026-01-21
+
+Completed Phase 4.3 On-Disk Caching Layer:
+
+✅ Created services/embedding_cache.py with persistent cache management
+
+✅ Updated file_semantic_service.py to use cached embeddings (query-only embedding)
+
+✅ Added cache invalidation on project deletion in projects_api.py
+
+✅ Leverages existing file_chunks table for storage
+
 v1.4 – 2026-01-21
 
 Completed Phase 3 – Stability, Cleanup, and Refactoring:

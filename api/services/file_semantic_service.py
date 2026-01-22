@@ -2,19 +2,18 @@
 """
 Semantic multi-file search + project-wide summarization over project files.
 
-This version is intentionally simple and stateless:
+Phase 4.3 Update: Now uses persistent embedding cache.
 
-- It does NOT read embeddings from the file_chunks table.
-- It uses cached file text (file_text_cache via get_or_extract_file_text_for_row).
-- For each query, it:
-    * loads text + metadata for all files in the project,
-    * chunks them in memory (keeping track of char offsets),
-    * embeds the chunks and the query,
+- Embeddings are cached in file_chunks table on first access
+- Subsequent queries reuse cached embeddings (only query is embedded fresh)
+- Cache is invalidated when files are deleted or updated
+
+For each query, it:
+    * loads cached chunks with embeddings (or generates if not cached),
+    * embeds the query,
     * computes cosine similarity,
     * returns top-k hits (with file, page, score, snippet),
     * optionally asks the LLM for a grounded answer.
-
-Perfect for the Anchor spec demo scale.
 """
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -23,11 +22,11 @@ import sqlite3
 import numpy as np
 
 from utils.db import get_db
-from core.memory_core import embed, embed_many
+from core.memory_core import embed
 from services.llm_service import get_llm_client, get_model_name, llm_is_configured
-from routes.files_api import get_or_extract_file_text_for_row
+from services.embedding_cache import get_or_create_file_chunks
 
-# Chunking config – keep local and simple
+# Chunking config – keep local and simple (must match embedding_cache.py)
 FILE_CHUNK_SIZE = 1200
 FILE_CHUNK_OVERLAP = 200
 
@@ -35,41 +34,6 @@ FILE_CHUNK_OVERLAP = 200
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _is_placeholder_text(text: str) -> bool:
-    """Detect placeholder texts that indicate we couldn't parse the file."""
-    if not text:
-        return True
-
-    prefixes = (
-        "This file is not a plain-text type.",
-        "This file is a PDF, but the PDF parser",
-        "This PDF appears to have no extractable text",
-        "Error extracting text from PDF:",
-        "Error reading file:",
-    )
-    return any(text.startswith(p) for p in prefixes)
-
-
-def _chunk_text_with_offsets(
-    text: str, chunk_size: int, overlap: int
-) -> List[Tuple[int, str]]:
-    """
-    Sliding-window chunking by characters, but we keep the starting index
-    of each chunk so we can map it back to a PDF page.
-    Returns a list of (start_index, chunk_text).
-    """
-    chunks: List[Tuple[int, str]] = []
-    start = 0
-    length = len(text)
-    while start < length:
-        end = min(length, start + chunk_size)
-        chunks.append((start, text[start:end]))
-        if end == length:
-            break
-        start = max(0, end - overlap)
-    return chunks
 
 
 def _load_project_file_rows(project_id: int, user_id: int) -> List[sqlite3.Row]:
@@ -90,32 +54,13 @@ def _load_project_file_rows(project_id: int, user_id: int) -> List[sqlite3.Row]:
     return cur.fetchall()
 
 
-def _map_offset_to_page(
-    offset: int, page_offsets: Optional[List[int]]
-) -> Optional[int]:
-    """
-    Given a character offset into the concatenated PDF text and a list of
-    page_offsets (one per page), return a 1-based page number.
-    """
-    if not page_offsets or not isinstance(page_offsets, list):
-        return None
-
-    page_index = 0
-    for i, off in enumerate(page_offsets):
-        if not isinstance(off, int):
-            continue
-        if off <= offset:
-            page_index = i
-        else:
-            break
-    return page_index + 1
-
-
 def _build_chunks_for_project(
     project_id: int, user_id: int
 ) -> List[Dict[str, Any]]:
     """
-    Load cached text + meta for all files in a project and return in-memory chunks.
+    Load chunks with cached embeddings for all files in a project.
+
+    Uses embedding_cache to get or create cached embeddings.
 
     Each chunk dict looks like:
         {
@@ -123,9 +68,10 @@ def _build_chunks_for_project(
             "filename": str,
             "mime_type": str | None,
             "chunk_index": int,
-            "text": str,
-            "start_offset": int,
+            "content": str,
+            "start_offset": int | None,
             "page": int | None,
+            "embedding": np.ndarray,
         }
     """
     rows = _load_project_file_rows(project_id, user_id)
@@ -135,54 +81,23 @@ def _build_chunks_for_project(
     chunks_out: List[Dict[str, Any]] = []
 
     for row in rows:
-        file_id = row["id"]
-        filename = row["filename"]
-        mime_type = row["mime_type"]
-
-        text, meta, _parser = get_or_extract_file_text_for_row(row)
-        if not text or _is_placeholder_text(text):
-            continue
-
-        page_offsets = None
-        if isinstance(meta, dict):
-            po = meta.get("page_offsets")
-            if isinstance(po, list):
-                page_offsets = po
-
-        windowed = _chunk_text_with_offsets(
-            text, FILE_CHUNK_SIZE, FILE_CHUNK_OVERLAP
-        )
-
-        for idx, (start_offset, chunk_text) in enumerate(windowed):
-            if not chunk_text.strip():
-                continue
-
-            page_num = _map_offset_to_page(start_offset, page_offsets)
-
-            chunks_out.append(
-                {
-                    "file_id": file_id,
-                    "filename": filename,
-                    "mime_type": mime_type,
-                    "chunk_index": idx,
-                    "start_offset": start_offset,
-                    "page": page_num,
-                    "text": chunk_text,
-                }
-            )
+        # Get or create cached chunks with embeddings
+        file_chunks = get_or_create_file_chunks(row, project_id)
+        chunks_out.extend(file_chunks)
 
     return chunks_out
 
 
-def _embed_query_and_chunks(
+def _embed_query_and_get_chunk_embeddings(
     query: str, chunks: List[Dict[str, Any]]
 ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
     """
-    Compute embeddings for a query and list of chunks.
+    Embed the query and extract pre-computed embeddings from chunks.
 
-    Returns (q_emb, chunk_embs) or (None, None) if embedding not available.
+    Chunks are expected to have 'embedding' field (np.ndarray) from cache.
+    Only the query needs to be embedded fresh.
 
-    Handles both normal float vectors and raw bytes/BLOB embeddings.
+    Returns (q_emb, chunk_embs) or (None, None) if not available.
     """
     if not chunks:
         return None, None
@@ -190,12 +105,10 @@ def _embed_query_and_chunks(
     if not llm_is_configured():
         return None, None
 
-    texts = [c["text"] for c in chunks]
-
-    chunk_embs_raw = embed_many(texts)
+    # Embed query fresh
     q_emb_raw = embed(query)
 
-    # --- normalize query embedding ---
+    # Normalize query embedding
     if isinstance(q_emb_raw, (bytes, bytearray, memoryview)):
         q_emb = np.frombuffer(q_emb_raw, dtype=np.float32)
     elif isinstance(q_emb_raw, np.ndarray):
@@ -203,27 +116,23 @@ def _embed_query_and_chunks(
     else:
         q_emb = np.array(q_emb_raw, dtype=np.float32)
 
-    # --- normalize chunk embeddings ---
-    if isinstance(chunk_embs_raw, list):
-        arrs: List[np.ndarray] = []
-        for vec in chunk_embs_raw:
-            if isinstance(vec, (bytes, bytearray, memoryview)):
-                arr = np.frombuffer(vec, dtype=np.float32)
-            elif isinstance(vec, np.ndarray):
-                arr = vec.astype(np.float32, copy=False)
-            else:
-                arr = np.array(vec, dtype=np.float32)
-            arrs.append(arr)
-        if not arrs:
-            return None, None
-        chunk_embs = np.vstack(arrs)
-    elif isinstance(chunk_embs_raw, np.ndarray):
-        chunk_embs = chunk_embs_raw.astype(np.float32, copy=False)
-        if chunk_embs.ndim == 1:
-            chunk_embs = chunk_embs.reshape(1, -1)
-    else:
+    # Extract pre-computed chunk embeddings
+    arrs: List[np.ndarray] = []
+    for c in chunks:
+        emb = c.get("embedding")
+        if emb is None:
+            continue
+        if isinstance(emb, np.ndarray):
+            arrs.append(emb.astype(np.float32, copy=False))
+        elif isinstance(emb, (bytes, bytearray, memoryview)):
+            arrs.append(np.frombuffer(emb, dtype=np.float32))
+        else:
+            arrs.append(np.array(emb, dtype=np.float32))
+
+    if not arrs:
         return None, None
 
+    chunk_embs = np.vstack(arrs)
     return q_emb, chunk_embs
 
 
@@ -257,7 +166,7 @@ def semantic_search_project_files(
     if not chunks:
         return {"query": query, "results": [], "answer": None}
 
-    q_emb, chunk_embs = _embed_query_and_chunks(query, chunks)
+    q_emb, chunk_embs = _embed_query_and_get_chunk_embeddings(query, chunks)
     if q_emb is None or chunk_embs is None:
         return {"query": query, "results": [], "answer": None}
 
@@ -278,7 +187,7 @@ def semantic_search_project_files(
                 "chunk_index": c["chunk_index"],
                 "page": c.get("page"),
                 "score": float(sims[idx_int]),
-                "text": c["text"],
+                "text": c["content"],  # Cache uses "content" key
             }
         )
 
@@ -358,7 +267,7 @@ def summarize_project_files(
     if not chunks:
         return {"summary": "", "used_model": None, "total_chunks": 0}
 
-    all_text = "\n\n".join(c["text"] for c in chunks)
+    all_text = "\n\n".join(c["content"] for c in chunks)
     if not all_text.strip():
         return {"summary": "", "used_model": None, "total_chunks": 0}
 

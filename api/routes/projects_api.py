@@ -13,6 +13,7 @@ from services.knowledge_graph import (
     extract_symbols_for_project,
     query_symbol,
 )
+from services.embedding_cache import invalidate_cache_for_project
 
 
 # Blueprint for all project-related routes (and playlist helpers)
@@ -164,6 +165,9 @@ def delete_project(project_id):
     if not row:
         conn.close()
         return jsonify({"error": "not_found"}), 404
+
+    # Invalidate embedding cache for this project
+    invalidate_cache_for_project(project_id)
 
     cur.execute(
         """
