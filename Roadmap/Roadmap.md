@@ -194,15 +194,17 @@ Phase 5 – Automation & Actions
 
 ✅ API: GET /pipelines, /projects/{id}/pipeline[/start|advance|abandon|reset|guidance|summary]
 
-5.3 Media & Transcript Integration
+5.3 Media & Transcript Integration (Complete)
 
-Ingest audio and video sources
+✅ YouTube/URL download via yt-dlp
 
-Transcription pipelines
+✅ Audio/video transcription via faster-whisper
 
-Structured summaries
+✅ Timestamped segments with full text
 
-Export to searchable formats
+✅ Transcript storage and retrieval
+
+✅ API: POST /projects/{id}/transcribe-url, GET/DELETE /transcripts, POST /files/{id}/transcribe
 
 Phase 6 – Advanced Assistant Evolution
 6.1 Long-Term Memory 2.0 (Governed Memory)
@@ -252,6 +254,22 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.10 – 2026-01-21
+
+Completed Phase 5.3 Media & Transcript Integration:
+
+✅ Created services/transcript_service.py with yt-dlp + faster-whisper
+
+✅ YouTube and URL audio download support
+
+✅ Local GPU-accelerated transcription
+
+✅ Timestamped segments for navigation
+
+✅ Transcripts table for storage and retrieval
+
+✅ API endpoints for URL and file transcription
+
 v1.9 – 2026-01-21
 
 Completed Phase 5.2 Project Pipelines:

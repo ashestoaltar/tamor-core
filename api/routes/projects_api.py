@@ -36,6 +36,13 @@ from services.pipeline_service import (
     get_pipeline_summary,
     list_pipeline_templates,
 )
+from services.transcript_service import (
+    transcribe_url,
+    get_transcript,
+    get_project_transcripts,
+    delete_transcript,
+    get_transcript_service_status,
+)
 
 
 # Blueprint for all project-related routes (and playlist helpers)
@@ -972,6 +979,133 @@ def get_pipeline_progress_summary(project_id: int):
 
     result = get_pipeline_summary(project_id, user_id)
     return jsonify({"project_id": project_id, **result})
+
+
+# ---------------------------------------------------------------------------
+# Transcripts (Phase 5.3)
+# ---------------------------------------------------------------------------
+
+
+@projects_bp.get("/transcripts/status")
+def get_transcripts_status():
+    """Check if transcript service is available."""
+    status = get_transcript_service_status()
+    return jsonify(status)
+
+
+@projects_bp.post("/projects/<int:project_id>/transcribe-url")
+def transcribe_from_url(project_id: int):
+    """
+    Download and transcribe audio from YouTube or other URL.
+
+    Request JSON:
+        {
+            "url": "https://youtube.com/watch?v=...",
+            "model": "base",  // optional: tiny, base, small, medium, large-v2
+            "language": "en"  // optional: auto-detected if not specified
+        }
+
+    Returns transcript with text and timestamped segments.
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    body = request.json or {}
+    url = body.get("url", "").strip()
+
+    if not url:
+        return jsonify({"error": "missing_url"}), 400
+
+    model = body.get("model")
+    language = body.get("language")
+
+    result = transcribe_url(
+        url=url,
+        project_id=project_id,
+        model_name=model,
+        language=language,
+    )
+
+    if result.get("error"):
+        return jsonify(result), 500
+
+    return jsonify({"project_id": project_id, **result})
+
+
+@projects_bp.get("/projects/<int:project_id>/transcripts")
+def list_project_transcripts(project_id: int):
+    """List all transcripts for a project."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    transcripts = get_project_transcripts(project_id)
+    return jsonify({"project_id": project_id, "transcripts": transcripts})
+
+
+@projects_bp.get("/projects/<int:project_id>/transcripts/<int:transcript_id>")
+def get_project_transcript(project_id: int, transcript_id: int):
+    """Get a specific transcript with full text and segments."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    transcript = get_transcript(transcript_id, project_id)
+    if not transcript:
+        return jsonify({"error": "transcript_not_found"}), 404
+
+    return jsonify(transcript)
+
+
+@projects_bp.delete("/projects/<int:project_id>/transcripts/<int:transcript_id>")
+def delete_project_transcript(project_id: int, transcript_id: int):
+    """Delete a transcript."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    deleted = delete_transcript(transcript_id, project_id)
+    if not deleted:
+        return jsonify({"error": "transcript_not_found"}), 404
+
+    return jsonify({"deleted": True, "transcript_id": transcript_id})
 
 
 # ---------------------------------------------------------------------------

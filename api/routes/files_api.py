@@ -34,6 +34,9 @@ from services.file_actions_service import (
     extract_parameters,
 )
 
+# Transcript service (Phase 5.3)
+from services.transcript_service import transcribe_file
+
 # Optional: PDF text extraction
 try:
     from PyPDF2 import PdfReader
@@ -1117,3 +1120,64 @@ def extract_parameters_from_file(file_id: int):
         **result,
     })
 
+
+# ---------------------------------------------------------------------------
+# File Transcription (Phase 5.3)
+# ---------------------------------------------------------------------------
+
+
+@files_bp.post("/files/<int:file_id>/transcribe")
+def transcribe_uploaded_file(file_id: int):
+    """
+    Transcribe an uploaded audio or video file.
+
+    Request JSON:
+        {
+            "model": "base",  // optional: tiny, base, small, medium, large-v2
+            "language": "en"  // optional: auto-detected if not specified
+        }
+
+    Supported formats: mp3, mp4, wav, m4a, webm, ogg, flac, etc.
+
+    Returns transcript with text and timestamped segments.
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    file_row = _get_file_record_for_user(file_id, user_id)
+    if not file_row:
+        return jsonify({"error": "not_found"}), 404
+
+    # Get file path
+    upload_root = _get_upload_root()
+    stored_name_rel = file_row["stored_name"]
+    file_path = os.path.join(upload_root, stored_name_rel)
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": "file_missing"}), 404
+
+    body = request.json or {}
+    model = body.get("model")
+    language = body.get("language")
+
+    result = transcribe_file(
+        file_path=file_path,
+        project_id=file_row["project_id"],
+        file_id=file_id,
+        filename=file_row.get("filename"),
+        model_name=model,
+        language=language,
+    )
+
+    if result.get("error"):
+        return jsonify({
+            "file_id": file_id,
+            "error": result["error"],
+        }), 500
+
+    return jsonify({
+        "file_id": file_id,
+        "filename": file_row.get("filename"),
+        **result,
+    })
