@@ -87,7 +87,7 @@ Improved interactions
 
 ⬜ Detect tasks embedded in project content (deferred to Phase 4.x)
 
-Phase 3 – Stability, Cleanup, and Refactoring (Active)
+Phase 3 – Stability, Cleanup, and Refactoring (Complete)
 3.1 Backend Refactor & Deterministic Safety (Complete)
 
 ✅ Remove legacy and dead code
@@ -116,25 +116,25 @@ Phase 3 – Stability, Cleanup, and Refactoring (Active)
 
 ✅ Chat flow integration for count/list queries
 
-3.2 UI Refactor
+3.2 UI Refactor (Complete)
 
-RightPanel state cleanup
+✅ RightPanel state cleanup
 
-Remove unused components
+✅ Remove unused components (8 backup/copy files deleted)
 
-Fix scrolling and viewport issues
+✅ Fix scrolling and viewport issues
 
-Introduce global CSS tokens
+✅ Introduce global CSS tokens (standardized theming across all CSS)
 
-Improve mobile and accessibility foundations
+✅ Improve mobile and accessibility foundations (focus-visible, reduced-motion, touch targets)
 
-3.3 Database Cleanup
+3.3 Database Cleanup (Complete)
 
-Align migrations with live schema
+✅ Align migrations with live schema (000_baseline.sql)
 
-Add migration version tracking
+✅ Add migration version tracking (migrations table with history, checksums)
 
-Add rollback and validation utilities
+✅ Add rollback and validation utilities (run_migrations.py, db_validate.py)
 
 Phase 4 – Research & Intelligence Expansion
 4.1 Auto-Insights Engine
@@ -240,6 +240,30 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.4 – 2026-01-21
+
+Completed Phase 3 – Stability, Cleanup, and Refactoring:
+
+Phase 3.2 UI Refactor:
+
+✅ Introduced global CSS tokens across all component stylesheets
+
+✅ Removed 8 unused backup/copy files
+
+✅ Fixed scrolling and viewport issues (flex scroll patterns)
+
+✅ Added accessibility foundations (focus-visible, prefers-reduced-motion, touch targets)
+
+Phase 3.3 Database Cleanup:
+
+✅ Created baseline migration (000_baseline.sql) documenting full schema
+
+✅ Added migrations table with version tracking, checksums, and history
+
+✅ Created db_validate.py utility for schema and data validation
+
+✅ Enhanced run_migrations.py with --status, --validate, --dry-run options
+
 v1.2 – 2026-01-21
 
 Completed LLM provider abstraction layer (Phase 3.1)

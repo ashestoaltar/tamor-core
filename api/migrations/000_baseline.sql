@@ -1,17 +1,29 @@
--- Tamor Database Schema
--- Last updated: 2026-01-21 (Phase 3.3)
+-- Baseline Migration: Tamor Database Schema
+-- Version: 0 (baseline)
+-- Created: 2026-01-21
 --
--- This file documents the current database schema.
--- For migrations, see ../migrations/
---
--- Migration tracking: Uses migrations table (replaces legacy schema_version)
--- Schema Version: 1
+-- This migration establishes the baseline schema for Tamor.
+-- It uses CREATE TABLE IF NOT EXISTS to be safe for existing databases.
+
+BEGIN TRANSACTION;
+
+-- ============================================================================
+-- MIGRATION TRACKING (replaces simple schema_version)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS migrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    checksum TEXT,
+    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(version)
+);
 
 -- ============================================================================
 -- CORE TABLES
 -- ============================================================================
 
--- Users table
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
@@ -20,17 +32,15 @@ CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Projects for organizing content
 CREATE TABLE IF NOT EXISTS projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Conversations (chat sessions)
 CREATE TABLE IF NOT EXISTS conversations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -39,26 +49,28 @@ CREATE TABLE IF NOT EXISTS conversations (
     mode TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (project_id) REFERENCES projects(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
 );
 
--- Chat messages
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     conversation_id INTEGER NOT NULL,
-    sender TEXT,
-    role TEXT,
-    content TEXT,
+    sender TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 
 -- ============================================================================
 -- TASK SYSTEM
 -- ============================================================================
 
--- Detected tasks from chat messages
 CREATE TABLE IF NOT EXISTS detected_tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -78,7 +90,6 @@ CREATE TABLE IF NOT EXISTS detected_tasks (
     FOREIGN KEY (message_id) REFERENCES messages(id)
 );
 
--- Task execution history
 CREATE TABLE IF NOT EXISTS task_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id INTEGER NOT NULL,
@@ -91,12 +102,13 @@ CREATE TABLE IF NOT EXISTS task_runs (
 
 CREATE INDEX IF NOT EXISTS idx_task_runs_task ON task_runs(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_runs_status ON task_runs(status);
+CREATE INDEX IF NOT EXISTS idx_detected_tasks_user ON detected_tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_detected_tasks_status ON detected_tasks(status);
 
 -- ============================================================================
 -- FILE SYSTEM
 -- ============================================================================
 
--- Project files
 CREATE TABLE IF NOT EXISTS project_files (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -112,7 +124,6 @@ CREATE TABLE IF NOT EXISTS project_files (
     FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
 
--- File text extraction cache
 CREATE TABLE IF NOT EXISTS file_text_cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     file_id INTEGER NOT NULL,
@@ -123,7 +134,6 @@ CREATE TABLE IF NOT EXISTS file_text_cache (
     FOREIGN KEY (file_id) REFERENCES project_files(id)
 );
 
--- File chunks for semantic search
 CREATE TABLE IF NOT EXISTS file_chunks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL,
@@ -136,7 +146,6 @@ CREATE TABLE IF NOT EXISTS file_chunks (
     FOREIGN KEY (file_id) REFERENCES project_files(id)
 );
 
--- Message to file references
 CREATE TABLE IF NOT EXISTS message_file_refs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     message_id INTEGER NOT NULL,
@@ -146,11 +155,13 @@ CREATE TABLE IF NOT EXISTS message_file_refs (
     FOREIGN KEY (file_id) REFERENCES project_files(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_project_files_project ON project_files(project_id);
+CREATE INDEX IF NOT EXISTS idx_file_chunks_file ON file_chunks(file_id);
+
 -- ============================================================================
 -- KNOWLEDGE GRAPH
 -- ============================================================================
 
--- Extracted symbols from files
 CREATE TABLE IF NOT EXISTS file_symbols (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL,
@@ -166,11 +177,12 @@ CREATE TABLE IF NOT EXISTS file_symbols (
     FOREIGN KEY (file_id) REFERENCES project_files(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_file_symbols_file ON file_symbols(file_id);
+
 -- ============================================================================
 -- MEMORY SYSTEM
 -- ============================================================================
 
--- Long-term memories with embeddings
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -185,57 +197,50 @@ CREATE TABLE IF NOT EXISTS memories (
     FOREIGN KEY (message_id) REFERENCES messages(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id);
+CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
+
 -- ============================================================================
 -- PROJECT NOTES
 -- ============================================================================
 
--- User notes on projects
 CREATE TABLE IF NOT EXISTS project_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     project_id INTEGER NOT NULL,
-    content TEXT,
+    content TEXT DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (project_id) REFERENCES projects(id)
+    UNIQUE(user_id, project_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
 -- ============================================================================
 -- INTENT SYSTEM
 -- ============================================================================
 
--- Pending intents for disambiguation
 CREATE TABLE IF NOT EXISTS pending_intents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     conversation_id INTEGER NOT NULL,
     type TEXT NOT NULL,
     original_title TEXT,
-    candidates TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    candidates TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(conversation_id),
     FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
 
 -- ============================================================================
--- MIGRATION TRACKING
+-- LEGACY SCHEMA VERSION (kept for backwards compatibility)
 -- ============================================================================
 
--- New migration tracking with history
-CREATE TABLE IF NOT EXISTS migrations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    version INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    checksum TEXT,
-    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(version)
-);
-
--- Legacy schema version (kept for backwards compatibility)
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER NOT NULL
 );
 
--- Initialize schema version if empty
-INSERT INTO schema_version (version)
-SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM schema_version);
+-- Initialize schema_version if empty (for backwards compatibility)
+INSERT OR IGNORE INTO schema_version (version) VALUES (1);
+
+COMMIT;
