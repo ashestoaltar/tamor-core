@@ -172,13 +172,15 @@ Phase 4 – Research & Intelligence Expansion
 ✅ Batch embedding with embed_many for efficiency
 
 Phase 5 – Automation & Actions
-5.1 File Actions
+5.1 File Actions (Complete)
 
-Rewrite files
+✅ Rewrite files (6 modes: simplify, expand, improve, restructure, technical, executive)
 
-Generate specs
+✅ Generate specs (formal specification documents from content)
 
-Parameter extraction
+✅ Parameter extraction (extract config values with structured output)
+
+✅ API endpoints: POST /files/{id}/rewrite, /generate-spec, /extract-parameters
 
 5.2 Project Pipelines
 
@@ -250,6 +252,20 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.8 – 2026-01-21
+
+Completed Phase 5.1 File Actions:
+
+✅ Created services/file_actions_service.py with LLM-powered transformations
+
+✅ Rewrite action with 6 modes + custom instructions support
+
+✅ Spec generation from file content
+
+✅ Parameter extraction with structured JSON output
+
+✅ API endpoints for all three actions
+
 v1.7 – 2026-01-21
 
 Completed Phase 4.2 Multi-File Reasoning Mode:

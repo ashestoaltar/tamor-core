@@ -27,6 +27,13 @@ from services.insights_service import (
     invalidate_insights,
 )
 
+# File actions service (Phase 5.1)
+from services.file_actions_service import (
+    rewrite_file,
+    generate_spec,
+    extract_parameters,
+)
+
 # Optional: PDF text extraction
 try:
     from PyPDF2 import PdfReader
@@ -951,4 +958,162 @@ def get_file_insights(file_id: int):
         })
 
     return jsonify(result)
+
+
+# ---------------------------------------------------------------------------
+# File Actions (Phase 5.1)
+# ---------------------------------------------------------------------------
+
+
+@files_bp.post("/files/<int:file_id>/rewrite")
+def rewrite_file_content(file_id: int):
+    """
+    Rewrite/transform file content using LLM.
+
+    Request JSON:
+        {
+            "mode": "simplify|expand|improve|restructure|technical|executive",
+            "custom_instructions": "optional custom rewrite instructions"
+        }
+
+    Modes:
+        - simplify: Make content clearer and more accessible
+        - expand: Add more detail and explanation
+        - improve: Fix issues and enhance quality (default)
+        - restructure: Reorganize for better flow
+        - technical: Rewrite for technical audience
+        - executive: Create executive summary
+
+    Returns the rewritten content without modifying the original file.
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    file_row = _get_file_record_for_user(file_id, user_id)
+    if not file_row:
+        return jsonify({"error": "not_found"}), 404
+
+    body = request.json or {}
+    mode = body.get("mode", "improve")
+    custom_instructions = body.get("custom_instructions")
+
+    # Get file text
+    text, meta, parser = get_or_extract_file_text_for_row(file_row)
+    if not text:
+        return jsonify({"error": "no_content", "details": "Could not extract text from file"}), 400
+
+    result = rewrite_file(
+        text=text,
+        filename=file_row.get("filename", ""),
+        mode=mode,
+        custom_instructions=custom_instructions,
+    )
+
+    if result.get("error"):
+        return jsonify({
+            "file_id": file_id,
+            "error": result["error"],
+            "result": None,
+        }), 400 if result["error"] == "insufficient_content" else 500
+
+    return jsonify({
+        "file_id": file_id,
+        "filename": file_row.get("filename"),
+        **result,
+    })
+
+
+@files_bp.post("/files/<int:file_id>/generate-spec")
+def generate_spec_from_file(file_id: int):
+    """
+    Generate a specification document from file content.
+
+    Request JSON:
+        {
+            "focus": "optional focus area (e.g., 'security', 'api', 'data model')"
+        }
+
+    Returns a structured specification document.
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    file_row = _get_file_record_for_user(file_id, user_id)
+    if not file_row:
+        return jsonify({"error": "not_found"}), 404
+
+    body = request.json or {}
+    focus = body.get("focus")
+
+    text, meta, parser = get_or_extract_file_text_for_row(file_row)
+    if not text:
+        return jsonify({"error": "no_content", "details": "Could not extract text from file"}), 400
+
+    result = generate_spec(
+        text=text,
+        filename=file_row.get("filename", ""),
+        focus=focus,
+    )
+
+    if result.get("error"):
+        return jsonify({
+            "file_id": file_id,
+            "error": result["error"],
+            "result": None,
+        }), 400 if result["error"] == "insufficient_content" else 500
+
+    return jsonify({
+        "file_id": file_id,
+        "filename": file_row.get("filename"),
+        **result,
+    })
+
+
+@files_bp.post("/files/<int:file_id>/extract-parameters")
+def extract_parameters_from_file(file_id: int):
+    """
+    Extract parameters and configuration values from file content.
+
+    Request JSON:
+        {
+            "parameter_types": ["env", "config", "api"]  // optional filter
+        }
+
+    Returns structured list of parameters found in the file.
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    file_row = _get_file_record_for_user(file_id, user_id)
+    if not file_row:
+        return jsonify({"error": "not_found"}), 404
+
+    body = request.json or {}
+    parameter_types = body.get("parameter_types")
+
+    text, meta, parser = get_or_extract_file_text_for_row(file_row)
+    if not text:
+        return jsonify({"error": "no_content", "details": "Could not extract text from file"}), 400
+
+    result = extract_parameters(
+        text=text,
+        filename=file_row.get("filename", ""),
+        parameter_types=parameter_types,
+    )
+
+    if result.get("error"):
+        return jsonify({
+            "file_id": file_id,
+            "error": result["error"],
+            "parameters": None,
+        }), 400 if result["error"] == "insufficient_content" else 500
+
+    return jsonify({
+        "file_id": file_id,
+        "filename": file_row.get("filename"),
+        **result,
+    })
 
