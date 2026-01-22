@@ -206,6 +206,42 @@ Phase 5 – Automation & Actions
 
 ✅ API: POST /projects/{id}/transcribe-url, GET/DELETE /transcripts, POST /files/{id}/transcribe
 
+✅ Media tab UI in RightPanel (transcribe URLs, view/delete transcripts)
+
+✅ PDF export for transcripts with timestamps
+
+5.4 Feature UI Integration (Pending)
+
+Backend services from Phases 4-5 need UI exposure:
+
+⬜ Auto-Insights UI (Phase 4.1):
+
+⬜ Insights section in Workspace tab or dedicated tab
+
+⬜ File-level and project-level insight views
+
+⬜ Multi-File Reasoning UI (Phase 4.2):
+
+⬜ Reasoning panel showing relationships, contradictions, logic flow
+
+⬜ Trigger analysis from UI
+
+⬜ File Actions UI (Phase 5.1):
+
+⬜ Action buttons in Files tab (Rewrite, Generate Spec, Extract Parameters)
+
+⬜ Mode selection for rewrite actions
+
+⬜ Result display/download
+
+⬜ Project Pipelines UI (Phase 5.2):
+
+⬜ Pipeline management in Workspace tab
+
+⬜ Start/advance/abandon workflow controls
+
+⬜ Progress visualization and guidance display
+
 Phase 6 – Advanced Assistant Evolution
 6.1 Long-Term Memory 2.0 (Governed Memory)
 
@@ -254,6 +290,22 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.11 – 2026-01-21
+
+Enhanced Phase 5.3 with UI and export:
+
+✅ Added Media tab to RightPanel for transcript management
+
+✅ PDF export endpoint for transcripts with formatted timestamps
+
+✅ Export PDF button in transcript viewer
+
+Added Phase 5.4 Feature UI Integration:
+
+⬜ Documents pending UI work for Phases 4.1, 4.2, 5.1, 5.2
+
+⬜ Auto-Insights, Multi-File Reasoning, File Actions, Project Pipelines
+
 v1.10 – 2026-01-21
 
 Completed Phase 5.3 Media & Transcript Integration:
