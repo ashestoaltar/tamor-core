@@ -1108,6 +1108,100 @@ def delete_project_transcript(project_id: int, transcript_id: int):
     return jsonify({"deleted": True, "transcript_id": transcript_id})
 
 
+@projects_bp.get("/projects/<int:project_id>/transcripts/<int:transcript_id>/export")
+def export_project_transcript(project_id: int, transcript_id: int):
+    """Export a transcript as PDF."""
+    from flask import Response
+    from fpdf import FPDF
+    import io
+    import json
+
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    transcript = get_transcript(transcript_id, project_id)
+    if not transcript:
+        return jsonify({"error": "transcript_not_found"}), 404
+
+    # Create PDF
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Title
+    pdf.set_font("Helvetica", "B", 16)
+    title = transcript.get("title", "Transcript")
+    # Handle encoding - FPDF uses latin-1 by default
+    safe_title = title.encode("latin-1", "replace").decode("latin-1")
+    pdf.cell(0, 10, safe_title, ln=True)
+
+    # Metadata
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(100, 100, 100)
+    meta_parts = []
+    if transcript.get("duration_seconds"):
+        mins = int(transcript["duration_seconds"] // 60)
+        secs = int(transcript["duration_seconds"] % 60)
+        meta_parts.append(f"Duration: {mins}:{secs:02d}")
+    if transcript.get("language"):
+        meta_parts.append(f"Language: {transcript['language'].upper()}")
+    if transcript.get("source_url"):
+        meta_parts.append(f"Source: {transcript['source_url'][:60]}...")
+    if meta_parts:
+        pdf.cell(0, 6, " | ".join(meta_parts), ln=True)
+    pdf.ln(5)
+
+    # Transcript content
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "", 11)
+
+    segments = transcript.get("segments", [])
+    if segments:
+        for seg in segments:
+            start = seg.get("start", 0)
+            mins = int(start // 60)
+            secs = int(start % 60)
+            timestamp = f"[{mins}:{secs:02d}]"
+
+            text = seg.get("text", "").strip()
+            safe_text = text.encode("latin-1", "replace").decode("latin-1")
+
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_text_color(100, 100, 100)
+            pdf.cell(20, 6, timestamp)
+            pdf.set_font("Helvetica", "", 11)
+            pdf.set_text_color(0, 0, 0)
+            pdf.multi_cell(0, 6, safe_text)
+            pdf.ln(2)
+    else:
+        # Fallback to full text if no segments
+        text = transcript.get("text", "No transcript text available.")
+        safe_text = text.encode("latin-1", "replace").decode("latin-1")
+        pdf.multi_cell(0, 6, safe_text)
+
+    # Output PDF
+    pdf_bytes = bytes(pdf.output())
+    safe_filename = "".join(c if c.isalnum() or c in " -_" else "_" for c in title)[:50]
+
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_filename}.pdf"'
+        },
+    )
+
+
 # ---------------------------------------------------------------------------
 # Playlist endpoints (multi-playlist + TMDb enrichment)
 # ---------------------------------------------------------------------------

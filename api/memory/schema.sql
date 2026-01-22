@@ -152,6 +152,20 @@ CREATE TABLE IF NOT EXISTS file_insights (
 CREATE INDEX IF NOT EXISTS idx_file_insights_project ON file_insights(project_id);
 CREATE INDEX IF NOT EXISTS idx_file_insights_file ON file_insights(file_id);
 
+-- Project reasoning for cross-document analysis (Phase 4.2)
+CREATE TABLE IF NOT EXISTS project_reasoning (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    reasoning_type TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    model_used TEXT,
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_reasoning_project ON project_reasoning(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_reasoning_type ON project_reasoning(project_id, reasoning_type);
+
 -- Message to file references
 CREATE TABLE IF NOT EXISTS message_file_refs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

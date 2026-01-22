@@ -207,12 +207,25 @@ function MediaTab({ currentProjectId }) {
             <h3 className="rp-section-title">
               {selectedTranscript.title || "Transcript"}
             </h3>
-            <button
-              className="rp-btn rp-btn-sm"
-              onClick={() => setSelectedTranscript(null)}
-            >
-              Close
-            </button>
+            <div className="rp-header-actions">
+              <button
+                className="rp-btn rp-btn-sm rp-btn-primary"
+                onClick={() => {
+                  window.open(
+                    `/api/projects/${currentProjectId}/transcripts/${selectedTranscript.id}/export`,
+                    "_blank"
+                  );
+                }}
+              >
+                Export PDF
+              </button>
+              <button
+                className="rp-btn rp-btn-sm"
+                onClick={() => setSelectedTranscript(null)}
+              >
+                Close
+              </button>
+            </div>
           </div>
           <div className="rp-section-body rp-section-scroll">
             {viewLoading && <div className="rp-info-text">Loading...</div>}
