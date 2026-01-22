@@ -4,20 +4,18 @@ import uuid
 import json
 from typing import Any, Dict, Optional, List
 
-from utils.db import get_db
-from services.file_parsing import extract_text_from_file
-from services.structured_parsing import extract_structure_for_mime
-
 from flask import (
     Blueprint,
     jsonify,
-    session,
     request,
     current_app,
     send_from_directory,
 )
 
 from utils.db import get_db
+from utils.auth import ensure_user
+from services.file_parsing import extract_text_from_file
+from services.structured_parsing import extract_structure_for_mime
 
 # LLM service for summarize / explain / search flows
 from services.llm_service import get_llm_client, get_model_name, llm_is_configured
@@ -29,23 +27,6 @@ except ImportError:  # still works without this, but PDFs won't be parsed as wel
     PdfReader = None
 
 files_bp = Blueprint("files_api", __name__, url_prefix="/api")
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _ensure_user():
-    """
-    Ensure there is a logged-in user in the session.
-
-    Returns (user_id, error_response_or_none)
-    """
-    user_id = session.get("user_id")
-    if not user_id:
-        return None, (jsonify({"error": "not_authenticated"}), 401)
-    return user_id, None
 
 
 def _get_upload_root():
@@ -104,7 +85,7 @@ def upload_file(project_id: int):
 
     Expects multipart/form-data with a single "file" field.
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -204,7 +185,7 @@ def list_project_files(project_id: int):
     """
     List files for a project, including cached parse metadata when available.
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -290,7 +271,7 @@ def download_file(file_id: int):
     """
     Download the raw file.
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -575,7 +556,7 @@ def get_file_content(file_id: int):
     Return text content for a file, mainly useful for debugging
     or future richer flows. The main LLM entrypoint is /files/<id>/summarize.
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -615,7 +596,7 @@ def get_file_structure(file_id: int):
 
     This does NOT return file text — only meta["structure"].
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -669,7 +650,7 @@ def summarize_or_qa_file(file_id: int):
         "result": "LLM answer here",
       }
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -794,7 +775,7 @@ def search_project_files(project_id: int):
 
     This is separate from the semantic search endpoint, which uses embeddings.
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 

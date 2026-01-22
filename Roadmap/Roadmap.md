@@ -88,15 +88,15 @@ Improved interactions
 ⬜ Detect tasks embedded in project content (deferred to Phase 4.x)
 
 Phase 3 – Stability, Cleanup, and Refactoring (Active)
-3.1 Backend Refactor & Deterministic Safety
+3.1 Backend Refactor & Deterministic Safety (Complete)
 
-⬜ Remove legacy and dead code
+✅ Remove legacy and dead code
 
-⬜ Standardize API error responses
+✅ Standardize API error responses (utils/auth.py, utils/errors.py)
 
 ✅ Add /health endpoint (database + LLM status checks)
 
-⬜ Review and align migrations
+✅ Review and align migrations (schema.sql updated, migration runner fixed)
 
 ✅ LLM Provider Abstraction Layer:
 
@@ -106,21 +106,15 @@ Phase 3 – Stability, Cleanup, and Refactoring (Active)
 
 ✅ Enable future multi-provider support (Phase 6.2 dependency)
 
-Deterministic Safety Enforcement (Promoted):
+✅ Deterministic Safety Enforcement:
 
-Explicit separation between:
+✅ core/deterministic.py module with DeterministicResult pattern
 
-Deterministic responses (e.g., drawing numbers, exact lookups)
+✅ Explicit separation between deterministic and LLM responses
 
-Probabilistic LLM responses
+✅ Hard-stop rules: deterministic queries never fall through to LLM
 
-Hard-stop rules:
-
-If a deterministic answer cannot be found, return a clear “not found”
-
-Never fall through to the LLM for deterministic queries
-
-Demo-safe behavior guarantees
+✅ Chat flow integration for count/list queries
 
 3.2 UI Refactor
 
@@ -257,6 +251,20 @@ Added task deletion and editing (Phase 2.6)
 Enhanced TaskPill with full action buttons (Phase 2.6)
 
 Updated Phase 2.6 to "Mostly Complete"; deferred content extraction to Phase 4.x
+
+v1.3 – 2026-01-21
+
+Completed Phase 3.1 Backend Refactor & Deterministic Safety:
+
+Removed legacy/dead code (backup files, intent_old.py, empty directories)
+
+Standardized API error responses (utils/auth.py, utils/errors.py)
+
+Fixed migration runner import, updated schema.sql documentation
+
+Implemented deterministic safety enforcement (core/deterministic.py)
+
+Integrated deterministic queries into chat flow
 
 v1.1 – 2026-01-20
 

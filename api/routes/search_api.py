@@ -1,7 +1,8 @@
 # routes/search_api.py
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, request
 
 from utils.db import get_db
+from utils.auth import ensure_user
 from core.memory_core import search_memories
 
 search_bp = Blueprint("search_api", __name__, url_prefix="/api")
@@ -19,9 +20,9 @@ def global_search():
       "memories": [...]
     }
     """
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "not_authenticated"}), 401
+    user_id, err = ensure_user()
+    if err:
+        return err
 
     query = (request.args.get("q") or "").strip()
     if not query:

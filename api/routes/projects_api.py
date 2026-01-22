@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, session, request
+from flask import Blueprint, jsonify, request
 
 from utils.db import get_db
+from utils.auth import ensure_user
 from core.config import TMDB_CACHE
 from services.playlists import list_playlist, remove_movie_from_playlist
 from services.tmdb_service import tmdb_lookup_movie
@@ -18,14 +19,6 @@ from services.knowledge_graph import (
 projects_bp = Blueprint("projects_api", __name__, url_prefix="/api")
 
 
-def _ensure_user():
-    """Return (user_id, error_response_or_None)."""
-    user_id = session.get("user_id")
-    if not user_id:
-        return None, (jsonify({"error": "not_authenticated"}), 401)
-    return user_id, None
-
-
 # ---------------------------------------------------------------------------
 # Projects CRUD
 # ---------------------------------------------------------------------------
@@ -34,7 +27,7 @@ def _ensure_user():
 @projects_bp.get("/projects")
 def list_projects():
     """Return all projects for the logged-in user."""
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -71,7 +64,7 @@ def list_projects():
 @projects_bp.post("/projects")
 def create_project():
     """Create a new project for the current user."""
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -108,7 +101,7 @@ def create_project():
 @projects_bp.patch("/projects/<int:project_id>")
 def rename_project(project_id):
     """Rename a project belonging to the current user."""
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -156,7 +149,7 @@ def rename_project(project_id):
 @projects_bp.delete("/projects/<int:project_id>")
 def delete_project(project_id):
     """Delete a project and unassign its conversations."""
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -195,7 +188,7 @@ def delete_project(project_id):
 @projects_bp.get("/projects/<int:project_id>/conversations")
 def project_conversations(project_id):
     """List conversations under a specific project for the current user."""
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -241,7 +234,7 @@ def project_files_semantic_search(project_id: int):
         "answer": "LLM-grounded explanation..."
       }
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -307,7 +300,7 @@ def project_summarize(project_id: int):
         "summary": "Markdown/text summary from LLM"
       }
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -362,7 +355,7 @@ def project_knowledge_extract(project_id: int):
         "symbols_written": 42
       }
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -431,7 +424,7 @@ def project_knowledge_search(project_id: int):
         ]
       }
     """
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -555,7 +548,7 @@ def _set_project_notes(user_id: int, project_id: int, content: str) -> str:
 
 @projects_bp.get("/projects/<int:project_id>/notes")
 def get_project_notes(project_id: int):
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -574,7 +567,7 @@ def get_project_notes(project_id: int):
 
 @projects_bp.post("/projects/<int:project_id>/notes")
 def update_project_notes(project_id: int):
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -643,7 +636,7 @@ def _enrich_movie_item(item: dict) -> dict:
 @projects_bp.get("/playlists/<string:slug>")
 def get_playlist(slug: str):
     """Return a named playlist (christmas, thanksgiving, favorites, kids, etc.)."""
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 
@@ -661,7 +654,7 @@ def get_playlist(slug: str):
 @projects_bp.delete("/playlists/<string:slug>")
 def remove_from_playlist(slug: str):
     """Remove a movie from a named playlist by title."""
-    user_id, err = _ensure_user()
+    user_id, err = ensure_user()
     if err:
         return err
 

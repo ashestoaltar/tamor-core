@@ -1,28 +1,16 @@
 # api/routes/tasks_api.py
 
 import json
-from functools import wraps
 
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, request
 
 from utils.db import get_db
+from utils.auth import require_login, get_current_user_id
+from utils.errors import not_found, conflict, invalid_transition as err_invalid_transition
 
 tasks_bp = Blueprint("tasks_api", __name__, url_prefix="/api")
 
 TERMINAL_STATUSES = {"completed", "cancelled"}
-
-
-# -----------------------------
-# Auth
-# -----------------------------
-
-def require_login(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not session.get("user_id"):
-            return jsonify({"error": "not_authenticated"}), 401
-        return fn(*args, **kwargs)
-    return wrapper
 
 
 # -----------------------------
@@ -47,7 +35,7 @@ def _row_to_task(r):
 
 def _get_task(task_id: int):
     """Fetch task for current user."""
-    user_id = session.get("user_id")
+    user_id = get_current_user_id()
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
@@ -73,20 +61,17 @@ def _is_recurring(task: dict) -> bool:
 
 
 def _invalid_transition(task: dict, to_status: str, reason: str | None = None):
-    payload = {
-        "error": "invalid_transition",
-        "task_id": (task or {}).get("id"),
-        "from": (task or {}).get("status"),
-        "to": to_status,
-    }
-    if reason:
-        payload["reason"] = reason
-    return jsonify(payload), 400
+    return err_invalid_transition(
+        resource_id=(task or {}).get("id"),
+        from_status=(task or {}).get("status"),
+        to_status=to_status,
+        reason=reason,
+    )
 
 
 def _update_status_guarded(task_id: int, from_status: str, to_status: str):
     """Atomic status transition."""
-    user_id = session.get("user_id")
+    user_id = get_current_user_id()
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
@@ -127,7 +112,7 @@ def _update_status_guarded(task_id: int, from_status: str, to_status: str):
 @tasks_bp.get("/tasks")
 @require_login
 def list_tasks():
-    user_id = session.get("user_id")
+    user_id = get_current_user_id()
     status = (request.args.get("status") or "").strip()
     task_type = (request.args.get("task_type") or "").strip()
     limit = int(request.args.get("limit") or 100)
@@ -339,7 +324,7 @@ def edit_task(task_id: int):
     if new_title is None and new_scheduled_for is None:
         return jsonify({"error": "no_fields_to_update"}), 400
 
-    user_id = session.get("user_id")
+    user_id = get_current_user_id()
     conn = get_db()
     cur = conn.cursor()
 
@@ -405,7 +390,7 @@ def delete_task(task_id: int):
     if task["status"] == "running":
         return jsonify({"error": "task_running", "task_id": task_id}), 409
 
-    user_id = session.get("user_id")
+    user_id = get_current_user_id()
     conn = get_db()
     cur = conn.cursor()
 

@@ -1,5 +1,5 @@
 import os
-from api.utils.db import get_db
+from utils.db import get_db
 
 
 MIGRATIONS_DIR = os.path.join(

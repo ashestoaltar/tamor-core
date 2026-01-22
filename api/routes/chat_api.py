@@ -1,33 +1,28 @@
 # api/routes/chat_api.py
 import json
 import re
-from functools import wraps
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from flask import Blueprint, jsonify, request, session
 
 from utils.db import get_db
+from utils.auth import require_login, get_current_user_id
 from services.llm_service import get_llm_client, get_model_name
 from core.prompt import build_system_prompt
 from core.task_classifier import classify_task
 from core.intent import parse_intent, execute_intent
 from core.mode_router import route_mode
 from core.task_normalizer import normalize_detected_task
+from core.deterministic import (
+    DeterministicResult,
+    DeterministicQueries,
+    format_deterministic_response,
+)
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 
 CHAT_HISTORY_LIMIT = 24
-
-
-def require_login(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not session.get("user_id"):
-            return jsonify({"error": "not_authenticated"}), 401
-        return fn(*args, **kwargs)
-
-    return wrapper
 
 
 def get_conversation_mode(conversation_id: int, user_id: int) -> str | None:
@@ -262,6 +257,127 @@ def _dedupe_detected_tasks(tasks: list[dict]) -> list[dict]:
     return final
 
 
+# ---------------------------------------------------------------------------
+# Deterministic Query Handlers
+# ---------------------------------------------------------------------------
+
+def _handle_deterministic_query(
+    message: str,
+    user_id: int,
+    project_id: Optional[int] = None,
+) -> Optional[dict]:
+    """
+    Check if a message requires a deterministic answer and handle it.
+
+    Returns a response dict if handled, None otherwise.
+
+    IMPORTANT: This function enforces the rule that deterministic queries
+    should NEVER fall through to the LLM. If we can't find an exact answer,
+    we return a clear "not found" message.
+    """
+    msg = (message or "").lower().strip()
+
+    # --- Task count query ---
+    if DeterministicQueries.is_count_query(message) and "task" in msg:
+        result = _count_user_tasks(user_id)
+        return format_deterministic_response(result, "task_count")
+
+    # --- Task list query ---
+    if DeterministicQueries.is_list_query(message) and ("task" in msg or "reminder" in msg):
+        result = _list_user_tasks(user_id)
+        return format_deterministic_response(result, "task_list")
+
+    # --- Project file count ---
+    if DeterministicQueries.is_count_query(message) and "file" in msg and project_id:
+        result = _count_project_files(project_id, user_id)
+        return format_deterministic_response(result, "file_count")
+
+    return None
+
+
+def _count_user_tasks(user_id: int) -> DeterministicResult:
+    """Count tasks for a user - deterministic query."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT COUNT(*) as count
+        FROM detected_tasks
+        WHERE user_id = ? AND status NOT IN ('completed', 'cancelled')
+        """,
+        (user_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+
+    count = row["count"] if row else 0
+    if count == 0:
+        return DeterministicResult.success("You have no active tasks or reminders.")
+    elif count == 1:
+        return DeterministicResult.success("You have 1 active task or reminder.")
+    else:
+        return DeterministicResult.success(f"You have {count} active tasks or reminders.")
+
+
+def _list_user_tasks(user_id: int, limit: int = 10) -> DeterministicResult:
+    """List tasks for a user - deterministic query."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, title, status, task_type, normalized_json
+        FROM detected_tasks
+        WHERE user_id = ? AND status NOT IN ('completed', 'cancelled')
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (user_id, limit),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    if not rows:
+        return DeterministicResult.success("You have no active tasks or reminders.")
+
+    lines = ["Here are your active tasks:\n"]
+    for r in rows:
+        title = r["title"] or "(untitled)"
+        status = r["status"] or "unknown"
+        lines.append(f"• {title} [{status}]")
+
+    return DeterministicResult.success("\n".join(lines))
+
+
+def _count_project_files(project_id: int, user_id: int) -> DeterministicResult:
+    """Count files in a project - deterministic query."""
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Verify project ownership
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        conn.close()
+        return DeterministicResult.not_found("project", project_id)
+
+    cur.execute(
+        "SELECT COUNT(*) as count FROM project_files WHERE project_id = ?",
+        (project_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+
+    count = row["count"] if row else 0
+    if count == 0:
+        return DeterministicResult.success("This project has no files.")
+    elif count == 1:
+        return DeterministicResult.success("This project has 1 file.")
+    else:
+        return DeterministicResult.success(f"This project has {count} files.")
+
+
 @chat_bp.get("/mode/<mode_name>")
 @require_login
 def get_mode(mode_name):
@@ -327,7 +443,7 @@ def chat():
     detected_tasks = _dedupe_detected_tasks(normalized_tasks)
     detected_task = detected_tasks[0] if detected_tasks else None
 
-    # Intent handling
+    # Intent handling (explicit commands)
     intent = parse_intent(user_message)
     if intent:
         out = execute_intent(intent, user_id=user_id, conversation_id=conv_id)
@@ -344,6 +460,24 @@ def chat():
                     "meta": out.get("meta", {}),
                 }
             )
+
+    # Deterministic query handling (exact lookups - never fall through to LLM)
+    deterministic_result = _handle_deterministic_query(
+        user_message, user_id, project_id
+    )
+    if deterministic_result and deterministic_result.get("handled"):
+        reply_text = deterministic_result.get("reply_text", "") or ""
+        user_mid = add_message(conv_id, "user", "user", user_message)
+        assistant_mid = add_message(conv_id, "tamor", "assistant", reply_text)
+        return jsonify(
+            {
+                "tamor": reply_text,
+                "conversation_id": conv_id,
+                "detected_task": None,
+                "message_ids": {"user": user_mid, "assistant": assistant_mid},
+                "meta": deterministic_result.get("meta", {}),
+            }
+        )
 
     system_prompt = build_system_prompt(effective_mode)
     system_prompt += """

@@ -1,6 +1,8 @@
 # routes/conversations_api.py
-from flask import Blueprint, jsonify, session, request
+from flask import Blueprint, jsonify, request
+
 from utils.db import get_db
+from utils.auth import ensure_user
 
 conversations_bp = Blueprint("conversations_api", __name__, url_prefix="/api")
 
@@ -8,9 +10,9 @@ conversations_bp = Blueprint("conversations_api", __name__, url_prefix="/api")
 @conversations_bp.get("/conversations")
 def list_conversations():
     """Return all conversations for the logged-in user."""
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "not_authenticated"}), 401
+    user_id, err = ensure_user()
+    if err:
+        return err
 
     conn = get_db()
     cur = conn.cursor()
@@ -33,9 +35,9 @@ def list_conversations():
 @conversations_bp.get("/conversations/<int:conv_id>/messages")
 def list_messages(conv_id):
     """Return all messages for a conversation, if it belongs to this user."""
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "not_authenticated"}), 401
+    user_id, err = ensure_user()
+    if err:
+        return err
 
     conn = get_db()
     cur = conn.cursor()
@@ -68,9 +70,9 @@ def list_messages(conv_id):
 @conversations_bp.patch("/conversations/<int:conv_id>")
 def rename_conversation(conv_id):
     """Rename a conversation that belongs to the current user."""
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "not_authenticated"}), 401
+    user_id, err = ensure_user()
+    if err:
+        return err
 
     data = request.json or {}
     title = (data.get("title") or "").strip()
@@ -100,9 +102,9 @@ def rename_conversation(conv_id):
 @conversations_bp.delete("/conversations/<int:conv_id>")
 def delete_conversation(conv_id):
     """Delete a conversation and its messages for the current user."""
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "not_authenticated"}), 401
+    user_id, err = ensure_user()
+    if err:
+        return err
 
     conn = get_db()
     cur = conn.cursor()
@@ -133,7 +135,8 @@ def delete_conversation(conv_id):
     conn.close()
 
     return jsonify({"ok": True, "id": conv_id})
-    
+
+
 @conversations_bp.patch("/conversations/<int:conv_id>/project")
 def update_conversation_project(conv_id):
     """
@@ -141,9 +144,9 @@ def update_conversation_project(conv_id):
 
     body: { "project_id": <int or null> }
     """
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "not_authenticated"}), 401
+    user_id, err = ensure_user()
+    if err:
+        return err
 
     data = request.json or {}
     raw_project_id = data.get("project_id", None)
@@ -188,16 +191,16 @@ def update_conversation_project(conv_id):
 
     return jsonify({"id": conv_id, "project_id": project_id})
 
-        
+
 @conversations_bp.get("/conversations/search")
 def search_conversations():
     """
     Simple search over conversations (title only) for the current user.
     Query: /api/conversations/search?q=term
     """
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "not_authenticated"}), 401
+    user_id, err = ensure_user()
+    if err:
+        return err
 
     query = (request.args.get("q") or "").strip()
     if not query:
@@ -222,11 +225,3 @@ def search_conversations():
     conn.close()
 
     return jsonify({"conversations": rows})
-
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({"id": conv_id, "project_id": project_id})
-
-

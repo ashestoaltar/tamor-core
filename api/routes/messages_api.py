@@ -1,6 +1,8 @@
 # api/routes/messages_api.py
-from flask import Blueprint, jsonify, session, request
+from flask import Blueprint, jsonify, request
+
 from utils.db import get_db
+from utils.auth import ensure_user
 
 messages_bp = Blueprint("messages_api", __name__, url_prefix="/api")
 
@@ -25,9 +27,9 @@ def get_messages_file_refs():
 
     If conversation_id is provided, we verify it belongs to the current user.
     """
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "not_authenticated"}), 401
+    user_id, err = ensure_user()
+    if err:
+        return err
 
     conversation_id = request.args.get("conversation_id", type=int)
 
@@ -63,9 +65,9 @@ def get_message_file_refs(message_id: int):
     For now (Phase 3.1 cleanup): return an empty list so the UI stops 404 spamming.
     We still verify ownership so users can't probe other users' message IDs.
     """
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "not_authenticated"}), 401
+    user_id, err = ensure_user()
+    if err:
+        return err
 
     conn = get_db()
     cur = conn.cursor()
