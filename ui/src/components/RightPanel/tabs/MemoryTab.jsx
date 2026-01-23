@@ -1,6 +1,7 @@
 // src/components/RightPanel/tabs/MemoryTab.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "../../../api/client";
+import { useDevMode } from "../../../context/DevModeContext";
 
 const DEFAULT_CATEGORIES = [
   "identity",
@@ -13,6 +14,8 @@ const DEFAULT_CATEGORIES = [
 ];
 
 function MemoryTab() {
+  const { devMode, toggleDevMode } = useDevMode();
+
   // Memory list state
   const [memories, setMemories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -343,6 +346,22 @@ function MemoryTab() {
                   {cat}
                 </label>
               ))}
+            </div>
+          </div>
+
+          {/* Developer Mode - subtle at bottom */}
+          <div className="rp-divider" style={{ margin: "16px 0" }} />
+          <div className="rp-memory-setting" style={{ opacity: 0.7 }}>
+            <label className="rp-memory-setting-label">
+              <input
+                type="checkbox"
+                checked={devMode}
+                onChange={toggleDevMode}
+              />
+              Developer Mode
+            </label>
+            <div className="rp-help-text">
+              Show debugging tools and technical panels
             </div>
           </div>
         </div>
