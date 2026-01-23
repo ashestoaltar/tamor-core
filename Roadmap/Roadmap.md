@@ -210,37 +210,45 @@ Phase 5 – Automation & Actions
 
 ✅ PDF export for transcripts with timestamps
 
-5.4 Feature UI Integration (Pending)
+5.4 Feature UI Integration (Complete)
 
-Backend services from Phases 4-5 need UI exposure:
+UI exposure for backend services from Phases 4-5:
 
-⬜ Auto-Insights UI (Phase 4.1):
+✅ Auto-Insights UI (Phase 4.1):
 
-⬜ Insights section in Workspace tab or dedicated tab
+✅ Dedicated Insights tab in RightPanel
 
-⬜ File-level and project-level insight views
+✅ Summary view (aggregated) and By File view
 
-⬜ Multi-File Reasoning UI (Phase 4.2):
+✅ Display themes, contradictions, missing info, assumptions
 
-⬜ Reasoning panel showing relationships, contradictions, logic flow
+✅ Multi-File Reasoning UI (Phase 4.2):
 
-⬜ Trigger analysis from UI
+✅ Dedicated Reasoning tab in RightPanel
 
-⬜ File Actions UI (Phase 5.1):
+✅ Three views: Relationships, Contradictions, Logic Flow
 
-⬜ Action buttons in Files tab (Rewrite, Generate Spec, Extract Parameters)
+✅ Trigger analysis from UI with coherence scoring
 
-⬜ Mode selection for rewrite actions
+✅ File Actions UI (Phase 5.1):
 
-⬜ Result display/download
+✅ Actions panel in Files tab (expandable per file)
 
-⬜ Project Pipelines UI (Phase 5.2):
+✅ Rewrite with mode selector (6 modes)
 
-⬜ Pipeline management in Workspace tab
+✅ Generate Spec and Extract Parameters buttons
 
-⬜ Start/advance/abandon workflow controls
+✅ Result display with copy functionality
 
-⬜ Progress visualization and guidance display
+✅ Project Pipelines UI (Phase 5.2):
+
+✅ PipelinePanel in WorkspaceTab
+
+✅ Template selector (Research, Writing, Study, Long-form)
+
+✅ Progress bar and step visualization
+
+✅ Step notes, advance, reset, abandon controls
 
 Phase 6 – Advanced Assistant Evolution
 6.1 Long-Term Memory 2.0 (Governed Memory)
@@ -290,6 +298,18 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.12 – 2026-01-22
+
+Completed Phase 5.4 Feature UI Integration:
+
+✅ InsightsTab: aggregated and per-file insight views
+
+✅ ReasoningTab: relationships, contradictions, logic flow analysis
+
+✅ File Actions: rewrite modes, spec generation, parameter extraction
+
+✅ PipelinePanel: workflow templates, progress tracking, step management
+
 v1.11 – 2026-01-21
 
 Enhanced Phase 5.3 with UI and export:
@@ -300,11 +320,7 @@ Enhanced Phase 5.3 with UI and export:
 
 ✅ Export PDF button in transcript viewer
 
-Added Phase 5.4 Feature UI Integration:
-
-⬜ Documents pending UI work for Phases 4.1, 4.2, 5.1, 5.2
-
-⬜ Auto-Insights, Multi-File Reasoning, File Actions, Project Pipelines
+Added Phase 5.4 Feature UI Integration (completed in v1.12)
 
 v1.10 – 2026-01-21
 
