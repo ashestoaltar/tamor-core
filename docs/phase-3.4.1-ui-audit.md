@@ -27,13 +27,13 @@
 | **MediaTab.jsx** | `ui/src/components/RightPanel/tabs/MediaTab.jsx` | Power User | Video transcription via YouTube URL. Niche but useful. |
 | **ViewerTab.jsx** | `ui/src/components/RightPanel/tabs/ViewerTab.jsx` | Power User | File preview iframe. Useful for document review. |
 | **PluginsTab.jsx** | `ui/src/components/RightPanel/tabs/PluginsTab.jsx` | Power User | Plugin management (importers, exporters, references). Advanced feature. |
-| **PlaylistsTab.jsx** | `ui/src/components/RightPanel/tabs/PlaylistsTab.jsx` | Power User | Stremio addon integration for movie playlist management. Voice-controllable via chat. |
+| **PlaylistsTab.jsx** | `ui/src/components/RightPanel/tabs/PlaylistsTab.jsx` | Power User | Stremio addon integration for movie playlist management. Not currently voice-controllable; flagged as candidate for voice integration in Phase 3.4.3. |
 | **FileList.jsx** | `ui/src/components/RightPanel/components/FileList.jsx` | Power User | File list with actions (summarize, structure, rewrite). Used by FilesTab. |
 | **PipelinePanel.jsx** | `ui/src/components/RightPanel/components/PipelinePanel.jsx` | Power User | Workflow pipeline management. Advanced project feature. |
 | **SemanticSearchPanel.jsx** | `ui/src/components/RightPanel/components/SemanticSearchPanel.jsx` | Power User | Semantic search UI with chunks/files views. Used by SearchTab. |
 | **ProjectSummaryPanel.jsx** | `ui/src/components/RightPanel/components/ProjectSummaryPanel.jsx` | Power User | Project summary generation. Used by WorkspaceTab. |
 | **StructurePanel.jsx** | `ui/src/components/RightPanel/components/StructurePanel.jsx` | Developer Only | File structure display marked as "(beta)". Raw JSON output. |
-| **TasksPanel.jsx** | `ui/src/components/LeftPanel/TasksPanel.jsx` | Developer Only | Task filtering/management with inline styles, technical filters (priority, status). Developer debugging feel. |
+| **TasksPanel.jsx** | `ui/src/components/LeftPanel/TasksPanel.jsx` | Developer Only | Task filtering/management with inline styles, technical filters (priority, status). Developer debugging feel. Feature is useful, implementation is developer-focused. Flag for Phase 3.5 redesign as user-friendly task management UI. TaskPill.jsx remains Essential for inline task display in chat. |
 | **MemoryList.jsx** | `ui/src/components/LeftPanel/MemoryList.jsx` | Developer Only | Older memory browser with category filters. Superseded by MemoryTab.jsx. |
 | **MemoryCard.jsx** | `ui/src/components/LeftPanel/MemoryCard.jsx` | Developer Only | Memory display card. Only used by MemoryList.jsx (deprecated). |
 
@@ -107,8 +107,19 @@ Current tabs: **Workspace, Files, Search, Knowledge, Insights, Reasoning, Media,
 
 ---
 
-## Next Steps
+## Deferred Work
 
-1. **Phase 3.4.2 - Mobile Layout**: Implement collapsible tab groups, optimize for single-panel mobile view
-2. **Phase 3.4.3 - Voice I/O**: Add microphone input, speech synthesis for responses
-3. **Phase 3.4.4 - Focus Mode**: Minimal UI mode for distraction-free use
+| Item | Target Phase | Description |
+|------|--------------|-------------|
+| TasksPanel redesign | Phase 3.5 | Redesign task management UI for non-technical users. Current implementation has developer-oriented filters and inline styles. |
+| PlaylistsTab voice control | Phase 3.4.3+ | Enable voice commands like "Add Home Alone to Christmas playlist" once voice input is implemented. |
+| StructurePanel completion | TBD | Either complete with proper UI or remove entirely. Raw JSON display not useful. |
+
+---
+
+## Next Steps (Refined)
+
+1. **Create DevModeContext** — Infrastructure for toggling developer UI visibility
+2. **Remove dead components** — MemoryList.jsx, MemoryCard.jsx, consolidate memory.css
+3. **Wrap TasksPanel in dev mode** — Keep TaskPill visible for inline task display
+4. **Proceed to Phase 3.4.2** — Mobile layout with tab grouping, drawer navigation
