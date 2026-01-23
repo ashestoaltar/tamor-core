@@ -25,7 +25,14 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from services.agents import ResearcherAgent, WriterAgent, RequestContext, AgentOutput
+from services.agents import (
+    ResearcherAgent,
+    WriterAgent,
+    EngineerAgent,
+    ArchivistAgent,
+    RequestContext,
+    AgentOutput,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +101,8 @@ class AgentRouter:
         self.agents = {
             "researcher": ResearcherAgent(),
             "writer": WriterAgent(),
+            "engineer": EngineerAgent(),
+            "archivist": ArchivistAgent(),
         }
 
         # Intent patterns for heuristic classification
@@ -140,9 +149,20 @@ class AgentRouter:
                 r"\bwhy (is|are|does|did)\b",
             ],
             "code": [
-                r"\b(write|create|generate|fix|debug)\s+(code|function|class|script)\b",
+                r"\b(write|create|generate|fix|debug)\s+(\w+\s+)*(code|function|class|script|method)\b",
                 r"\bimplement\b",
-                r"\b(add|update|modify)\s+(a\s+)?(feature|endpoint|component)\b",
+                r"\b(add|update|modify)\s+(a\s+)?(\w+\s+)*(feature|endpoint|component|function)\b",
+                r"\b(code|patch|refactor)\b.*\b(for|to|that)\b",
+                r"\bbuild\s+(a\s+)?(\w+\s+)*(component|feature|api|service)\b",
+                r"\b(write|create|make)\s+me\s+",
+            ],
+            "memory": [
+                r"\bremember\s+(that|this|my)\b",
+                r"\bdon'?t\s+forget\b",
+                r"\bforget\s+(that|this|my)\b",
+                r"\bi\s+prefer\b",
+                r"\bmy\s+(name|preference|favorite)\b",
+                r"\bstore\s+(this|that)\s+(in\s+)?memory\b",
             ],
         }
 
@@ -215,6 +235,23 @@ class AgentRouter:
                 handled_by="error",
             )
 
+    def _references_project(self, message: str) -> bool:
+        """Check if the message references project-specific context."""
+        msg = message.lower()
+        # Patterns that suggest the user wants project context
+        project_indicators = [
+            r"\b(the|this|my|our)\s+(code|codebase|project|repo|file|function|class|module)\b",
+            r"\b(fix|update|modify|refactor|change)\s+(the|this|my)\b",
+            r"\bin\s+(the|this|my)\s+\w+\.(py|js|ts|jsx|tsx|go|rs)\b",
+            r"\b(based on|following|using)\s+(the|this|our)\s+(pattern|style|convention)\b",
+            r"\badd\s+(to|into)\s+(the|this|my)\b",
+            r"\b(existing|current)\s+\w+",
+        ]
+        for pattern in project_indicators:
+            if re.search(pattern, msg, re.IGNORECASE):
+                return True
+        return False
+
     def _check_deterministic(self, ctx: RequestContext) -> Optional[str]:
         """
         Check for deterministic gates that bypass LLM entirely.
@@ -249,7 +286,7 @@ class AgentRouter:
         detected = []
 
         # Check patterns in priority order
-        priority_order = ["write", "research", "summarize", "explain", "code"]
+        priority_order = ["memory", "code", "write", "research", "summarize", "explain"]
 
         for intent in priority_order:
             patterns = self.intent_patterns.get(intent, [])
@@ -296,9 +333,15 @@ class AgentRouter:
                 return ["researcher", "writer"]
             return []  # General explanation, use single LLM
 
-        # Code: Not handled by these agents yet (Phase 6.2 expansion)
+        # Code: Route to Engineer (with Researcher only if referencing project)
         if primary_intent == "code":
-            return []  # Fall back to single LLM for now
+            if ctx.project_id and self._references_project(ctx.user_message):
+                return ["researcher", "engineer"]
+            return ["engineer"]
+
+        # Memory: Route to Archivist
+        if primary_intent == "memory":
+            return ["archivist"]
 
         return []
 
@@ -436,15 +479,20 @@ class AgentRouter:
                     "snippet": citation.snippet,
                 })
 
-        # Format content
+        # Format content based on agent type
         if final_output.is_final:
             content = final_output.content if isinstance(final_output.content, str) else str(final_output.content)
             # Append formatted citations if we have them
             if all_citations:
                 content = self._append_formatted_citations(content, all_citations)
-        else:
-            # Non-final output (e.g., researcher only) - format for display
+        elif final_output.agent_name == "archivist":
+            # Format archivist output for user display
+            content = self._format_archivist_output(final_output)
+        elif final_output.agent_name == "researcher":
+            # Non-final research output - format for display
             content = self._format_research_output(final_output)
+        else:
+            content = str(final_output.content)
 
         return RouterResult(
             content=content,
@@ -543,6 +591,42 @@ class AgentRouter:
             lines.append("")
 
         return "\n".join(lines)
+
+    def _format_archivist_output(self, output: AgentOutput) -> str:
+        """Format archivist output for user display."""
+        if not isinstance(output.content, dict):
+            return str(output.content)
+
+        data = output.content
+        action = data.get("action", "")
+
+        # Handle explicit memory actions
+        if action == "stored":
+            content = data.get("content", "")
+            category = data.get("category", "general")
+            return f"Got it! I'll remember that. (Saved as {category} memory)"
+
+        if action == "preference_stored":
+            return "I've noted your preference."
+
+        if action == "forgotten":
+            count = data.get("count", 0)
+            if count > 0:
+                return f"Done. I've removed {count} related memory item{'s' if count > 1 else ''}."
+            return "I couldn't find any matching memories to forget."
+
+        if action == "no_action":
+            return data.get("reason", "No memory action taken.")
+
+        # Handle background analysis (shouldn't normally be shown)
+        analysis = data.get("analysis", "")
+        if analysis:
+            stored = data.get("memories_stored", 0)
+            if stored > 0:
+                return f"(Noted {stored} item{'s' if stored > 1 else ''} for future reference)"
+            return ""
+
+        return ""
 
 
 # Singleton instance
