@@ -1,5 +1,5 @@
 // src/components/RightPanel/components/FileList.jsx
-import React from "react";
+import React, { useState } from "react";
 import { API_BASE } from "../../../api/client";
 
 function FileList({
@@ -15,7 +15,27 @@ function FileList({
   onSummarize,
   onSelectStructure,
   onSendSummaryToChat,
+  onFileAction,
+  fileActionLoading,
+  fileActionResults,
 }) {
+  const [expandedActionsFileId, setExpandedActionsFileId] = useState(null);
+  const [selectedRewriteMode, setSelectedRewriteMode] = useState("improve");
+
+  const rewriteModes = [
+    { value: "simplify", label: "Simplify" },
+    { value: "expand", label: "Expand" },
+    { value: "improve", label: "Improve" },
+    { value: "restructure", label: "Restructure" },
+    { value: "technical", label: "Technical" },
+    { value: "executive", label: "Executive" },
+  ];
+
+  const handleToggleActions = (fileId) => {
+    setExpandedActionsFileId(
+      expandedActionsFileId === fileId ? null : fileId
+    );
+  };
   return (
     <div className="rp-section">
       <div className="rp-section-header">
@@ -88,10 +108,19 @@ function FileList({
                   onClick={() => onSelectStructure(f.id)}
                   disabled={structureLoading && structureFileId === f.id}
                 >
-                  {structureFileId === f.id
-                    ? "Show structure"
-                    : "Show structure"}
+                  Structure
                 </button>
+                {onFileAction && (
+                  <button
+                    className={`rp-button ${
+                      expandedActionsFileId === f.id ? "primary" : "subtle"
+                    }`}
+                    type="button"
+                    onClick={() => handleToggleActions(f.id)}
+                  >
+                    Actions
+                  </button>
+                )}
                 <a
                   className="rp-button subtle"
                   href={`${API_BASE}/files/${f.id}/download`}
@@ -101,6 +130,78 @@ function FileList({
                   Open
                 </a>
               </div>
+              {/* File Actions Panel */}
+              {expandedActionsFileId === f.id && onFileAction && (
+                <div className="rp-file-actions-panel">
+                  <div className="rp-file-actions-row">
+                    <div className="rp-file-action-group">
+                      <span className="rp-file-action-label">Rewrite:</span>
+                      <select
+                        className="rp-select"
+                        value={selectedRewriteMode}
+                        onChange={(e) => setSelectedRewriteMode(e.target.value)}
+                      >
+                        {rewriteModes.map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        className="rp-button subtle"
+                        onClick={() =>
+                          onFileAction(f.id, "rewrite", {
+                            mode: selectedRewriteMode,
+                          })
+                        }
+                        disabled={fileActionLoading === f.id}
+                      >
+                        {fileActionLoading === f.id ? "..." : "Go"}
+                      </button>
+                    </div>
+                    <button
+                      className="rp-button subtle"
+                      onClick={() => onFileAction(f.id, "generate-spec")}
+                      disabled={fileActionLoading === f.id}
+                    >
+                      Generate Spec
+                    </button>
+                    <button
+                      className="rp-button subtle"
+                      onClick={() => onFileAction(f.id, "extract-parameters")}
+                      disabled={fileActionLoading === f.id}
+                    >
+                      Extract Params
+                    </button>
+                  </div>
+                  {fileActionLoading === f.id && (
+                    <div className="rp-info-text">Processing...</div>
+                  )}
+                </div>
+              )}
+              {/* File Action Results */}
+              {fileActionResults?.[f.id] && (
+                <div className="rp-file-action-result">
+                  <div className="rp-file-action-result-header">
+                    <span className="rp-tag rp-tag-muted">
+                      {fileActionResults[f.id].action}
+                    </span>
+                    <button
+                      className="rp-button-compact"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          fileActionResults[f.id].result
+                        );
+                      }}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <pre className="rp-file-action-result-content">
+                    {fileActionResults[f.id].result}
+                  </pre>
+                </div>
+              )}
               {fileSummaries[f.id] && (
                 <div className="rp-file-summary">
                   <pre>{fileSummaries[f.id]}</pre>

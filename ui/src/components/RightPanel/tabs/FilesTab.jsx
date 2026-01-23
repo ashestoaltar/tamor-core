@@ -42,6 +42,10 @@ function FilesTab({
   const [projectSummaryError, setProjectSummaryError] = useState("");
   const [projectSummaryText, setProjectSummaryText] = useState("");
 
+  // File actions (Phase 5.4)
+  const [fileActionLoading, setFileActionLoading] = useState(null);
+  const [fileActionResults, setFileActionResults] = useState({});
+
   useEffect(() => {
     if (!currentProjectId) {
       setFiles([]);
@@ -228,6 +232,85 @@ function FilesTab({
     }
   };
 
+  // File actions handler (Phase 5.4)
+  const handleFileAction = async (fileId, action, options = {}) => {
+    if (!fileId) return;
+
+    setFileActionLoading(fileId);
+    // Clear previous result for this file
+    setFileActionResults((prev) => {
+      const next = { ...prev };
+      delete next[fileId];
+      return next;
+    });
+
+    try {
+      let endpoint = "";
+      let body = {};
+
+      switch (action) {
+        case "rewrite":
+          endpoint = `/files/${fileId}/rewrite`;
+          body = { mode: options.mode || "improve" };
+          break;
+        case "generate-spec":
+          endpoint = `/files/${fileId}/generate-spec`;
+          break;
+        case "extract-parameters":
+          endpoint = `/files/${fileId}/extract-parameters`;
+          break;
+        default:
+          console.error("Unknown action:", action);
+          return;
+      }
+
+      const data = await apiFetch(endpoint, {
+        method: "POST",
+        body,
+      });
+
+      // Format result based on action type
+      let resultText = "";
+      if (action === "extract-parameters") {
+        const params = data.parameters || [];
+        if (params.length === 0) {
+          resultText = "No parameters found.";
+        } else {
+          resultText = params
+            .map(
+              (p) =>
+                `${p.name}: ${p.value ?? "(no default)"}\n  Type: ${p.type}\n  ${p.description}`
+            )
+            .join("\n\n");
+        }
+        if (data.summary) {
+          resultText = data.summary + "\n\n" + resultText;
+        }
+      } else {
+        resultText = data.result || JSON.stringify(data, null, 2);
+      }
+
+      setFileActionResults((prev) => ({
+        ...prev,
+        [fileId]: {
+          action,
+          result: resultText,
+        },
+      }));
+    } catch (err) {
+      console.error(`File action ${action} failed:`, err);
+      setFileActionResults((prev) => ({
+        ...prev,
+        [fileId]: {
+          action,
+          result: `Error: ${err.message || "Action failed"}`,
+        },
+      }));
+    } finally {
+      setFileActionLoading(null);
+    }
+  };
+
   return (
     <div className="rp-tab-content">
       {/* Project files */}
@@ -244,6 +327,9 @@ function FilesTab({
         onSummarize={handleFileSummary}
         onSelectStructure={handleSelectStructureFile}
         onSendSummaryToChat={handleInjectFileSummaryToChat}
+        onFileAction={handleFileAction}
+        fileActionLoading={fileActionLoading}
+        fileActionResults={fileActionResults}
       />
 
       {/* Structure block */}

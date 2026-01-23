@@ -1046,3 +1046,74 @@
 .rp-success-text {
   color: var(--success-soft);
 }
+
+/* File Actions styles (Phase 5.4) ---------------------------------------- */
+
+.rp-file-actions-panel {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.rp-file-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.rp-file-action-group {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.rp-file-action-label {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.rp-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.rp-select:focus {
+  outline: none;
+  border-color: var(--accent-soft);
+}
+
+.rp-file-action-result {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.rp-file-action-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+
+.rp-file-action-result-content {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-sm);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+}
