@@ -1117,3 +1117,186 @@
   background: var(--bg-soft);
   border-radius: var(--radius-sm);
 }
+
+/* Pipeline styles (Phase 5.4) -------------------------------------------- */
+
+.rp-pipeline-templates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.rp-pipeline-template {
+  padding: var(--space-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.rp-pipeline-template:hover {
+  border-color: var(--accent-soft);
+  background: var(--bg-hover);
+}
+
+.rp-pipeline-template-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.rp-pipeline-template-desc {
+  font-size: 12px;
+  color: var(--text-soft);
+  margin-bottom: 4px;
+}
+
+.rp-pipeline-template-steps {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.rp-pipeline-progress {
+  position: relative;
+  height: 20px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-md);
+  overflow: hidden;
+}
+
+.rp-pipeline-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent-gradient);
+  transition: width 0.3s ease;
+}
+
+.rp-pipeline-progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  z-index: 1;
+}
+
+.rp-pipeline-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.rp-pipeline-step {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+}
+
+.rp-pipeline-step.active {
+  background: var(--bg-input);
+  border: 1px solid var(--accent-soft);
+}
+
+.rp-pipeline-step.completed .rp-pipeline-step-marker {
+  background: var(--success-soft);
+  color: #111;
+}
+
+.rp-pipeline-step.pending {
+  opacity: 0.6;
+}
+
+.rp-pipeline-step-marker {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.rp-pipeline-step.active .rp-pipeline-step-marker {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: #111;
+}
+
+.rp-pipeline-step-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rp-pipeline-step-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.rp-pipeline-step-desc {
+  font-size: 11px;
+  color: var(--text-soft);
+  margin-top: 2px;
+}
+
+.rp-pipeline-current {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.rp-pipeline-hint {
+  font-size: 12px;
+  color: var(--text-soft);
+  font-style: italic;
+}
+
+.rp-pipeline-actions-label {
+  font-size: 11px;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rp-pipeline-action-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.rp-pipeline-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.rp-pipeline-completed {
+  text-align: center;
+  padding: var(--space-md);
+}
+
+.rp-pipeline-completed .rp-success-text {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: var(--space-sm);
+}

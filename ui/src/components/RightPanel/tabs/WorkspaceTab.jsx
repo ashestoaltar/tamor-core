@@ -1,6 +1,7 @@
 // src/components/RightPanel/tabs/WorkspaceTab.jsx
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "../../../api/client";
+import PipelinePanel from "../components/PipelinePanel.jsx";
 
 function WorkspaceTab({ currentProjectId }) {
   const [notes, setNotes] = useState("");
@@ -53,9 +54,12 @@ function WorkspaceTab({ currentProjectId }) {
 
   return (
     <div className="rp-tab-content">
+      {/* Project Pipeline */}
+      <PipelinePanel currentProjectId={currentProjectId} />
+
       <div className="rp-section">
         <div className="rp-section-header">
-          <h3 className="rp-section-title">Project workspace</h3>
+          <h3 className="rp-section-title">Project Notes</h3>
           {notesSaving && (
             <span className="rp-tag rp-tag-muted">Saving…</span>
           )}
