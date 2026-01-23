@@ -251,27 +251,35 @@ UI exposure for backend services from Phases 4-5:
 ✅ Step notes, advance, reset, abandon controls
 
 Phase 6 – Advanced Assistant Evolution
-6.1 Long-Term Memory 2.0 (Governed Memory)
+6.1 Long-Term Memory 2.0 (Governed Memory) (Complete)
 
-Category-based memory
+✅ Category-based memory
 
-Searchable and pinnable memory
+✅ Searchable and pinnable memory
 
-Explicit memory governance rules:
+✅ Explicit memory governance rules:
 
-Manual vs automatic memory
+✅ Manual vs automatic memory
 
-User consent for persistence
+✅ User consent for persistence
 
-User-visible memory controls
+✅ User-visible memory controls (Memory tab in RightPanel)
 
-6.2 Multi-Agent Support
+6.2 Multi-Agent Support (Complete)
 
-Distinct assistant roles (e.g., researcher, writer, teacher)
+✅ Distinct assistant roles:
 
-Task-appropriate behavior models
+✅ Researcher: source gathering, structured analysis, citations
 
-Optional LLM routing (future)
+✅ Writer: prose synthesis from research notes
+
+✅ Engineer: code generation following project patterns
+
+✅ Archivist: memory governance (remember/forget commands)
+
+✅ Task-appropriate behavior models (intent-based routing)
+
+✅ Heuristic routing with smart project context detection
 
 6.3 Plugin Framework
 
@@ -298,6 +306,36 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.13 – 2026-01-22
+
+Completed Phase 6.1 Long-Term Memory 2.0:
+
+✅ Category-based memory with governance controls
+
+✅ Searchable and pinnable memory
+
+✅ Manual vs automatic memory distinction
+
+✅ User-visible Memory tab in RightPanel
+
+✅ Memory injection into chat context
+
+Completed Phase 6.2 Multi-Agent Support:
+
+✅ Router-based agent orchestration (services/router.py)
+
+✅ Researcher agent: source analysis with citations
+
+✅ Writer agent: prose synthesis from research
+
+✅ Engineer agent: code generation with project awareness
+
+✅ Archivist agent: memory commands (remember/forget)
+
+✅ Heuristic intent classification (no LLM routing overhead)
+
+✅ Smart project context detection for code requests
+
 v1.12 – 2026-01-22
 
 Completed Phase 5.4 Feature UI Integration:
