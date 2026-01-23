@@ -1,13 +1,15 @@
 """
 Plugin API Endpoints
 
-Phase 6.3: Plugin Framework (MVP)
+Phase 6.3: Plugin Framework
 
 Provides REST API endpoints for managing plugins:
-- List available plugins
+- List available plugins (importers, exporters, references)
 - Get plugin details and config schema
 - List items available for import
 - Execute imports
+- Execute exports
+- List and fetch reference items
 - Manage project plugin configurations
 """
 
@@ -19,7 +21,7 @@ import tempfile
 import uuid
 from typing import Any, Dict, List
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 from plugins import ImportItem
 
@@ -33,6 +35,10 @@ plugins_bp = Blueprint("plugins_api", __name__, url_prefix="/api")
 
 # Load plugins on module import
 load_all_plugins()
+
+# Store export file paths for download (simple in-memory cache)
+# In production, you'd use Redis or similar
+_export_cache: Dict[str, Dict] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -662,3 +668,395 @@ def list_project_imports(project_id: int):
         })
 
     return jsonify({"imports": imports, "total": len(imports)})
+
+
+# ---------------------------------------------------------------------------
+# Exporter Endpoints
+# ---------------------------------------------------------------------------
+
+
+@plugins_bp.get("/plugins/exporters")
+def list_exporters():
+    """
+    List all registered exporter plugins.
+
+    Returns:
+        {
+            "exporters": [
+                {
+                    "id": "zip-download",
+                    "name": "ZIP Download",
+                    "type": "exporter",
+                    "description": "...",
+                    "config_schema": {...}
+                },
+                ...
+            ]
+        }
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    exporters = REGISTRY.list_exporters()
+    return jsonify({"exporters": exporters})
+
+
+@plugins_bp.get("/plugins/exporters/<exporter_id>")
+def get_exporter(exporter_id: str):
+    """
+    Get details for a specific exporter.
+
+    Returns exporter info including config schema.
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    exporter = REGISTRY.get_exporter(exporter_id)
+    if not exporter:
+        return jsonify({"error": "exporter_not_found"}), 404
+
+    return jsonify(exporter.get_info())
+
+
+@plugins_bp.post("/plugins/exporters/<exporter_id>/export")
+def export_project(exporter_id: str):
+    """
+    Generate an export for a project.
+
+    Request JSON:
+        {
+            "project_id": 1,
+            "config": {
+                "include_text_cache": true,
+                ...
+            }
+        }
+
+    Returns:
+        {
+            "success": true,
+            "export_id": "abc123",
+            "filename": "project-export.zip",
+            "download_url": "/api/plugins/exporters/zip-download/download/abc123",
+            "size_bytes": 12345,
+            "metadata": {...}
+        }
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    exporter = REGISTRY.get_exporter(exporter_id)
+    if not exporter:
+        return jsonify({"error": "exporter_not_found"}), 404
+
+    body = request.json or {}
+    project_id = body.get("project_id")
+    config = body.get("config", {})
+
+    if not project_id:
+        return jsonify({"error": "missing_project_id"}), 400
+
+    # Verify project access
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "project_not_found"}), 404
+
+    # Validate config
+    if not exporter.validate_config(config):
+        return jsonify({
+            "error": "invalid_config",
+            "details": "Configuration validation failed.",
+        }), 400
+
+    try:
+        result = exporter.export_project(project_id, user_id, config)
+
+        if not result.success:
+            return jsonify({
+                "success": False,
+                "error": result.error,
+            }), 500
+
+        # Generate export ID and store in cache
+        export_id = uuid.uuid4().hex[:12]
+        _export_cache[export_id] = {
+            "path": result.export_path,
+            "filename": result.filename,
+            "mime_type": result.mime_type,
+            "size_bytes": result.size_bytes,
+            "user_id": user_id,
+            "exporter_id": exporter_id,
+        }
+
+        download_url = f"/api/plugins/exporters/{exporter_id}/download/{export_id}"
+
+        return jsonify({
+            "success": True,
+            "export_id": export_id,
+            "filename": result.filename,
+            "download_url": download_url,
+            "size_bytes": result.size_bytes,
+            "mime_type": result.mime_type,
+            "metadata": result.metadata,
+        })
+
+    except Exception as e:
+        logger.error(f"Error exporting with {exporter_id}: {e}")
+        return jsonify({
+            "error": "export_failed",
+            "details": str(e),
+        }), 500
+
+
+@plugins_bp.get("/plugins/exporters/<exporter_id>/download/<export_id>")
+def download_export(exporter_id: str, export_id: str):
+    """
+    Download a generated export file.
+
+    Returns the file as an attachment.
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Get export from cache
+    export_info = _export_cache.get(export_id)
+    if not export_info:
+        return jsonify({"error": "export_not_found"}), 404
+
+    # Verify user owns this export
+    if export_info.get("user_id") != user_id:
+        return jsonify({"error": "unauthorized"}), 403
+
+    # Verify exporter matches
+    if export_info.get("exporter_id") != exporter_id:
+        return jsonify({"error": "exporter_mismatch"}), 400
+
+    file_path = export_info.get("path")
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({"error": "export_file_not_found"}), 404
+
+    return send_file(
+        file_path,
+        mimetype=export_info.get("mime_type", "application/octet-stream"),
+        as_attachment=True,
+        download_name=export_info.get("filename"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Reference Endpoints
+# ---------------------------------------------------------------------------
+
+
+@plugins_bp.get("/plugins/references")
+def list_references():
+    """
+    List all registered reference plugins.
+
+    Returns:
+        {
+            "references": [
+                {
+                    "id": "local-docs",
+                    "name": "Local Docs Folder",
+                    "type": "reference",
+                    "description": "...",
+                    "config_schema": {...}
+                },
+                ...
+            ]
+        }
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    references = REGISTRY.list_references()
+    return jsonify({"references": references})
+
+
+@plugins_bp.get("/plugins/references/<reference_id>")
+def get_reference(reference_id: str):
+    """
+    Get details for a specific reference plugin.
+
+    Returns reference plugin info including config schema.
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    reference = REGISTRY.get_reference(reference_id)
+    if not reference:
+        return jsonify({"error": "reference_not_found"}), 404
+
+    return jsonify(reference.get_info())
+
+
+@plugins_bp.post("/plugins/references/<reference_id>/list")
+def list_reference_items(reference_id: str):
+    """
+    List available items from a reference source.
+
+    Request JSON:
+        {
+            "config": {
+                "path": "/path/to/docs",
+                "recursive": true,
+                ...
+            }
+        }
+
+    Returns:
+        {
+            "success": true,
+            "items": [
+                {
+                    "id": "ref-0",
+                    "title": "README.md",
+                    "path": "/path/to/README.md",
+                    "content_preview": "...",
+                    "mime_type": "text/markdown",
+                    "size_bytes": 1234,
+                    "metadata": {...}
+                },
+                ...
+            ],
+            "total": 42,
+            "metadata": {...}
+        }
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    reference = REGISTRY.get_reference(reference_id)
+    if not reference:
+        return jsonify({"error": "reference_not_found"}), 404
+
+    body = request.json or {}
+    config = body.get("config", {})
+
+    # Validate config
+    if not reference.validate_config(config):
+        return jsonify({
+            "error": "invalid_config",
+            "details": "Configuration validation failed. Check path exists and is accessible.",
+        }), 400
+
+    try:
+        result = reference.list_items(config)
+
+        if not result.success:
+            return jsonify({
+                "success": False,
+                "error": result.error,
+            }), 500
+
+        # Convert ReferenceItem dataclasses to dicts
+        items_data = []
+        for item in result.items:
+            items_data.append({
+                "id": item.id,
+                "title": item.title,
+                "path": item.path,
+                "content_preview": item.content_preview,
+                "mime_type": item.mime_type,
+                "size_bytes": item.size_bytes,
+                "metadata": item.metadata or {},
+            })
+
+        return jsonify({
+            "success": True,
+            "items": items_data,
+            "total": result.total,
+            "metadata": result.metadata or {},
+        })
+
+    except Exception as e:
+        logger.error(f"Error listing items for reference {reference_id}: {e}")
+        return jsonify({
+            "error": "list_failed",
+            "details": str(e),
+        }), 500
+
+
+@plugins_bp.post("/plugins/references/<reference_id>/fetch")
+def fetch_reference_item(reference_id: str):
+    """
+    Fetch full content of a reference item.
+
+    Request JSON:
+        {
+            "item_id": "ref-0",
+            "config": {
+                "path": "/path/to/docs",
+                ...
+            }
+        }
+
+    Returns:
+        {
+            "success": true,
+            "content": "Full text content...",
+            "title": "README.md",
+            "url": "file:///path/to/README.md",
+            "fetched_at": "2026-01-23T04:30:00Z",
+            "metadata": {...}
+        }
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    reference = REGISTRY.get_reference(reference_id)
+    if not reference:
+        return jsonify({"error": "reference_not_found"}), 404
+
+    body = request.json or {}
+    item_id = body.get("item_id")
+    config = body.get("config", {})
+
+    if not item_id:
+        return jsonify({"error": "missing_item_id"}), 400
+
+    # Validate config
+    if not reference.validate_config(config):
+        return jsonify({
+            "error": "invalid_config",
+            "details": "Configuration validation failed.",
+        }), 400
+
+    try:
+        result = reference.fetch_item(item_id, config)
+
+        if not result.success:
+            return jsonify({
+                "success": False,
+                "error": result.error,
+            }), 500
+
+        return jsonify({
+            "success": True,
+            "content": result.content,
+            "title": result.title,
+            "url": result.url,
+            "fetched_at": result.fetched_at,
+            "metadata": result.metadata or {},
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching item from reference {reference_id}: {e}")
+        return jsonify({
+            "error": "fetch_failed",
+            "details": str(e),
+        }), 500

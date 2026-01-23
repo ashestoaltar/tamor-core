@@ -281,13 +281,43 @@ Phase 6 – Advanced Assistant Evolution
 
 ✅ Heuristic routing with smart project context detection
 
-6.3 Plugin Framework
+6.3 Plugin Framework (Complete)
 
-Pluggable integrations
+✅ Plugin architecture with base classes and auto-discovery registry
 
-Importers and exporters
+✅ Importers: Local folder, Audio transcript, Bulk PDF
 
-Read-only reference backends
+✅ Exporters: ZIP archive download, JSON data export
+
+✅ Reference backends: Local docs folder, Web fetch (URL content)
+
+✅ Full API endpoints for all plugin types
+
+✅ UI with tabbed Importers/Exporters/References sections
+
+6.4 Plugin Framework Expansion (Future)
+
+Additional exporters:
+
+⬜ Markdown export (formatted project documentation)
+
+⬜ PDF export (polished report generation)
+
+Additional reference backends:
+
+⬜ Zotero integration (academic reference management)
+
+⬜ Notion import (external knowledge base sync)
+
+⬜ RSS/Atom feeds (content monitoring)
+
+Plugin enhancements:
+
+⬜ Plugin configuration persistence per project
+
+⬜ Scheduled/automated imports
+
+⬜ Reference content caching and versioning
 
 Governance Rules
 
@@ -306,6 +336,28 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.14 – 2026-01-22
+
+Completed Phase 6.3 Plugin Framework:
+
+✅ Plugin base classes: ImporterPlugin, ExporterPlugin, ReferencePlugin
+
+✅ Auto-discovery registry with support for all plugin types
+
+✅ ZIP Download exporter (project files + transcripts + manifest)
+
+✅ JSON Export (structured project data with insights)
+
+✅ Local Docs reference (browse folders without importing)
+
+✅ Web Fetch reference (explicit URL content retrieval)
+
+✅ API endpoints for exporters and references
+
+✅ Tabbed UI in PluginsTab (Importers, Exporters, References)
+
+Added Phase 6.4 Plugin Framework Expansion for future enhancements
+
 v1.13 – 2026-01-22
 
 Completed Phase 6.1 Long-Term Memory 2.0:
