@@ -136,6 +136,80 @@ Phase 3 – Stability, Cleanup, and Refactoring (Complete)
 
 ✅ Add rollback and validation utilities (run_migrations.py, db_validate.py)
 
+3.4 Interface Restoration (Proposed)
+
+Align the UI with Tamor's core philosophy (Wholeness • Light • Insight). Simplify the default experience, add voice interaction, and make mobile a first-class citizen.
+
+**Guiding Principles:**
+- Every UI element must earn its place — if it doesn't serve the current task, hide it
+- Mobile is not a smaller desktop — design for touch and voice first, expand for desktop
+- Depth on demand — simple by default, powerful when needed
+- Developer tools are not user tools — separate concerns cleanly
+
+3.4.1 UI Audit & Developer Mode
+
+⬜ Audit all components in ui/src/components/
+
+⬜ Categorize each as: Essential | Power User | Developer Only
+
+⬜ Create DevModeContext for toggling developer UI
+
+⬜ Wrap developer-only elements in conditional rendering
+
+⬜ Remove dead code (unused components, orphaned CSS)
+
+⬜ Settings page includes "Developer Mode" toggle (off by default)
+
+3.4.2 Mobile-First Layout Refactor
+
+⬜ Responsive breakpoint system (Mobile < 768px, Tablet 768-1024px, Desktop > 1024px)
+
+⬜ MobileNav component (bottom navigation: Chat, Projects, Settings)
+
+⬜ Drawer component (reusable slide-in/slide-up panels)
+
+⬜ Layout behavior by breakpoint:
+  - Mobile: Slide-out drawer (left), Full screen chat, Slide-up drawer (right)
+  - Tablet: Collapsible sidebars, Primary chat
+  - Desktop: Fixed sidebars, Primary chat
+
+⬜ Touch targets minimum 44px throughout
+
+⬜ Test on iOS Safari, Android Chrome, desktop browsers
+
+3.4.3 Voice Input/Output
+
+⬜ useVoiceInput hook (Web Speech API speech-to-text)
+
+⬜ useVoiceOutput hook (Web Speech API text-to-speech)
+
+⬜ Mic button in chat input (prominent, easy to tap)
+
+⬜ Visual feedback during listening (pulse animation)
+
+⬜ "Read aloud" button on assistant messages
+
+⬜ Voice settings in Settings page (enable/disable, speech rate, voice selection)
+
+⬜ Graceful degradation when Speech API unavailable
+
+3.4.4 Focus Mode (Optional)
+
+⬜ Single-screen chat, no panels
+
+⬜ Large central mic button
+
+⬜ Minimal chrome (project indicator + settings access only)
+
+⬜ Easy toggle in/out of Focus Mode
+
+**Success Criteria:**
+- New user sees clean, simple chat interface by default
+- Mobile experience is native-feeling (bottom nav, appropriate sizing)
+- Voice input/output works reliably on iOS Safari and Android Chrome
+- Developer tools accessible but hidden by default
+- Interface embodies Tamor: calm, purposeful, illuminating
+
 Phase 4 – Research & Intelligence Expansion
 4.1 Auto-Insights Engine (Complete)
 
@@ -336,6 +410,20 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.15 – 2026-01-23
+
+Added Phase 3.4 Interface Restoration:
+
+⬜ 3.4.1 UI Audit & Developer Mode — categorize components, DevModeContext
+
+⬜ 3.4.2 Mobile-First Layout Refactor — bottom nav, drawers, responsive breakpoints
+
+⬜ 3.4.3 Voice Input/Output — Web Speech API hooks, mic button, read-aloud
+
+⬜ 3.4.4 Focus Mode (Optional) — ultra-minimal voice-first view
+
+Philosophy alignment: Wholeness • Light • Insight
+
 v1.14 – 2026-01-22
 
 Completed Phase 6.3 Plugin Framework:

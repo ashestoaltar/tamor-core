@@ -127,7 +127,7 @@ Constraints:
 ## E. UI, UX, and Presentation
 
 ### 10. Search Results UX Improvements
-**Status:** 🟡 Idea  
+**Status:** 🟡 Idea
 **Maps To:** Phase 2.5 / Phase 3.2
 
 - Better hit context
@@ -137,12 +137,39 @@ Constraints:
 ---
 
 ### 11. Knowledge Graph Visualization
-**Status:** 🟡 Idea  
+**Status:** 🟡 Idea
 **Maps To:** Phase 2.3 / Phase 4.x
 
 - Visual node relationships
 - Symbol exploration
 - Read-only initially
+
+---
+
+### 14. Interface Restoration (Mobile-First + Voice)
+**Status:** 🟢 Approved for Promotion
+**Maps To:** Phase 3.4 – Interface Restoration
+**Created:** 2026-01-23
+
+**Purpose:** Align the UI with Tamor's core philosophy (Wholeness • Light • Insight). Simplify the default experience, add voice interaction, and make mobile a first-class citizen.
+
+**Context:**
+Tamor's name derives from Tav (purpose/completion) + Or (light/understanding). The current UI has accumulated scaffolding from development that contradicts the philosophy of restraint, quiet strength, and clarity without flash.
+
+**Guiding Principles:**
+- Every UI element must earn its place
+- Mobile is not a smaller desktop — design for touch and voice first
+- Depth on demand — simple by default, powerful when needed
+- Developer tools are not user tools — separate concerns cleanly
+
+**Subphases:**
+1. **3.4.1 UI Audit & Developer Mode** — Categorize components, create DevModeContext, remove dead code
+2. **3.4.2 Mobile-First Layout Refactor** — Bottom nav, drawer components, responsive breakpoints
+3. **3.4.3 Voice Input/Output** — Web Speech API hooks, mic button, read-aloud, voice settings
+4. **3.4.4 Focus Mode (Optional)** — Ultra-minimal voice-first view
+
+**Promotion Edit:**
+Add Phase 3.4 to main roadmap after Phase 3.3 Database Cleanup. Full specification included in promotion.
 
 ---
 
