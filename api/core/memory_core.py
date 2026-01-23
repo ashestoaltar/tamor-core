@@ -130,28 +130,66 @@ def classify_auto_memory(text: str, mode: str, source: str) -> str | None:
     return None
 
 
-def auto_store_memory_if_relevant(text: str, mode: str, source: str = "user") -> None:
+def auto_store_memory_if_relevant(
+    text: str,
+    mode: str,
+    source: str = "user",
+    user_id: int | None = None,
+) -> str | None:
+    """
+    Automatically store a memory if it matches classification criteria.
+
+    Now integrates with governance settings to check if auto-save is enabled
+    for the detected category.
+
+    Args:
+        text: Content to potentially store
+        mode: Current conversation mode
+        source: 'user' or 'assistant'
+        user_id: User ID for governance check
+
+    Returns:
+        Category name if stored, None otherwise
+    """
     import sqlite3  # local to avoid circular import issues
+    from datetime import datetime
 
     from .config import MEMORY_DB  # avoid top-level cycles
 
     category = classify_auto_memory(text, mode, source=source)
     if not category:
-        return
+        return None
+
+    # Check governance settings - is auto-save allowed for this category?
+    try:
+        from services.memory_service import should_auto_save
+        if not should_auto_save(category, user_id):
+            return None
+    except ImportError:
+        # Fallback if memory_service not available yet
+        pass
 
     conn = sqlite3.connect(MEMORY_DB)
     cursor = conn.cursor()
 
+    # Check for duplicate
     cursor.execute("SELECT id FROM memories WHERE content = ? LIMIT 1", (text,))
     if cursor.fetchone():
         conn.close()
-        return
+        return None
 
     emb = embed(text)
+    now = datetime.utcnow().isoformat()
+
     cursor.execute(
-        "INSERT INTO memories (category, content, embedding) VALUES (?, ?, ?)",
-        (category, text, emb),
+        """
+        INSERT INTO memories (user_id, category, content, embedding, source, is_pinned, updated_at)
+        VALUES (?, ?, ?, ?, 'auto', 0, ?)
+        """,
+        (user_id, category, text, emb, now),
     )
     conn.commit()
     conn.close()
+
+    return category
 

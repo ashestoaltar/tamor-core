@@ -484,8 +484,18 @@ def chat():
 Capability note (Tamor app):
 - This app supports reminders and tasks via an internal task system.
 - If the user asks to "remind me" / set a reminder, do NOT say you cannot set reminders/alarms.
-- Instead: If a reminder is detected and it needs confirmation, tell the user to confirm/cancel below. Otherwise, acknowledge that it’s scheduled and can be managed below.
+- Instead: If a reminder is detected and it needs confirmation, tell the user to confirm/cancel below. Otherwise, acknowledge that it's scheduled and can be managed below.
 """.strip()
+
+    # Inject relevant memories into context (Phase 6.1)
+    try:
+        import services.memory_service as mem_svc
+        memories = mem_svc.get_memories_for_context(user_message, user_id, max_memories=5)
+        memory_context = mem_svc.format_memories_for_prompt(memories)
+        if memory_context:
+            system_prompt += f"\n\n{memory_context}"
+    except Exception:
+        pass  # Don't fail chat if memory injection fails
 
     history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
 

@@ -12,6 +12,7 @@ import ReasoningTab from "./tabs/ReasoningTab.jsx";
 import PlaylistsTab from "./tabs/PlaylistsTab.jsx";
 import ViewerTab from "./tabs/ViewerTab.jsx";
 import MediaTab from "./tabs/MediaTab.jsx";
+import MemoryTab from "./tabs/MemoryTab.jsx";
 
 function RightPanel({
   currentProjectId,
@@ -187,10 +188,21 @@ function RightPanel({
         >
           Media
         </button>
+        <button
+          className={
+            activeTab === "memory"
+              ? "rp-tab rp-tab-active"
+              : "rp-tab"
+          }
+          type="button"
+          onClick={() => setActiveTab("memory")}
+        >
+          Memory
+        </button>
       </div>
 
       <div className="rp-body">
-        {!currentProjectId && activeTab !== "playlists" && (
+        {!currentProjectId && activeTab !== "playlists" && activeTab !== "memory" && (
           <div className="rp-empty-state">
             <div className="rp-empty-title">
               Select or create a project
@@ -255,6 +267,8 @@ function RightPanel({
         {currentProjectId && activeTab === "media" && (
           <MediaTab currentProjectId={currentProjectId} />
         )}
+
+        {activeTab === "memory" && <MemoryTab />}
       </div>
     </div>
   );

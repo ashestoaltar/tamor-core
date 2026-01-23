@@ -1300,3 +1300,159 @@
   font-weight: 500;
   margin-bottom: var(--space-sm);
 }
+
+/* Memory styles (Phase 6.1) ------------------------------------------------ */
+
+.rp-memory-controls {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.rp-memory-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.rp-memory-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.rp-memory-stats {
+  margin-top: var(--space-sm);
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.rp-memory-stat-pinned {
+  color: var(--text-muted);
+}
+
+.rp-memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.rp-memory-card {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.rp-memory-card:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+}
+
+.rp-memory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.rp-memory-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.rp-memory-actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.rp-memory-content {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+.rp-memory-meta {
+  margin-top: var(--space-sm);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.rp-memory-setting {
+  margin-bottom: var(--space-md);
+}
+
+.rp-memory-setting-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.rp-memory-setting-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.rp-memory-category-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.rp-memory-category-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 12px;
+  color: var(--text-soft);
+  cursor: pointer;
+  padding: 4px 8px;
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  transition: border-color var(--transition-fast);
+}
+
+.rp-memory-category-toggle:hover {
+  border-color: var(--accent-soft);
+}
+
+.rp-memory-category-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.rp-memory-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.rp-memory-form-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.rp-memory-form-row .rp-select {
+  flex: 1;
+}
+
+.rp-memory-form-row .rp-button {
+  flex-shrink: 0;
+}
