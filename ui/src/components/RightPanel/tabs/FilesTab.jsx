@@ -1,6 +1,7 @@
 // src/components/RightPanel/tabs/FilesTab.jsx
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "../../../api/client";
+import { useDevMode } from "../../../context/DevModeContext";
 
 import FileList from "../components/FileList.jsx";
 import StructurePanel from "../components/StructurePanel.jsx";
@@ -12,6 +13,7 @@ function FilesTab({
   activeMode,
   onConversationsChanged,
 }) {
+  const { devMode } = useDevMode();
   // Files list
   const [files, setFiles] = useState([]);
   const [filesLoading, setFilesLoading] = useState(false);
@@ -332,13 +334,15 @@ function FilesTab({
         fileActionResults={fileActionResults}
       />
 
-      {/* Structure block */}
-      <StructurePanel
-        structureFileId={structureFileId}
-        structureLoading={structureLoading}
-        structureError={structureError}
-        structureData={structureData}
-      />
+      {/* Structure block (dev mode only) */}
+      {devMode && (
+        <StructurePanel
+          structureFileId={structureFileId}
+          structureLoading={structureLoading}
+          structureError={structureError}
+          structureData={structureData}
+        />
+      )}
 
       <div className="rp-divider" />
 

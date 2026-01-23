@@ -4,6 +4,7 @@ import { useState } from "react";
 import ProjectsPanel from "./ProjectsPanel";
 import TasksPanel from "./TasksPanel";
 import { formatUtcTimestamp } from "../../utils/formatUtc";
+import { useDevMode } from "../../context/DevModeContext";
 
 export default function LeftPanel({
   activeMode, // kept for compatibility (used elsewhere / future UI)
@@ -16,6 +17,8 @@ export default function LeftPanel({
   currentProjectId,
   setCurrentProjectId,
 }) {
+  const { devMode } = useDevMode();
+
   // Conversations | Tasks tab
   const [activeTab, setActiveTab] = useState("conversations"); // "conversations" | "tasks"
 
@@ -119,13 +122,15 @@ export default function LeftPanel({
           >
             Conversations
           </button>
-          <button
-            type="button"
-            className={activeTab === "tasks" ? "left-tab active" : "left-tab"}
-            onClick={() => setActiveTab("tasks")}
-          >
-            Tasks
-          </button>
+          {devMode && (
+            <button
+              type="button"
+              className={activeTab === "tasks" ? "left-tab active" : "left-tab"}
+              onClick={() => setActiveTab("tasks")}
+            >
+              Tasks
+            </button>
+          )}
         </div>
       )}
 
@@ -197,7 +202,7 @@ export default function LeftPanel({
               </div>
             )}
           </div>
-        ) : activeTab === "tasks" ? (
+        ) : activeTab === "tasks" && devMode ? (
           <TasksPanel
             onOpenConversation={(cid) => {
               onSelectConversation(cid);

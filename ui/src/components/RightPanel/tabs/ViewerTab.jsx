@@ -1,9 +1,11 @@
 // src/components/RightPanel/tabs/ViewerTab.jsx
 import React, { useEffect, useState } from "react";
 import { apiFetch, API_BASE } from "../../../api/client";
+import { useDevMode } from "../../../context/DevModeContext";
 import StructurePanel from "../components/StructurePanel.jsx";
 
 function ViewerTab({ currentProjectId, viewerSelectedFileId, viewerSelectedPage }) {
+  const { devMode } = useDevMode();
   const [files, setFiles] = useState([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [filesError, setFilesError] = useState("");
@@ -204,18 +206,20 @@ function ViewerTab({ currentProjectId, viewerSelectedFileId, viewerSelectedPage 
                       borderRadius: "4px",
                     }}
                   />
-                  <div style={{ marginTop: 8 }}>
-                    <button
-                      type="button"
-                      className="rp-button subtle"
-                      onClick={handleLoadStructure}
-                      disabled={structureLoading}
-                    >
-                      {structureLoading
-                        ? "Loading structure…"
-                        : "Show structure"}
-                    </button>
-                  </div>
+                  {devMode && (
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        type="button"
+                        className="rp-button subtle"
+                        onClick={handleLoadStructure}
+                        disabled={structureLoading}
+                      >
+                        {structureLoading
+                          ? "Loading structure…"
+                          : "Show structure"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -223,13 +227,15 @@ function ViewerTab({ currentProjectId, viewerSelectedFileId, viewerSelectedPage 
         </div>
       </div>
 
-      {/* Structure details for the selected file */}
-      <StructurePanel
-        structureFileId={structureFileId}
-        structureLoading={structureLoading}
-        structureError={structureError}
-        structureData={structureData}
-      />
+      {/* Structure details for the selected file (dev mode only) */}
+      {devMode && (
+        <StructurePanel
+          structureFileId={structureFileId}
+          structureLoading={structureLoading}
+          structureError={structureError}
+          structureData={structureData}
+        />
+      )}
     </div>
   );
 }
