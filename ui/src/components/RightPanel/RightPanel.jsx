@@ -8,6 +8,7 @@ import FilesTab from "./tabs/FilesTab.jsx";
 import SearchTab from "./tabs/SearchTab.jsx";
 import KnowledgeTab from "./tabs/KnowledgeTab.jsx";
 import InsightsTab from "./tabs/InsightsTab.jsx";
+import ReasoningTab from "./tabs/ReasoningTab.jsx";
 import PlaylistsTab from "./tabs/PlaylistsTab.jsx";
 import ViewerTab from "./tabs/ViewerTab.jsx";
 import MediaTab from "./tabs/MediaTab.jsx";
@@ -155,6 +156,17 @@ function RightPanel({
         </button>
         <button
           className={
+            activeTab === "reasoning"
+              ? "rp-tab rp-tab-active"
+              : "rp-tab"
+          }
+          type="button"
+          onClick={() => setActiveTab("reasoning")}
+        >
+          Reasoning
+        </button>
+        <button
+          className={
             activeTab === "playlists"
               ? "rp-tab rp-tab-active"
               : "rp-tab"
@@ -232,6 +244,10 @@ function RightPanel({
 
         {currentProjectId && activeTab === "insights" && (
           <InsightsTab currentProjectId={currentProjectId} />
+        )}
+
+        {currentProjectId && activeTab === "reasoning" && (
+          <ReasoningTab currentProjectId={currentProjectId} />
         )}
 
         {activeTab === "playlists" && <PlaylistsTab />}

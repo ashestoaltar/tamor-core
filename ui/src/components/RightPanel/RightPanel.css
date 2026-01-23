@@ -888,3 +888,161 @@
   gap: var(--space-sm);
   align-items: center;
 }
+
+/* Reasoning styles (Phase 5.4) ------------------------------------------- */
+
+.rp-reasoning-controls {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.rp-reasoning-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.rp-reasoning-summary {
+  font-size: 13px;
+  color: var(--text-soft);
+  padding: var(--space-sm);
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent-soft);
+}
+
+.rp-reasoning-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.rp-reasoning-item {
+  padding: var(--space-sm);
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.rp-reasoning-item-high {
+  border-left: 3px solid var(--warning-soft);
+}
+
+.rp-reasoning-item-medium {
+  border-left: 3px solid var(--accent-soft);
+}
+
+.rp-reasoning-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-xs);
+}
+
+.rp-reasoning-file {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  padding: 2px 6px;
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+}
+
+.rp-reasoning-arrow,
+.rp-reasoning-vs {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.rp-reasoning-description,
+.rp-reasoning-issue {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.rp-reasoning-confidence,
+.rp-reasoning-supporting,
+.rp-reasoning-gaps,
+.rp-reasoning-affected {
+  font-size: 11px;
+  color: var(--text-soft);
+  margin-top: var(--space-xs);
+}
+
+.rp-reasoning-positions {
+  margin-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.rp-reasoning-position {
+  font-size: 12px;
+  color: var(--text-soft);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+}
+
+.rp-reasoning-position strong {
+  color: var(--text);
+}
+
+.rp-reasoning-score {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+}
+
+.rp-reasoning-score-label {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.rp-reasoning-score-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rp-reasoning-score-value.high {
+  color: var(--success-soft);
+}
+
+.rp-reasoning-score-value.medium {
+  color: var(--accent-soft);
+}
+
+.rp-reasoning-score-value.low {
+  color: var(--warning-soft);
+}
+
+.rp-reasoning-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.rp-reasoning-subtitle {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.rp-reasoning-assumption {
+  font-size: 13px;
+  color: var(--text);
+  font-style: italic;
+}
+
+.rp-success-text {
+  color: var(--success-soft);
+}
