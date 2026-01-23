@@ -44,6 +44,7 @@ from routes.files_api import files_bp
 from routes.tasks_api import tasks_bp
 from routes.status_api import status_bp
 from routes.messages_api import messages_bp
+from routes.plugins_api import plugins_bp
 
 
 
@@ -58,6 +59,7 @@ app.register_blueprint(files_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(status_bp, url_prefix="/api")
 app.register_blueprint(messages_bp)
+app.register_blueprint(plugins_bp)
 
 
 

@@ -1456,3 +1456,188 @@
 .rp-memory-form-row .rp-button {
   flex-shrink: 0;
 }
+
+/* Plugin styles (Phase 6.3) ------------------------------------------------- */
+
+.rp-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.rp-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.rp-config-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+}
+
+.rp-config-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.rp-config-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.rp-config-desc {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.rp-button-row {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.rp-list-item-compact {
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.rp-import-summary {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-sm);
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+}
+
+.rp-summary-stat {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.rp-summary-label {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.rp-summary-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rp-summary-success .rp-summary-value {
+  color: var(--success-soft);
+}
+
+.rp-summary-failed .rp-summary-value {
+  color: var(--error, #ef4444);
+}
+
+.rp-import-errors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.rp-error-item {
+  font-size: 12px;
+  color: var(--error, #ef4444);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+}
+
+.rp-tag-info {
+  background: var(--bg-soft);
+  border-color: var(--accent-soft);
+  color: var(--accent-soft);
+}
+
+.rp-btn {
+  border: none;
+  border-radius: var(--radius-full);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.rp-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.rp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rp-btn-sm {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.rp-btn-primary {
+  background: var(--accent-gradient);
+  color: #111827;
+  border-color: transparent;
+}
+
+.rp-btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* Upload dropzone */
+
+.rp-upload-section {
+  margin-top: var(--space-sm);
+}
+
+.rp-upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg) var(--space-md);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-soft);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.rp-upload-dropzone:hover {
+  border-color: var(--accent-soft);
+  background: var(--bg-hover);
+}
+
+.rp-upload-icon {
+  font-size: 32px;
+  color: var(--text-soft);
+  margin-bottom: var(--space-sm);
+}
+
+.rp-upload-text {
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: var(--space-xs);
+}
+
+.rp-upload-hint {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.rp-mode-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}

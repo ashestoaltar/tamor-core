@@ -13,6 +13,7 @@ import PlaylistsTab from "./tabs/PlaylistsTab.jsx";
 import ViewerTab from "./tabs/ViewerTab.jsx";
 import MediaTab from "./tabs/MediaTab.jsx";
 import MemoryTab from "./tabs/MemoryTab.jsx";
+import PluginsTab from "./tabs/PluginsTab.jsx";
 
 function RightPanel({
   currentProjectId,
@@ -199,6 +200,17 @@ function RightPanel({
         >
           Memory
         </button>
+        <button
+          className={
+            activeTab === "plugins"
+              ? "rp-tab rp-tab-active"
+              : "rp-tab"
+          }
+          type="button"
+          onClick={() => setActiveTab("plugins")}
+        >
+          Plugins
+        </button>
       </div>
 
       <div className="rp-body">
@@ -269,6 +281,10 @@ function RightPanel({
         )}
 
         {activeTab === "memory" && <MemoryTab />}
+
+        {currentProjectId && activeTab === "plugins" && (
+          <PluginsTab currentProjectId={currentProjectId} />
+        )}
       </div>
     </div>
   );
