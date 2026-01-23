@@ -479,6 +479,82 @@ def chat():
             }
         )
 
+    # Phase 6.2: Agent Router - check if multi-agent pipeline should handle this
+    try:
+        from services.router import route_chat, RequestContext as RouterContext
+        import services.memory_service as mem_svc
+
+        # Check for debug mode
+        include_trace = (
+            request.headers.get("X-Tamor-Debug") == "1"
+            or request.args.get("debug") == "1"
+        )
+
+        # Get memories for context
+        memories = []
+        try:
+            memories = mem_svc.get_memories_for_context(user_message, user_id, max_memories=5)
+        except Exception:
+            pass
+
+        # Build router context
+        history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
+        router_ctx = RouterContext(
+            user_message=user_message,
+            conversation_id=conv_id,
+            project_id=project_id,
+            user_id=user_id,
+            history=history,
+            memories=memories,
+            mode=effective_mode,
+        )
+
+        # Route the request
+        router_result = route_chat(router_ctx, include_trace=include_trace)
+
+        # If router handled it (not passthrough), return the result
+        if router_result.handled_by not in ("llm_single_passthrough", "error"):
+            reply_text = router_result.content
+
+            user_mid = add_message(conv_id, "user", "user", user_message)
+            assistant_mid = add_message(conv_id, "tamor", "assistant", reply_text)
+
+            response_data = {
+                "tamor": reply_text,
+                "conversation_id": conv_id,
+                "detected_task": detected_task,
+                "message_ids": {"user": user_mid, "assistant": assistant_mid},
+            }
+
+            # Include citations if present
+            if router_result.citations:
+                response_data["citations"] = router_result.citations
+
+            # Include trace if requested
+            if router_result.trace:
+                response_data["router_trace"] = router_result.trace.to_dict()
+
+            # Handle detected task persistence
+            task_id = persist_detected_task(
+                user_id=user_id,
+                project_id=project_id,
+                conversation_id=conv_id,
+                message_id=user_mid,
+                detected_task=detected_task,
+            )
+            if detected_task and task_id:
+                detected_task["id"] = task_id
+                detected_task["conversation_id"] = conv_id
+                detected_task["message_id"] = user_mid
+                response_data["detected_task"] = detected_task
+
+            return jsonify(response_data)
+
+    except Exception as e:
+        # Log but don't fail - fall through to existing LLM path
+        import logging
+        logging.getLogger(__name__).warning(f"Router error, falling back to LLM: {e}")
+
     system_prompt = build_system_prompt(effective_mode)
     system_prompt += """
 Capability note (Tamor app):
