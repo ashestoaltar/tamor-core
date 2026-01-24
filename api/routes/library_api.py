@@ -14,6 +14,7 @@ from services.library import (
     LibraryIngestService,
     LibraryReferenceService,
     LibraryScannerService,
+    LibrarySearchService,
     LibraryService,
     LibraryTextService,
     ScannedFile,
@@ -31,6 +32,7 @@ chunk_service = LibraryChunkService()
 scanner_service = LibraryScannerService()
 ingest_service = LibraryIngestService()
 index_queue_service = LibraryIndexQueueService()
+search_service = LibrarySearchService()
 
 
 # =============================================================================
@@ -745,3 +747,152 @@ def reindex_files():
         # Reindex everything
         result = index_queue_service.reindex_all()
         return jsonify(result)
+
+
+# =============================================================================
+# SEARCH
+# =============================================================================
+
+
+@library_bp.get("/api/library/search")
+def search_library():
+    """
+    Semantic search across library.
+
+    Query params:
+        q: Search query (required)
+        scope: 'library' | 'project' | 'all' (default: 'library')
+        project_id: Required if scope is 'project' or 'all'
+        limit: Max results (default: 10, max: 50)
+        min_score: Minimum similarity score 0-1 (default: 0.3)
+        file_types: Comma-separated mime type prefixes (e.g., 'application/pdf,application/epub')
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    query = request.args.get("q")
+    if not query:
+        return jsonify({"error": "q parameter required"}), 400
+
+    scope = request.args.get("scope", "library")
+    if scope not in ("library", "project", "all"):
+        return jsonify({"error": "scope must be library, project, or all"}), 400
+
+    project_id = request.args.get("project_id", type=int)
+
+    if scope in ("project", "all") and not project_id:
+        return jsonify({"error": "project_id required for scope=" + scope}), 400
+
+    # Verify project access if specified
+    if project_id:
+        conn = get_db()
+        cur = conn.execute(
+            "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+            (project_id, user_id),
+        )
+        if not cur.fetchone():
+            return jsonify({"error": "project not found"}), 404
+
+    limit = min(int(request.args.get("limit", 10)), 50)
+    min_score = float(request.args.get("min_score", 0.3))
+
+    file_types = request.args.get("file_types")
+    if file_types:
+        file_types = [ft.strip() for ft in file_types.split(",")]
+
+    try:
+        results = search_service.search(
+            query=query,
+            scope=scope,
+            project_id=project_id,
+            limit=limit,
+            min_score=min_score,
+            file_types=file_types,
+        )
+
+        return jsonify(
+            {
+                "query": query,
+                "scope": scope,
+                "results": [r.to_dict() for r in results],
+                "count": len(results),
+            }
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@library_bp.get("/api/library/<int:file_id>/search")
+def search_within_file(file_id: int):
+    """
+    Search within a specific library file.
+
+    Query params:
+        q: Search query (required)
+        limit: Max results (default: 5)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    query = request.args.get("q")
+    if not query:
+        return jsonify({"error": "q parameter required"}), 400
+
+    # Verify file exists
+    file = library_service.get_file(file_id)
+    if not file:
+        return jsonify({"error": "file not found"}), 404
+
+    limit = min(int(request.args.get("limit", 5)), 20)
+
+    results = search_service.search_by_file(
+        query=query,
+        library_file_id=file_id,
+        limit=limit,
+    )
+
+    return jsonify(
+        {
+            "file_id": file_id,
+            "filename": file["filename"],
+            "query": query,
+            "results": [r.to_dict() for r in results],
+            "count": len(results),
+        }
+    )
+
+
+@library_bp.get("/api/library/<int:file_id>/similar")
+def find_similar_files(file_id: int):
+    """
+    Find files similar to a given file.
+
+    Query params:
+        limit: Max results (default: 5)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Verify file exists
+    file = library_service.get_file(file_id)
+    if not file:
+        return jsonify({"error": "file not found"}), 404
+
+    limit = min(int(request.args.get("limit", 5)), 20)
+
+    similar = search_service.find_similar_files(
+        library_file_id=file_id,
+        limit=limit,
+    )
+
+    return jsonify(
+        {
+            "file_id": file_id,
+            "filename": file["filename"],
+            "similar_files": similar,
+        }
+    )
