@@ -64,6 +64,18 @@
   /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
+
+  /* Breakpoints - referenced in comments, used via media queries */
+  /* Mobile: < 768px */
+  /* Tablet: 768px - 1024px */
+  /* Desktop: > 1024px */
+
+  /* Layout tokens */
+  --mobile-nav-height: 56px;
+  --drawer-width: 85vw;
+  --drawer-max-width: 320px;
+  --panel-min-width-tablet: 280px;
+  --panel-min-width-desktop: 300px;
 }
 
 /* ===========================
