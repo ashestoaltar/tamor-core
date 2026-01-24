@@ -220,6 +220,92 @@ Align the UI with Tamor's core philosophy (Wholeness • Light • Insight). Sim
 - ✅ Developer tools accessible but hidden by default
 - ✅ Interface embodies Tamor: calm, purposeful, illuminating
 
+3.5 Reference Integration (Local-First) (Proposed)
+
+Integrate biblical and scholarly reference sources into Tamor, enabling grounded research with clear source attribution.
+
+**Philosophy: Local Independence**
+- SWORD modules — Bible translations stored locally, no API calls
+- Sefaria caching — API for Jewish texts, but aggressively cached locally
+- Single data directory — easy migration to NAS when ready
+- Offline capable — works without internet for cached/local content
+
+**Storage Structure:**
+```
+{TAMOR_REFERENCE_PATH}/          # Default: /home/tamor/data/references/
+├── sword/modules/               # SWORD Bible modules (~50-100MB typical)
+├── sefaria_cache/               # Cached Sefaria responses
+└── config.json                  # Module preferences, enabled translations
+```
+
+3.5.1 Storage & Module Management
+
+⬜ Create reference data directory structure
+
+⬜ SWORD module downloader (fetch from CrossWire)
+
+⬜ Module configuration (enable/disable translations)
+
+⬜ pysword integration for reading modules
+
+3.5.2 SWORD Client
+
+⬜ Read passages from local modules
+
+⬜ List available/enabled translations
+
+⬜ Search within modules (basic keyword)
+
+⬜ Compare translations locally
+
+3.5.3 Sefaria Client with Caching
+
+⬜ API client for Sefaria
+
+⬜ File-based cache for responses
+
+⬜ SQLite index for cache lookups
+
+⬜ Offline fallback to cache
+
+3.5.4 Unified Reference Service
+
+⬜ Combined interface for both sources
+
+⬜ Reference parser (human input → structured)
+
+⬜ API endpoints: /api/references/lookup, /search, /compare, /versions, /modules
+
+3.5.5 Frontend Integration
+
+⬜ CitationCard component
+
+⬜ ReferencesTab in RightPanel
+
+⬜ Chat citation display
+
+⬜ LLM context injection
+
+**Reference Sources:**
+- SWORD Modules: KJV, NASB, ESV, WEB, YLT, ASV, OSHB (Hebrew), LXX (Greek)
+- Sefaria: Tanakh, Talmud, Midrash, Mishnah, commentaries
+
+**Offline Behavior:**
+| Source | Online | Offline |
+|--------|--------|---------|
+| SWORD modules | ✅ Full | ✅ Full |
+| Sefaria (cached) | ✅ Fresh + cached | ✅ Cached only |
+| Sefaria (not cached) | ✅ Fetch + cache | ❌ Unavailable |
+
+**Success Criteria:**
+- Bible translations available locally (SWORD)
+- Works fully offline for Bible lookups
+- Sefaria content cached locally after first fetch
+- User can compare translations instantly
+- Citations display clearly in chat
+- Storage easily movable to NAS (env var or symlink)
+- Hebrew text displays correctly
+
 Phase 4 – Research & Intelligence Expansion
 4.1 Auto-Insights Engine (Complete)
 
@@ -420,6 +506,22 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.17 – 2026-01-23
+
+Added Phase 3.5 Reference Integration (Local-First):
+
+⬜ 3.5.1 Storage & Module Management — directory structure, SWORD downloader, pysword
+
+⬜ 3.5.2 SWORD Client — local Bible module reading, translation comparison
+
+⬜ 3.5.3 Sefaria Client with Caching — API client, file cache, offline fallback
+
+⬜ 3.5.4 Unified Reference Service — combined interface, reference parser, API endpoints
+
+⬜ 3.5.5 Frontend Integration — CitationCard, ReferencesTab, chat citations
+
+Philosophy: Local independence (SWORD local, Sefaria cached, NAS-ready)
+
 v1.16 – 2026-01-23
 
 Completed Phase 3.4.1 UI Audit & Developer Mode:
