@@ -10,6 +10,7 @@ from flask import Blueprint, jsonify, request
 
 from services.library import (
     LibraryChunkService,
+    LibraryIndexQueueService,
     LibraryIngestService,
     LibraryReferenceService,
     LibraryScannerService,
@@ -29,6 +30,7 @@ text_service = LibraryTextService()
 chunk_service = LibraryChunkService()
 scanner_service = LibraryScannerService()
 ingest_service = LibraryIngestService()
+index_queue_service = LibraryIndexQueueService()
 
 
 # =============================================================================
@@ -644,3 +646,102 @@ def ingest_single_file():
         return jsonify(result), 500
 
     return jsonify(result), 201 if result["status"] == "created" else 200
+
+
+# =============================================================================
+# INDEXING QUEUE
+# =============================================================================
+
+
+@library_bp.get("/api/library/index/queue")
+def get_index_queue():
+    """Get indexing queue statistics."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    return jsonify(index_queue_service.get_queue_stats())
+
+
+@library_bp.get("/api/library/index/pending")
+def get_pending_index():
+    """
+    Get files pending indexing.
+
+    Query params:
+        limit: Max files to return (default: 50)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    limit = min(int(request.args.get("limit", 50)), 200)
+    files = index_queue_service.get_unindexed_files(limit=limit)
+
+    return jsonify({"files": files, "count": len(files)})
+
+
+@library_bp.post("/api/library/index/process")
+def process_index_queue():
+    """
+    Process indexing queue.
+
+    Body:
+        count: Number of files to process (default: 10)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    count = min(int(data.get("count", 10)), 100)
+
+    result = index_queue_service.index_next(count=count)
+
+    return jsonify(result)
+
+
+@library_bp.post("/api/library/index/all")
+def index_all_files():
+    """
+    Process entire indexing queue.
+
+    Warning: Can take a long time for large libraries!
+
+    Body:
+        batch_size: Files per batch (default: 10)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    batch_size = min(int(data.get("batch_size", 10)), 50)
+
+    result = index_queue_service.index_all(batch_size=batch_size)
+
+    return jsonify(result)
+
+
+@library_bp.post("/api/library/index/reindex")
+def reindex_files():
+    """
+    Mark files for reindexing.
+
+    Body:
+        file_ids: List of file IDs to reindex (if not provided, reindexes all)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    file_ids = data.get("file_ids")
+
+    if file_ids:
+        count = index_queue_service.mark_for_reindex(file_ids)
+        return jsonify({"marked_for_reindex": count})
+    else:
+        # Reindex everything
+        result = index_queue_service.reindex_all()
+        return jsonify(result)
