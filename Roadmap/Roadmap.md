@@ -497,21 +497,21 @@ Plugin enhancements:
 
 **Purpose:** Centralized, NAS-backed knowledge repository that serves as the single source of truth for all documents, transcripts, and media. Projects reference library items without duplication.
 
-### 7.1 Library Schema & Core Service
+### 7.1 Library Schema & Core Service ✅
 
 Database foundation for the global library:
 
-⬜ `library_files` table (id, filename, stored_path, mime_type, size_bytes, source_type, metadata_json, created_at)
+✅ `library_files` table (id, filename, stored_path, mime_type, size_bytes, source_type, metadata_json, created_at)
 
-⬜ `library_chunks` table (id, library_file_id, chunk_index, content, embedding, page)
+✅ `library_chunks` table (id, library_file_id, chunk_index, content, embedding, page)
 
-⬜ `project_library_refs` table (project_id, library_file_id, added_at, notes)
+✅ `project_library_refs` table (project_id, library_file_id, added_at, notes)
 
-⬜ `library_service.py` with CRUD operations
+✅ `library_service.py` with CRUD operations
 
-⬜ Reference management (add/remove library items from projects)
+✅ Reference management (add/remove library items from projects)
 
-⬜ Deduplication check on ingest (hash-based)
+✅ Deduplication check on ingest (hash-based)
 
 ### 7.2 Library Ingest Pipeline
 
@@ -588,6 +588,18 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.22 – 2026-01-24
+
+Completed Phase 7.1 Library Schema & Core Service:
+
+✅ Migration 008: library_files, library_chunks, library_text_cache, library_config, project_library_refs tables
+✅ LibraryStorageService: mount path config, hash computation, path resolution
+✅ LibraryService: full CRUD with deduplication, metadata, tags, stats
+✅ LibraryReferenceService: project-library links, bulk operations
+✅ LibraryTextService: text extraction with caching
+✅ LibraryChunkService: chunking and embeddings for semantic search
+✅ REST API: 12 endpoints for library and project reference management
+
 v1.21 – 2026-01-24
 
 Added Phase 7 – Global Library System:
