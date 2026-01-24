@@ -3,6 +3,8 @@
 Reference storage and retrieval services for Tamor.
 
 This package provides:
+- ReferenceService: Unified interface for all reference lookups
+- Reference: Dataclass for scripture passages with text
 - ReferenceStorage: Directory structure and configuration management
 - SwordManager: SWORD Bible module download and management
 - SwordClient: Bible passage lookup from local SWORD modules
@@ -38,8 +40,15 @@ from .reference_parser import (
     BOOK_NAMES,
     BOOK_TO_OSIS,
 )
+from .reference_service import (
+    ReferenceService,
+    Reference,
+)
 
 __all__ = [
+    # Unified Service (primary interface)
+    "ReferenceService",
+    "Reference",
     # Storage
     "ReferenceStorage",
     # SWORD
