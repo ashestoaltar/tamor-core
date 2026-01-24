@@ -29,13 +29,14 @@ SWORD_MODULES = {
         "language": "en",
         "description": "1769 King James Version of the Holy Bible",
     },
-    "WEB": {
-        "name": "World English Bible",
-        "url": "https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/WEB.zip",
-        "size_mb": 2,
-        "language": "en",
-        "description": "Public domain modern English translation",
-    },
+    # Note: WEB module not available on CrossWire (removed from repository)
+    # "WEB": {
+    #     "name": "World English Bible",
+    #     "url": "https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/WEB.zip",
+    #     "size_mb": 2,
+    #     "language": "en",
+    #     "description": "Public domain modern English translation",
+    # },
     "ASV": {
         "name": "American Standard Version",
         "url": "https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/ASV.zip",
