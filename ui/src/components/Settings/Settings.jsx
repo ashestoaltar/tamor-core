@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDevMode } from "../../context/DevModeContext";
+import { useVoiceSettings } from "../../context/VoiceSettingsContext";
 import "./Settings.css";
 
 /**
@@ -10,6 +11,73 @@ import "./Settings.css";
 export default function Settings() {
   const { user, logout } = useAuth();
   const { devMode, toggleDevMode } = useDevMode();
+  const {
+    inputEnabled,
+    setInputEnabled,
+    inputSupported,
+    outputEnabled,
+    setOutputEnabled,
+    outputSupported,
+    autoRead,
+    setAutoRead,
+    selectedVoiceName,
+    setSelectedVoiceName,
+    rate,
+    setRate,
+  } = useVoiceSettings();
+
+  // Available voices (loaded async)
+  const [voices, setVoices] = useState([]);
+  const [testingSpeech, setTestingSpeech] = useState(false);
+
+  // Load available voices
+  useEffect(() => {
+    if (!outputSupported) return;
+
+    const loadVoices = () => {
+      const availableVoices = window.speechSynthesis.getVoices();
+      if (availableVoices.length > 0) {
+        setVoices(availableVoices);
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, [outputSupported]);
+
+  // Test speech
+  const handleTestSpeech = () => {
+    if (!outputSupported || testingSpeech) return;
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(
+      "Hello! I'm Tamor, your AI companion. How can I help you today?"
+    );
+
+    // Find selected voice
+    if (selectedVoiceName) {
+      const voice = voices.find((v) => v.name === selectedVoiceName);
+      if (voice) utterance.voice = voice;
+    }
+
+    utterance.rate = rate;
+
+    utterance.onstart = () => setTestingSpeech(true);
+    utterance.onend = () => setTestingSpeech(false);
+    utterance.onerror = () => setTestingSpeech(false);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleStopTest = () => {
+    window.speechSynthesis.cancel();
+    setTestingSpeech(false);
+  };
 
   return (
     <div className="settings-panel">
@@ -54,32 +122,167 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* Voice Section (placeholder) */}
+      {/* Voice Section */}
       <section className="settings-section">
         <h3 className="settings-section-title">Voice</h3>
         <div className="settings-section-content">
+          {/* Voice Input Toggle */}
           <div className="settings-row">
             <div className="settings-row-info">
               <div className="settings-row-label">Voice Input</div>
               <div className="settings-row-description">
-                Coming in Phase 3.4.3
+                {inputSupported
+                  ? "Enable microphone button for speech-to-text"
+                  : "Voice input is not supported in this browser"}
               </div>
             </div>
             <div className="settings-row-control">
-              <span className="settings-value-label settings-coming-soon">Soon</span>
+              {inputSupported ? (
+                <button
+                  className={`settings-toggle ${inputEnabled ? "active" : ""}`}
+                  onClick={() => setInputEnabled(!inputEnabled)}
+                  role="switch"
+                  aria-checked={inputEnabled}
+                  aria-label="Voice Input"
+                >
+                  <span className="settings-toggle-track">
+                    <span className="settings-toggle-thumb" />
+                  </span>
+                </button>
+              ) : (
+                <span className="settings-value-label settings-not-supported">
+                  Not Supported
+                </span>
+              )}
             </div>
           </div>
+
+          {/* Voice Output Toggle */}
           <div className="settings-row">
             <div className="settings-row-info">
-              <div className="settings-row-label">Voice Output</div>
+              <div className="settings-row-label">Read Aloud</div>
               <div className="settings-row-description">
-                Text-to-speech for responses
+                {outputSupported
+                  ? "Show read aloud buttons on messages"
+                  : "Text-to-speech is not supported in this browser"}
               </div>
             </div>
             <div className="settings-row-control">
-              <span className="settings-value-label settings-coming-soon">Soon</span>
+              {outputSupported ? (
+                <button
+                  className={`settings-toggle ${outputEnabled ? "active" : ""}`}
+                  onClick={() => setOutputEnabled(!outputEnabled)}
+                  role="switch"
+                  aria-checked={outputEnabled}
+                  aria-label="Read Aloud"
+                >
+                  <span className="settings-toggle-track">
+                    <span className="settings-toggle-thumb" />
+                  </span>
+                </button>
+              ) : (
+                <span className="settings-value-label settings-not-supported">
+                  Not Supported
+                </span>
+              )}
             </div>
           </div>
+
+          {/* Auto-read Toggle */}
+          {outputSupported && outputEnabled && (
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <div className="settings-row-label">Auto-Read Responses</div>
+                <div className="settings-row-description">
+                  Automatically read Tamor's responses aloud
+                </div>
+              </div>
+              <div className="settings-row-control">
+                <button
+                  className={`settings-toggle ${autoRead ? "active" : ""}`}
+                  onClick={() => setAutoRead(!autoRead)}
+                  role="switch"
+                  aria-checked={autoRead}
+                  aria-label="Auto-Read Responses"
+                >
+                  <span className="settings-toggle-track">
+                    <span className="settings-toggle-thumb" />
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Voice Selection */}
+          {outputSupported && outputEnabled && voices.length > 0 && (
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <div className="settings-row-label">Voice</div>
+                <div className="settings-row-description">
+                  Select the voice for text-to-speech
+                </div>
+              </div>
+              <div className="settings-row-control settings-row-control-wide">
+                <select
+                  className="settings-select"
+                  value={selectedVoiceName || ""}
+                  onChange={(e) => setSelectedVoiceName(e.target.value || null)}
+                  aria-label="Voice selection"
+                >
+                  <option value="">System Default</option>
+                  {voices.map((voice) => (
+                    <option key={voice.name} value={voice.name}>
+                      {voice.name} ({voice.lang})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Speech Rate */}
+          {outputSupported && outputEnabled && (
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <div className="settings-row-label">Speech Rate</div>
+                <div className="settings-row-description">
+                  {rate.toFixed(1)}x speed
+                </div>
+              </div>
+              <div className="settings-row-control settings-row-control-wide">
+                <input
+                  type="range"
+                  className="settings-slider"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={rate}
+                  onChange={(e) => setRate(parseFloat(e.target.value))}
+                  aria-label="Speech rate"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Test Button */}
+          {outputSupported && outputEnabled && (
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <div className="settings-row-label">Test Voice</div>
+                <div className="settings-row-description">
+                  Hear a sample with current settings
+                </div>
+              </div>
+              <div className="settings-row-control">
+                <button
+                  className={`settings-button settings-button-outline ${testingSpeech ? "active" : ""}`}
+                  onClick={testingSpeech ? handleStopTest : handleTestSpeech}
+                >
+                  {testingSpeech ? "Stop" : "Test"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

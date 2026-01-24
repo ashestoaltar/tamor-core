@@ -214,6 +214,98 @@
   outline-offset: 2px;
 }
 
+.settings-button-outline.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #111827;
+}
+
+/* ===========================
+   Select Dropdown
+   =========================== */
+
+.settings-select {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  cursor: pointer;
+  min-height: 44px;
+  color-scheme: dark;
+}
+
+.settings-select:hover {
+  border-color: var(--border-hover);
+}
+
+.settings-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ===========================
+   Slider
+   =========================== */
+
+.settings-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-strong);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.settings-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.settings-slider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* ===========================
+   Wide Control (for dropdowns/sliders)
+   =========================== */
+
+.settings-row-control-wide {
+  flex: 1;
+  max-width: 200px;
+}
+
+/* ===========================
+   Not Supported State
+   =========================== */
+
+.settings-not-supported {
+  color: var(--text-muted);
+  font-style: italic;
+  background: transparent;
+}
+
 /* ===========================
    Footer
    =========================== */
