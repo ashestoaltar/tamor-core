@@ -73,6 +73,77 @@
   color: #111827;
 }
 
+/* Grouped Tabs (Mobile/Tablet) --------------------------------------- */
+
+.rp-tabs-grouped {
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
+.rp-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.rp-tabs-essential {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rp-tabs-subtabs {
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: var(--space-xs) var(--space-md);
+}
+
+/* Group toggle button */
+.rp-tab-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: var(--space-xs);
+}
+
+.rp-tab-group-chevron {
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.rp-tab-group-expanded .rp-tab-group-chevron {
+  transform: rotate(180deg);
+}
+
+/* Group active state (when one of its tabs is selected) */
+.rp-tab-group-active {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--accent);
+}
+
+.rp-tab-group-active:hover {
+  background: rgba(251, 191, 36, 0.25);
+}
+
+/* Sub-tabs within expanded groups */
+.rp-tab-sub {
+  font-size: 11px;
+  padding: var(--space-xs) var(--space-sm);
+  min-height: 32px;
+}
+
+/* Touch targets for mobile */
+@media (max-width: 767px) {
+  .rp-tabs-grouped .rp-tab {
+    min-height: 44px;
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .rp-tabs-subtabs .rp-tab {
+    min-height: 40px;
+  }
+}
+
 /* Body --------------------------------------------------------------- */
 
 .rp-body {
