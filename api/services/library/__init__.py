@@ -6,6 +6,7 @@ Library services package.
 Provides centralized management for the global library system.
 """
 
+from .chunk_service import LibraryChunkService
 from .library_service import LibraryService
 from .reference_service import LibraryReferenceService
 from .storage_service import LibraryStorageService
@@ -16,4 +17,5 @@ __all__ = [
     "LibraryService",
     "LibraryReferenceService",
     "LibraryTextService",
+    "LibraryChunkService",
 ]

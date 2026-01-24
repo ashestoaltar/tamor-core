@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS library_chunks (
     chunk_index INTEGER NOT NULL,
     content TEXT,
     embedding BLOB,
+    start_offset INTEGER,                   -- Character offset in source text
     page INTEGER,                           -- Source page if applicable
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (library_file_id) REFERENCES library_files(id) ON DELETE CASCADE
