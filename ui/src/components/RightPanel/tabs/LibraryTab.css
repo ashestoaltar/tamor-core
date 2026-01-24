@@ -44,6 +44,18 @@
   border-color: var(--accent-color);
 }
 
+.library-nav .settings-btn {
+  padding: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.library-nav .settings-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 .library-content {
   flex: 1;
   overflow-y: auto;
