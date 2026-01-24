@@ -6,7 +6,7 @@ This package provides:
 - ReferenceStorage: Directory structure and configuration management
 - SwordManager: SWORD Bible module download and management
 - SwordClient: Bible passage lookup from local SWORD modules
-- Sefaria API caching (future)
+- SefariaClient: Sefaria API access with aggressive local caching
 """
 
 from .storage import ReferenceStorage
@@ -22,6 +22,11 @@ from .sword_client import (
     ReferenceParseError,
     parse_reference,
 )
+from .sefaria_client import (
+    SefariaClient,
+    SefariaError,
+    SefariaNetworkError,
+)
 
 __all__ = [
     "ReferenceStorage",
@@ -33,4 +38,7 @@ __all__ = [
     "SwordClient",
     "ReferenceParseError",
     "parse_reference",
+    "SefariaClient",
+    "SefariaError",
+    "SefariaNetworkError",
 ]
