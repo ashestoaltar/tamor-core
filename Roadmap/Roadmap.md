@@ -590,6 +590,16 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.25 – 2026-01-24
+
+Added Library Settings & Documentation:
+
+✅ LibrarySettingsService for per-user context injection preferences
+✅ Settings API: GET/PATCH /api/library/settings, POST /api/library/settings/reset
+✅ Configurable: enabled, max_chunks, max_chars, min_score, scope
+✅ Chat context injection respects user settings
+✅ Created comprehensive Features Guide (docs/Features.md)
+
 v1.24 – 2026-01-24
 
 Completed Phase 7.3 Library Search & Retrieval:
@@ -1010,6 +1020,12 @@ Key Architectural Decisions
 | Cloudflare Tunnel | Secure remote access without exposing ports |
 
 Companion Documents
+
+**[Features Guide](../docs/Features.md)** – Comprehensive reference for all Tamor features, APIs, and usage patterns. Includes:
+- Global Library System (scanning, ingestion, search, context injection, settings)
+- Reference Integration (SWORD, Sefaria)
+- Multi-Agent System (Researcher, Writer, Engineer, Archivist)
+- Memory System, Plugin Framework, Pipelines, Insights, Transcription
 
 Tamor – Roadmap Extensions & Proposals
 
