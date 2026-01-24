@@ -220,7 +220,7 @@ Align the UI with Tamor's core philosophy (Wholeness • Light • Insight). Sim
 - ✅ Developer tools accessible but hidden by default
 - ✅ Interface embodies Tamor: calm, purposeful, illuminating
 
-3.5 Reference Integration (Local-First) (In Progress)
+3.5 Reference Integration (Local-First) (Complete)
 
 Integrate biblical and scholarly reference sources into Tamor, enabling grounded research with clear source attribution.
 
@@ -280,15 +280,15 @@ Integrate biblical and scholarly reference sources into Tamor, enabling grounded
 
 ✅ API endpoints: /api/references/lookup, /compare, /search, /detect, /commentary, /cross-references, /translations, /modules/*, /book/*, /cache/*
 
-3.5.5 Frontend Integration
+3.5.5 Frontend Integration (Complete)
 
-⬜ CitationCard component
+✅ CitationCard component (compact/expanded modes, Hebrew RTL, copy/compare actions)
 
-⬜ ReferencesTab in RightPanel
+✅ ReferencesTab in RightPanel (lookup, compare translations, recent history, module management)
 
-⬜ Chat citation display
+✅ Chat citation display (auto-detect references in messages, fetch and display CitationCards)
 
-⬜ LLM context injection
+✅ LLM context injection (inject actual passage text into system prompt for grounded responses)
 
 **Reference Sources:**
 - SWORD Modules: KJV, NASB, ESV, WEB, YLT, ASV, OSHB (Hebrew), LXX (Greek)
@@ -510,6 +510,40 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.19 – 2026-01-24
+
+Completed Phase 3.5.5 Frontend Integration (Reference System):
+
+✅ CitationCard component:
+  - Compact and expanded display modes
+  - Hebrew text support with RTL layout
+  - Source badges (SWORD/Sefaria)
+  - Copy, compare, external link actions
+
+✅ Frontend utilities:
+  - referenceParser.js with 66-book abbreviation mapping
+  - useReferences hook for all API operations
+  - Caching and batch lookup support
+
+✅ Chat integration:
+  - MessageCitations component detects references in assistant messages
+  - Auto-fetches passage text and displays CitationCards
+  - Limits to 5 citations per message
+
+✅ ReferencesTab in RightPanel:
+  - Passage lookup with translation dropdown
+  - Compare translations panel
+  - Recent lookups stored in localStorage
+  - Module management (installed/available)
+
+✅ LLM context injection:
+  - inject_scripture_context() detects references in user messages
+  - Fetches actual text from SWORD modules
+  - Injects formatted context block into system prompt
+  - Enables grounded, text-aware LLM responses
+
+Phase 3.5 Reference Integration is now fully complete.
+
 v1.18 – 2026-01-24
 
 Completed Phase 3.5.1–3.5.4 Reference Integration (Backend):
@@ -535,7 +569,7 @@ Completed Phase 3.5.1–3.5.4 Reference Integration (Backend):
   - Reference parser with 200+ book abbreviations
   - Full API: lookup, compare, search, detect, commentary, cross-references, translations, modules, cache
 
-⬜ 3.5.5 Frontend Integration — pending (CitationCard, ReferencesTab)
+✅ 3.5.5 Frontend Integration — completed in v1.19
 
 v1.17 – 2026-01-23
 
