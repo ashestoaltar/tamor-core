@@ -6,8 +6,46 @@ import remarkGfm from "remark-gfm";
 import { apiFetch } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { useBreakpoint } from "../../hooks/useBreakpoint";
+import { useVoiceOutput } from "../../hooks/useVoiceOutput";
 import TaskPill from "./TaskPill";
 import VoiceButton from "../VoiceButton/VoiceButton";
+
+/**
+ * Strip markdown formatting from text for speech synthesis.
+ * Removes common markdown syntax while preserving readable content.
+ */
+function stripMarkdown(text) {
+  if (!text) return "";
+
+  return text
+    // Remove code blocks (fenced and indented)
+    .replace(/```[\s\S]*?```/g, " code block ")
+    .replace(/`([^`]+)`/g, "$1")
+    // Remove headers
+    .replace(/^#{1,6}\s+/gm, "")
+    // Remove bold/italic
+    .replace(/\*\*\*([^*]+)\*\*\*/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/___([^_]+)___/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    // Remove links, keep text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    // Remove images
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    // Remove blockquotes
+    .replace(/^>\s+/gm, "")
+    // Remove horizontal rules
+    .replace(/^[-*_]{3,}$/gm, "")
+    // Remove list markers
+    .replace(/^[\s]*[-*+]\s+/gm, "")
+    .replace(/^[\s]*\d+\.\s+/gm, "")
+    // Collapse multiple newlines
+    .replace(/\n{3,}/g, "\n\n")
+    // Trim
+    .trim();
+}
 
 const EMPTY_STATE_TEXT = "My name is Tamor. How can I help you today?";
 
@@ -438,6 +476,10 @@ export default function ChatPanel({
   const { user } = useAuth();
   const { isMobile } = useBreakpoint();
 
+  // Text-to-speech for reading messages aloud
+  const { speak, stop, isSpeaking, isSupported: isTTSSupported } = useVoiceOutput();
+  const [speakingMessageKey, setSpeakingMessageKey] = useState(null);
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -509,6 +551,30 @@ export default function ChatPanel({
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToastText(""), ms);
   };
+
+  // Read aloud handler
+  const handleReadAloud = (messageKey, content) => {
+    if (speakingMessageKey === messageKey && isSpeaking) {
+      // Currently speaking this message - stop
+      stop();
+      setSpeakingMessageKey(null);
+    } else {
+      // Start speaking this message
+      stop(); // Stop any current speech first
+      const plainText = stripMarkdown(content);
+      if (plainText) {
+        setSpeakingMessageKey(messageKey);
+        speak(plainText);
+      }
+    }
+  };
+
+  // Clear speaking state when speech ends
+  useEffect(() => {
+    if (!isSpeaking && speakingMessageKey !== null) {
+      setSpeakingMessageKey(null);
+    }
+  }, [isSpeaking, speakingMessageKey]);
 
   // ---- Project required modal state ----
   const LAST_PROJECT_KEY = "tamor_last_project_id";
@@ -1056,26 +1122,29 @@ export default function ChatPanel({
           const dt = !isUser ? msg.detected_task : null;
 
           const domId = getMsgDomId(msg, idx);
+          const msgKey = getMsgKey(msg, idx);
+          const isThisMessageSpeaking = speakingMessageKey === msgKey && isSpeaking;
+          const canReadAloud = !isUser && msg.status !== "thinking" && msg.content && isTTSSupported;
 
           return (
             <div
               id={domId}
-              key={getMsgKey(msg, idx)}
-              className={isUser ? "chat-message user" : "chat-message tamor"}
+              key={msgKey}
+              className={`${isUser ? "chat-message user" : "chat-message tamor"} ${canReadAloud ? "has-read-aloud" : ""}`}
             >
               <div className="chat-bubble">
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
                   {msg.content}
                 </ReactMarkdown>
 
-              
+
                 {!isUser && msg.status === "thinking" && (
                   <div className="thinkingLine">
                     {getThinkingLabel(activeMode)}
                     <span className="ellipsis" aria-hidden="true"></span>
                   </div>
                 )}
-              
+
                 {!isUser && dt && (
                   <TaskPill
                     task={dt}
@@ -1091,6 +1160,31 @@ export default function ChatPanel({
                       window.dispatchEvent(new Event("tamor:tasks-updated"));
                     }}
                   />
+                )}
+
+                {/* Read aloud button for assistant messages */}
+                {canReadAloud && (
+                  <button
+                    type="button"
+                    className={`read-aloud-btn ${isThisMessageSpeaking ? "speaking" : ""} ${isMobile ? "always-visible" : ""}`}
+                    onClick={() => handleReadAloud(msgKey, msg.content)}
+                    aria-label={isThisMessageSpeaking ? "Stop reading" : "Read message aloud"}
+                    title={isThisMessageSpeaking ? "Stop reading" : "Read aloud"}
+                  >
+                    {isThisMessageSpeaking ? (
+                      // Stop icon
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="6" width="12" height="12" rx="1" />
+                      </svg>
+                    ) : (
+                      // Speaker icon
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                      </svg>
+                    )}
+                  </button>
                 )}
               </div>
 
