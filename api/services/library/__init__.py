@@ -7,6 +7,7 @@ Provides centralized management for the global library system.
 """
 
 from .chunk_service import LibraryChunkService
+from .ingest_service import IngestProgress, LibraryIngestService
 from .library_service import LibraryService
 from .reference_service import LibraryReferenceService
 from .scanner_service import LibraryScannerService, ScannedFile
@@ -21,4 +22,6 @@ __all__ = [
     "LibraryChunkService",
     "LibraryScannerService",
     "ScannedFile",
+    "LibraryIngestService",
+    "IngestProgress",
 ]
