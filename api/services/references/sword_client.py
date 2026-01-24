@@ -6,150 +6,41 @@ Uses pysword to read installed modules and provides a simple API
 for passage lookup with human-readable references.
 """
 
-import re
 import logging
 from typing import Optional
 
 from .storage import ReferenceStorage
 from .sword_manager import SwordManager
+from .reference_parser import (
+    parse_reference as _parse_ref,
+    normalize_book_name,
+    BOOK_NAMES,
+)
 
 logger = logging.getLogger(__name__)
 
-# Book name mapping: common names/abbreviations -> canonical name
-# pysword accepts various formats but we normalize for consistency
-BOOK_ALIASES = {
-    # Old Testament
-    "gen": "Genesis", "genesis": "Genesis",
-    "ex": "Exodus", "exod": "Exodus", "exodus": "Exodus",
-    "lev": "Leviticus", "leviticus": "Leviticus",
-    "num": "Numbers", "numbers": "Numbers",
-    "deut": "Deuteronomy", "deuteronomy": "Deuteronomy",
-    "josh": "Joshua", "joshua": "Joshua",
-    "judg": "Judges", "judges": "Judges",
-    "ruth": "Ruth",
-    "1sam": "1 Samuel", "1 sam": "1 Samuel", "1 samuel": "1 Samuel", "i samuel": "1 Samuel",
-    "2sam": "2 Samuel", "2 sam": "2 Samuel", "2 samuel": "2 Samuel", "ii samuel": "2 Samuel",
-    "1kgs": "1 Kings", "1 kgs": "1 Kings", "1 kings": "1 Kings", "i kings": "1 Kings",
-    "2kgs": "2 Kings", "2 kgs": "2 Kings", "2 kings": "2 Kings", "ii kings": "2 Kings",
-    "1chr": "1 Chronicles", "1 chr": "1 Chronicles", "1 chronicles": "1 Chronicles", "i chronicles": "1 Chronicles",
-    "2chr": "2 Chronicles", "2 chr": "2 Chronicles", "2 chronicles": "2 Chronicles", "ii chronicles": "2 Chronicles",
-    "ezra": "Ezra",
-    "neh": "Nehemiah", "nehemiah": "Nehemiah",
-    "esth": "Esther", "esther": "Esther",
-    "job": "Job",
-    "ps": "Psalms", "psa": "Psalms", "psalm": "Psalms", "psalms": "Psalms",
-    "prov": "Proverbs", "proverbs": "Proverbs",
-    "eccl": "Ecclesiastes", "eccles": "Ecclesiastes", "ecclesiastes": "Ecclesiastes",
-    "song": "Song of Solomon", "song of solomon": "Song of Solomon", "song of songs": "Song of Solomon", "sos": "Song of Solomon",
-    "isa": "Isaiah", "isaiah": "Isaiah",
-    "jer": "Jeremiah", "jeremiah": "Jeremiah",
-    "lam": "Lamentations", "lamentations": "Lamentations",
-    "ezek": "Ezekiel", "ezekiel": "Ezekiel",
-    "dan": "Daniel", "daniel": "Daniel",
-    "hos": "Hosea", "hosea": "Hosea",
-    "joel": "Joel",
-    "amos": "Amos",
-    "obad": "Obadiah", "obadiah": "Obadiah",
-    "jonah": "Jonah",
-    "mic": "Micah", "micah": "Micah",
-    "nah": "Nahum", "nahum": "Nahum",
-    "hab": "Habakkuk", "habakkuk": "Habakkuk",
-    "zeph": "Zephaniah", "zephaniah": "Zephaniah",
-    "hag": "Haggai", "haggai": "Haggai",
-    "zech": "Zechariah", "zechariah": "Zechariah",
-    "mal": "Malachi", "malachi": "Malachi",
-    # New Testament
-    "matt": "Matthew", "mt": "Matthew", "matthew": "Matthew",
-    "mark": "Mark", "mk": "Mark",
-    "luke": "Luke", "lk": "Luke",
-    "john": "John", "jn": "John",
-    "acts": "Acts",
-    "rom": "Romans", "romans": "Romans",
-    "1cor": "1 Corinthians", "1 cor": "1 Corinthians", "1 corinthians": "1 Corinthians", "i corinthians": "1 Corinthians",
-    "2cor": "2 Corinthians", "2 cor": "2 Corinthians", "2 corinthians": "2 Corinthians", "ii corinthians": "2 Corinthians",
-    "gal": "Galatians", "galatians": "Galatians",
-    "eph": "Ephesians", "ephesians": "Ephesians",
-    "phil": "Philippians", "philippians": "Philippians",
-    "col": "Colossians", "colossians": "Colossians",
-    "1thess": "1 Thessalonians", "1 thess": "1 Thessalonians", "1 thessalonians": "1 Thessalonians", "i thessalonians": "1 Thessalonians",
-    "2thess": "2 Thessalonians", "2 thess": "2 Thessalonians", "2 thessalonians": "2 Thessalonians", "ii thessalonians": "2 Thessalonians",
-    "1tim": "1 Timothy", "1 tim": "1 Timothy", "1 timothy": "1 Timothy", "i timothy": "1 Timothy",
-    "2tim": "2 Timothy", "2 tim": "2 Timothy", "2 timothy": "2 Timothy", "ii timothy": "2 Timothy",
-    "titus": "Titus",
-    "phlm": "Philemon", "philemon": "Philemon",
-    "heb": "Hebrews", "hebrews": "Hebrews",
-    "jas": "James", "james": "James",
-    "1pet": "1 Peter", "1 pet": "1 Peter", "1 peter": "1 Peter", "i peter": "1 Peter",
-    "2pet": "2 Peter", "2 pet": "2 Peter", "2 peter": "2 Peter", "ii peter": "2 Peter",
-    "1john": "1 John", "1 john": "1 John", "i john": "1 John",
-    "2john": "2 John", "2 john": "2 John", "ii john": "2 John",
-    "3john": "3 John", "3 john": "3 John", "iii john": "3 John",
-    "jude": "Jude",
-    "rev": "Revelation", "revelation": "Revelation", "revelations": "Revelation",
-}
 
-
-class ReferenceParseError(Exception):
-    """Raised when a reference cannot be parsed."""
-    pass
-
-
+# Re-export for backwards compatibility
 def parse_reference(ref: str) -> dict:
     """
     Parse a human-readable Bible reference.
 
-    Supports formats:
-    - "Genesis 1:1"
-    - "Gen 1:1-3"
-    - "John 3:16"
-    - "Psalm 23" (whole chapter)
-    - "1 Cor 13:4-7"
-
-    Returns:
-        {
-            "book": "Genesis",
-            "chapter": 1,
-            "verse_start": 1,
-            "verse_end": 3,  # or None for single verse/whole chapter
-        }
+    This is a compatibility wrapper around reference_parser.parse_reference
+    that returns a dict instead of ParsedReference.
     """
-    ref = ref.strip()
-
-    # Pattern for: Book Chapter:Verse-Verse or Book Chapter:Verse or Book Chapter
-    # Book can be "1 Samuel", "Song of Solomon", etc.
-    pattern = r'^(.+?)\s+(\d+)(?::(\d+)(?:-(\d+))?)?$'
-    match = re.match(pattern, ref, re.IGNORECASE)
-
-    if not match:
-        raise ReferenceParseError(f"Cannot parse reference: {ref}")
-
-    book_raw, chapter_str, verse_start_str, verse_end_str = match.groups()
-
-    # Normalize book name
-    book_key = book_raw.lower().strip()
-    if book_key in BOOK_ALIASES:
-        book = BOOK_ALIASES[book_key]
-    else:
-        # Try to find a partial match
-        book = None
-        for alias, canonical in BOOK_ALIASES.items():
-            if alias.startswith(book_key) or book_key.startswith(alias):
-                book = canonical
-                break
-        if book is None:
-            # Use as-is and let pysword handle it
-            book = book_raw.strip()
-
-    chapter = int(chapter_str)
-    verse_start = int(verse_start_str) if verse_start_str else None
-    verse_end = int(verse_end_str) if verse_end_str else None
-
+    parsed = _parse_ref(ref)
+    if parsed is None:
+        return None
     return {
-        "book": book,
-        "chapter": chapter,
-        "verse_start": verse_start,
-        "verse_end": verse_end,
+        "book": parsed.book,
+        "chapter": parsed.chapter,
+        "verse_start": parsed.verse_start,
+        "verse_end": parsed.verse_end,
     }
+
+
+# Keep BOOK_ALIASES as alias to BOOK_NAMES for backwards compatibility
+BOOK_ALIASES = BOOK_NAMES
 
 
 class SwordClient:

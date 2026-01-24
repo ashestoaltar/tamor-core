@@ -7,6 +7,9 @@ This package provides:
 - SwordManager: SWORD Bible module download and management
 - SwordClient: Bible passage lookup from local SWORD modules
 - SefariaClient: Sefaria API access with aggressive local caching
+- ParsedReference: Structured scripture reference
+- parse_reference: Parse human-readable references
+- find_references: Extract references from text
 """
 
 from .storage import ReferenceStorage
@@ -17,28 +20,48 @@ from .sword_manager import (
     DownloadError,
     ExtractionError,
 )
-from .sword_client import (
-    SwordClient,
-    ReferenceParseError,
-    parse_reference,
-)
+from .sword_client import SwordClient
 from .sefaria_client import (
     SefariaClient,
     SefariaError,
     SefariaNetworkError,
 )
+from .reference_parser import (
+    ParsedReference,
+    ReferenceParseError,
+    parse_reference,
+    find_references,
+    normalize_book_name,
+    is_valid_reference,
+    to_sefaria_format,
+    to_osis_format,
+    BOOK_NAMES,
+    BOOK_TO_OSIS,
+)
 
 __all__ = [
+    # Storage
     "ReferenceStorage",
+    # SWORD
     "SwordManager",
     "SwordModuleError",
     "ModuleNotFoundError",
     "DownloadError",
     "ExtractionError",
     "SwordClient",
-    "ReferenceParseError",
-    "parse_reference",
+    # Sefaria
     "SefariaClient",
     "SefariaError",
     "SefariaNetworkError",
+    # Reference parsing
+    "ParsedReference",
+    "ReferenceParseError",
+    "parse_reference",
+    "find_references",
+    "normalize_book_name",
+    "is_valid_reference",
+    "to_sefaria_format",
+    "to_osis_format",
+    "BOOK_NAMES",
+    "BOOK_TO_OSIS",
 ]
