@@ -246,6 +246,61 @@ def extract_excel_structure(file_path: str) -> Dict[str, Any]:
     }
 
 
+def extract_epub_structure(file_path: str) -> Dict[str, Any]:
+    """
+    Return structure for EPUB files.
+
+    {
+        "type": "epub",
+        "title": "Book Title",
+        "author": "Author Name",
+        "chapters": [
+            {"index": 0, "title": "Introduction", "char_count": 5000},
+            {"index": 1, "title": "Chapter 1", "char_count": 12000},
+        ]
+    }
+    """
+    try:
+        import ebooklib
+        from ebooklib import epub
+    except ImportError:
+        return {"type": "epub", "chapters": []}
+
+    try:
+        book = epub.read_epub(file_path)
+
+        title = book.get_metadata('DC', 'title')
+        title = title[0][0] if title else None
+
+        author = book.get_metadata('DC', 'creator')
+        author = author[0][0] if author else None
+
+        chapters: List[Dict[str, Any]] = []
+        for item in book.get_items():
+            if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                content = item.get_content().decode('utf-8', errors='ignore')
+                # Basic length estimate
+                char_count = len(content)
+
+                # Try to get title from item
+                item_name = item.get_name() or f"Chapter {len(chapters) + 1}"
+
+                chapters.append({
+                    "index": len(chapters),
+                    "title": item_name,
+                    "char_count": char_count,
+                })
+
+        return {
+            "type": "epub",
+            "title": title,
+            "author": author,
+            "chapters": chapters,
+        }
+    except Exception:
+        return {"type": "epub", "chapters": []}
+
+
 def extract_structure_for_mime(
     mime_type: str, file_path: str
 ) -> Optional[Dict[str, Any]]:
@@ -275,6 +330,10 @@ def extract_structure_for_mime(
         "application/vnd.ms-excel.sheet.macroenabled.12",
     ) or ext in (".xlsx", ".xls", ".xlsm"):
         return extract_excel_structure(file_path)
+
+    # EPUB
+    if mt == "application/epub+zip" or ext == ".epub":
+        return extract_epub_structure(file_path)
 
     return None
 

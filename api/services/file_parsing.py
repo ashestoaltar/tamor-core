@@ -494,6 +494,123 @@ def _parse_html(full_path: str) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# EPUB
+# ---------------------------------------------------------------------------
+
+
+def _parse_epub(full_path: str) -> Dict[str, Any]:
+    """
+    Parse an EPUB ebook and extract text content.
+
+    EPUBs contain XHTML documents. We extract text from each,
+    preserving chapter structure in metadata.
+    """
+    try:
+        import ebooklib
+        from ebooklib import epub
+    except ImportError:
+        return {
+            "text": (
+                "This file is an EPUB ebook, but ebooklib is not installed. "
+                "Install it with `pip install ebooklib` to enable text extraction."
+            ),
+            "meta": {},
+            "warnings": [],
+            "parser": "epub-missing-ebooklib",
+        }
+
+    try:
+        book = epub.read_epub(full_path)
+
+        # Extract metadata
+        title = book.get_metadata('DC', 'title')
+        title = title[0][0] if title else None
+
+        author = book.get_metadata('DC', 'creator')
+        author = author[0][0] if author else None
+
+        # Extract text from each document
+        chapters = []
+        full_text_parts = []
+        chapter_offsets = []  # Track where each chapter starts in full text
+        current_offset = 0
+
+        for item in book.get_items():
+            if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                content = item.get_content().decode('utf-8', errors='ignore')
+
+                # Strip HTML tags (simple approach)
+                from html.parser import HTMLParser
+
+                class TextExtractor(HTMLParser):
+                    def __init__(self):
+                        super().__init__()
+                        self.text_parts = []
+
+                    def handle_data(self, data):
+                        text = data.strip()
+                        if text:
+                            self.text_parts.append(text)
+
+                extractor = TextExtractor()
+                try:
+                    extractor.feed(content)
+                    chapter_text = ' '.join(extractor.text_parts)
+                except Exception:
+                    chapter_text = ""
+
+                if chapter_text.strip():
+                    # Record chapter offset
+                    chapter_offsets.append(current_offset)
+
+                    # Try to get chapter title from first line
+                    lines = chapter_text.strip().split('\n')
+                    chapter_title = lines[0][:100] if lines else f"Chapter {len(chapters) + 1}"
+
+                    chapters.append({
+                        "index": len(chapters),
+                        "title": chapter_title,
+                        "char_count": len(chapter_text),
+                    })
+
+                    full_text_parts.append(chapter_text)
+                    current_offset += len(chapter_text) + 2  # +2 for \n\n separator
+
+        full_text = '\n\n'.join(full_text_parts)
+
+        if not full_text.strip():
+            return {
+                "text": "This EPUB was parsed but no text content was found.",
+                "meta": {"title": title, "author": author},
+                "warnings": ["No extractable text in EPUB"],
+                "parser": "epub-empty",
+            }
+
+        meta = {
+            "title": title,
+            "author": author,
+            "chapter_count": len(chapters),
+            "chapters": chapters,
+            "chapter_offsets": chapter_offsets,
+        }
+
+        return {
+            "text": full_text,
+            "meta": meta,
+            "warnings": [],
+            "parser": "epub-ebooklib",
+        }
+
+    except Exception as e:
+        return {
+            "text": f"Error extracting text from EPUB: {e}",
+            "meta": {},
+            "warnings": [f"EPUB parsing failed: {e}"],
+            "parser": "epub-error",
+        }
+
+
+# ---------------------------------------------------------------------------
 # Fallback / dispatcher
 # ---------------------------------------------------------------------------
 
@@ -542,6 +659,10 @@ def extract_text_from_file(
     # HTML
     if ext in (".html", ".htm") or mime_lower == "text/html":
         return _parse_html(full_path)
+
+    # EPUB ebooks
+    if ext == ".epub" or mime_lower == "application/epub+zip":
+        return _parse_epub(full_path)
 
     # Text-like / code / markdown etc.
     text_like_exts = {
