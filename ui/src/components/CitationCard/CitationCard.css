@@ -1,0 +1,346 @@
+/* ===========================
+   CitationCard Component
+   Scripture citation display with compact/expanded modes
+   =========================== */
+
+.citation-card {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin: 8px 0;
+  transition: border-color var(--transition-fast),
+              box-shadow var(--transition-fast);
+}
+
+.citation-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.citation-card-expanded {
+  background: var(--bg-surface);
+}
+
+/* ===========================
+   Inline/Compact Mode
+   =========================== */
+
+.citation-card-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  margin: 0 2px;
+  border: 1px solid var(--border);
+  border-left-width: 2px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9em;
+  vertical-align: baseline;
+  cursor: help;
+}
+
+.citation-ref-inline {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.citation-badge-inline {
+  font-size: 0.75em;
+  padding: 1px 4px;
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* ===========================
+   Header
+   =========================== */
+
+.citation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 8px;
+}
+
+.citation-ref-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.citation-ref {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+/* ===========================
+   Source Badge
+   =========================== */
+
+.citation-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-soft);
+}
+
+.citation-badge-sword {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--accent);
+}
+
+.citation-badge-sefaria {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+/* ===========================
+   Expand Button
+   =========================== */
+
+.citation-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: background var(--transition-fast),
+              color var(--transition-fast);
+}
+
+.citation-expand-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.citation-expand-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.citation-expand-icon {
+  transition: transform var(--transition-fast);
+}
+
+.citation-expand-icon-rotated {
+  transform: rotate(180deg);
+}
+
+/* ===========================
+   Content Area
+   =========================== */
+
+.citation-content {
+  position: relative;
+}
+
+/* ===========================
+   Text Styles
+   =========================== */
+
+.citation-text {
+  margin: 0;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+/* Scripture text uses serif font for better readability */
+.citation-text-full {
+  font-family: "Georgia", "Cambria", "Times New Roman", serif;
+  font-size: 1rem;
+}
+
+.citation-text-preview {
+  font-family: "Georgia", "Cambria", "Times New Roman", serif;
+  font-size: 0.95rem;
+  color: var(--text-soft);
+}
+
+/* ===========================
+   Hebrew Text
+   =========================== */
+
+.citation-hebrew-wrapper {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.citation-hebrew-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-soft);
+}
+
+.citation-hebrew {
+  margin: 0;
+  font-family: "SBL Hebrew", "Ezra SIL", "Times New Roman", serif;
+  font-size: 1.2rem;
+  line-height: 2;
+  color: var(--text);
+  text-align: right;
+  /* Proper RTL handling */
+  direction: rtl;
+  unicode-bidi: bidi-override;
+}
+
+/* ===========================
+   Actions Bar
+   =========================== */
+
+.citation-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.citation-action-btn,
+.citation-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--transition-fast),
+              border-color var(--transition-fast),
+              color var(--transition-fast);
+}
+
+.citation-action-btn:hover,
+.citation-action-link:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.citation-action-btn:focus-visible,
+.citation-action-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Copy button small (for Hebrew label) */
+.citation-copy-btn-small {
+  padding: 4px;
+  border: none;
+  background: transparent;
+}
+
+.citation-copy-btn-small:hover {
+  background: var(--bg-hover);
+}
+
+/* ===========================
+   Responsive Adjustments
+   =========================== */
+
+@media (max-width: 480px) {
+  .citation-card {
+    padding: 10px 12px;
+  }
+
+  .citation-ref {
+    font-size: 0.95rem;
+  }
+
+  .citation-text-full {
+    font-size: 0.95rem;
+  }
+
+  .citation-hebrew {
+    font-size: 1.1rem;
+  }
+
+  .citation-actions {
+    flex-wrap: wrap;
+  }
+
+  .citation-action-btn,
+  .citation-action-link {
+    flex: 1;
+    justify-content: center;
+    min-width: 80px;
+  }
+}
+
+/* ===========================
+   Reduced Motion
+   =========================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .citation-card,
+  .citation-expand-btn,
+  .citation-expand-icon,
+  .citation-action-btn,
+  .citation-action-link {
+    transition: none;
+  }
+}
+
+/* ===========================
+   Print Styles
+   =========================== */
+
+@media print {
+  .citation-card {
+    border: 1px solid #ccc;
+    border-left: 3px solid #d4a300;
+    page-break-inside: avoid;
+  }
+
+  .citation-expand-btn,
+  .citation-actions {
+    display: none;
+  }
+
+  .citation-text-preview {
+    display: none;
+  }
+
+  .citation-text-full {
+    display: block !important;
+  }
+
+  .citation-hebrew {
+    font-size: 1rem;
+  }
+}
