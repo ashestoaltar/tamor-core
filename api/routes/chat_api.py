@@ -21,7 +21,7 @@ from core.deterministic import (
 )
 from services.references.reference_parser import find_references as find_scripture_refs
 from services.references.reference_service import ReferenceService
-from services.library import LibraryContextService
+from services.library import LibraryContextService, LibrarySettingsService
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 
@@ -30,6 +30,17 @@ _reference_service = None
 
 # Lazy-loaded library context service
 _library_context_service = None
+
+# Lazy-loaded library settings service
+_library_settings_service = None
+
+
+def get_library_settings_service() -> LibrarySettingsService:
+    """Get or create library settings service singleton."""
+    global _library_settings_service
+    if _library_settings_service is None:
+        _library_settings_service = LibrarySettingsService()
+    return _library_settings_service
 
 
 def get_library_context_service() -> LibraryContextService:
@@ -117,42 +128,72 @@ When discussing these passages:
 def _build_library_context(
     user_message: str,
     project_id: Optional[int],
-    existing_system_prompt: str
+    existing_system_prompt: str,
+    user_id: Optional[int] = None,
 ) -> str:
     """
     Build enhanced system prompt with library context.
 
     Finds relevant library content based on the user message and injects
     it into the system prompt for grounded LLM responses.
+    Respects user's library settings.
 
     Args:
         user_message: The user's message
         project_id: Optional project ID for scoped search
         existing_system_prompt: The base system prompt to enhance
+        user_id: User ID for settings lookup
 
     Returns:
         Enhanced system prompt with library context appended
     """
     try:
+        # Check user settings
+        if user_id:
+            settings_service = get_library_settings_service()
+            settings = settings_service.get_settings(user_id)
+
+            if not settings.get("context_injection_enabled", True):
+                return existing_system_prompt
+
+            # Get settings values
+            max_chunks = settings.get("context_max_chunks", 5)
+            max_chars = settings.get("context_max_chars", 4000)
+            min_score = settings.get("context_min_score", 0.4)
+            scope = settings.get("context_scope", "all")
+
+            # Adjust scope based on project context
+            if scope == "project" and not project_id:
+                scope = "library"  # Fallback if no project context
+
+            # Determine effective project_id based on scope
+            effective_project_id = project_id if scope in ("project", "all") else None
+        else:
+            # Default settings if no user_id
+            max_chunks = 5
+            max_chars = 4000
+            min_score = 0.4
+            effective_project_id = project_id
+
         ctx_service = get_library_context_service()
 
         # Get library context
         library_context = ctx_service.get_context_for_message(
             message=user_message,
-            project_id=project_id,
-            max_chunks=5,
-            max_chars=4000,
-            min_score=0.4
+            project_id=effective_project_id,
+            max_chunks=max_chunks,
+            max_chars=max_chars,
+            min_score=min_score,
         )
 
         # If no relevant context found, return original prompt
-        if not library_context['context_text']:
+        if not library_context["context_text"]:
             return existing_system_prompt
 
         # Build addition to system prompt
         context_addition = ctx_service.build_system_prompt_addition(
-            context_text=library_context['context_text'],
-            sources=library_context['sources']
+            context_text=library_context["context_text"],
+            sources=library_context["sources"],
         )
 
         # Append to system prompt
@@ -166,29 +207,54 @@ def _build_library_context(
 def _get_library_context_text(
     user_message: str,
     project_id: Optional[int],
+    user_id: Optional[int] = None,
 ) -> Optional[str]:
     """
     Get library context as formatted text for router path.
 
     Returns just the context text (without system prompt wrapper).
+    Respects user's library settings.
     """
     try:
+        # Check user settings
+        if user_id:
+            settings_service = get_library_settings_service()
+            settings = settings_service.get_settings(user_id)
+
+            if not settings.get("context_injection_enabled", True):
+                return None
+
+            max_chunks = settings.get("context_max_chunks", 5)
+            max_chars = settings.get("context_max_chars", 4000)
+            min_score = settings.get("context_min_score", 0.4)
+            scope = settings.get("context_scope", "all")
+
+            if scope == "project" and not project_id:
+                scope = "library"
+
+            effective_project_id = project_id if scope in ("project", "all") else None
+        else:
+            max_chunks = 5
+            max_chars = 4000
+            min_score = 0.4
+            effective_project_id = project_id
+
         ctx_service = get_library_context_service()
 
         library_context = ctx_service.get_context_for_message(
             message=user_message,
-            project_id=project_id,
-            max_chunks=5,
-            max_chars=4000,
-            min_score=0.4
+            project_id=effective_project_id,
+            max_chunks=max_chunks,
+            max_chars=max_chars,
+            min_score=min_score,
         )
 
-        if not library_context['context_text']:
+        if not library_context["context_text"]:
             return None
 
         return ctx_service.build_system_prompt_addition(
-            context_text=library_context['context_text'],
-            sources=library_context['sources']
+            context_text=library_context["context_text"],
+            sources=library_context["sources"],
         )
 
     except Exception:
@@ -680,7 +746,7 @@ def chat():
         # Get library context for relevant library content (Phase 7.3)
         library_ctx = None
         try:
-            library_ctx = _get_library_context_text(user_message, project_id)
+            library_ctx = _get_library_context_text(user_message, project_id, user_id)
         except Exception:
             pass
 
@@ -775,7 +841,8 @@ Capability note (Tamor app):
         system_prompt = _build_library_context(
             user_message=user_message,
             project_id=project_id,
-            existing_system_prompt=system_prompt
+            existing_system_prompt=system_prompt,
+            user_id=user_id,
         )
     except Exception:
         pass  # Don't fail chat if library context fails

@@ -14,6 +14,7 @@ from .library_service import LibraryService
 from .reference_service import LibraryReferenceService
 from .scanner_service import LibraryScannerService, ScannedFile
 from .search_service import LibrarySearchService, SearchResult
+from .settings_service import LibrarySettingsService
 from .storage_service import LibraryStorageService
 from .text_service import LibraryTextService
 
@@ -32,4 +33,5 @@ __all__ = [
     "SearchResult",
     "LibraryContextService",
     "ContextChunk",
+    "LibrarySettingsService",
 ]

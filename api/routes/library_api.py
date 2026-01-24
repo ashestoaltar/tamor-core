@@ -17,6 +17,7 @@ from services.library import (
     LibraryScannerService,
     LibrarySearchService,
     LibraryService,
+    LibrarySettingsService,
     LibraryTextService,
     ScannedFile,
 )
@@ -35,6 +36,7 @@ ingest_service = LibraryIngestService()
 index_queue_service = LibraryIndexQueueService()
 search_service = LibrarySearchService()
 context_service = LibraryContextService()
+settings_service = LibrarySettingsService()
 
 
 # =============================================================================
@@ -967,3 +969,53 @@ def preview_context():
             "context_text": context["context_text"],
         }
     )
+
+
+# =============================================================================
+# SETTINGS
+# =============================================================================
+
+
+@library_bp.get("/api/library/settings")
+def get_library_settings():
+    """Get user's library settings."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    settings = settings_service.get_settings(user_id)
+    return jsonify({"settings": settings})
+
+
+@library_bp.patch("/api/library/settings")
+def update_library_settings():
+    """
+    Update library settings.
+
+    Body can include any of:
+        context_injection_enabled: bool
+        context_max_chunks: int
+        context_max_chars: int
+        context_min_score: float
+        context_scope: 'library' | 'project' | 'all'
+        show_sources_in_response: bool
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    settings = settings_service.update_settings(user_id, data)
+
+    return jsonify({"settings": settings})
+
+
+@library_bp.post("/api/library/settings/reset")
+def reset_library_settings():
+    """Reset library settings to defaults."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    settings = settings_service.reset_settings(user_id)
+    return jsonify({"settings": settings, "reset": True})
