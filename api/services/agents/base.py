@@ -31,6 +31,9 @@ class RequestContext:
     # Retrieved context (populated by Router before agent runs)
     retrieved_chunks: List[Dict[str, Any]] = field(default_factory=list)
 
+    # Scripture context (populated by chat_api when references detected)
+    scripture_context: Optional[str] = None
+
     # Previous agent outputs in the pipeline (for chaining)
     prior_outputs: List["AgentOutput"] = field(default_factory=list)
 

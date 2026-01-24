@@ -19,8 +19,87 @@ from core.deterministic import (
     DeterministicQueries,
     format_deterministic_response,
 )
+from services.references.reference_parser import find_references as find_scripture_refs
+from services.references.reference_service import ReferenceService
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
+
+# Lazy-loaded reference service for scripture context injection
+_reference_service = None
+
+
+def get_reference_service() -> ReferenceService:
+    """Get or create reference service singleton."""
+    global _reference_service
+    if _reference_service is None:
+        _reference_service = ReferenceService()
+    return _reference_service
+
+
+def inject_scripture_context(user_message: str, existing_context: str = "") -> str:
+    """
+    Detect scripture references in user message and inject actual text.
+
+    Args:
+        user_message: The user's message to check for references
+        existing_context: Existing system prompt context to append to
+
+    Returns:
+        Updated context with scripture passages injected
+    """
+    try:
+        refs = find_scripture_refs(user_message)
+    except Exception:
+        return existing_context
+
+    if not refs:
+        return existing_context
+
+    # Limit to avoid context bloat
+    refs = refs[:5]
+
+    scripture_blocks = []
+    ref_service = get_reference_service()
+
+    for parsed in refs:
+        try:
+            results = ref_service.lookup(
+                parsed.normalized,
+                sources=["sword"],  # Prefer local SWORD for speed
+                translations=["KJV"],
+            )
+
+            for ref in results[:2]:  # Limit per reference
+                block = f"\n{ref.ref_string} ({ref.translation}):\n\"{ref.text}\""
+
+                if ref.hebrew:
+                    block += f"\n\nHebrew:\n{ref.hebrew}"
+
+                scripture_blocks.append(block)
+
+        except Exception:
+            # Don't fail chat if reference lookup fails
+            continue
+
+    if not scripture_blocks:
+        return existing_context
+
+    scripture_context = """
+[Scripture Context]
+The user's message references the following passages:
+{}
+
+When discussing these passages:
+- Quote the actual text when relevant
+- Distinguish clearly between what the text says and your interpretation
+- Note if translation differences are significant
+[End Scripture Context]
+""".format("\n".join(scripture_blocks))
+
+    if existing_context:
+        return existing_context + "\n\n" + scripture_context
+
+    return scripture_context
 
 CHAT_HISTORY_LIMIT = 24
 
@@ -497,6 +576,13 @@ def chat():
         except Exception:
             pass
 
+        # Get scripture context if user references passages
+        scripture_ctx = None
+        try:
+            scripture_ctx = inject_scripture_context(user_message)
+        except Exception:
+            pass
+
         # Build router context
         history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
         router_ctx = RouterContext(
@@ -507,6 +593,7 @@ def chat():
             history=history,
             memories=memories,
             mode=effective_mode,
+            scripture_context=scripture_ctx,
         )
 
         # Route the request
@@ -572,6 +659,14 @@ Capability note (Tamor app):
             system_prompt += f"\n\n{memory_context}"
     except Exception:
         pass  # Don't fail chat if memory injection fails
+
+    # Inject scripture context (Phase 3.5.5)
+    try:
+        scripture_context = inject_scripture_context(user_message)
+        if scripture_context:
+            system_prompt += f"\n\n{scripture_context}"
+    except Exception:
+        pass  # Don't fail chat if scripture injection fails
 
     history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
 
