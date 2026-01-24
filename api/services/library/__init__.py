@@ -6,9 +6,7 @@ Library services package.
 Provides centralized management for the global library system.
 """
 
+from .library_service import LibraryService
 from .storage_service import LibraryStorageService
 
-# LibraryService will be added in next step
-# from .library_service import LibraryService
-
-__all__ = ["LibraryStorageService"]
+__all__ = ["LibraryStorageService", "LibraryService"]

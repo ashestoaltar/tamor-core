@@ -29,13 +29,16 @@ CREATE TABLE IF NOT EXISTS library_files (
     mime_type TEXT,
     size_bytes INTEGER,
     file_hash TEXT,                         -- SHA-256 for deduplication
-    source_type TEXT DEFAULT 'manual',      -- 'manual', 'ingest', 'transcribe'
+    source_type TEXT DEFAULT 'manual',      -- 'manual', 'scan', 'transcription'
     source_path TEXT,                       -- Original path if ingested
+    source_library_file_id INTEGER,         -- For transcripts: link to source audio/video
     metadata_json TEXT,                     -- Title, author, chapters, etc.
     text_content TEXT,                      -- Extracted text (cached)
     text_extracted_at DATETIME,
+    last_indexed_at DATETIME,               -- When embeddings were generated
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (source_library_file_id) REFERENCES library_files(id)
 );
 
 -- Unique constraint on hash to prevent duplicates
@@ -43,6 +46,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_library_files_hash ON library_files(file_h
 CREATE INDEX IF NOT EXISTS idx_library_files_mime ON library_files(mime_type);
 CREATE INDEX IF NOT EXISTS idx_library_files_source ON library_files(source_type);
 CREATE INDEX IF NOT EXISTS idx_library_files_filename ON library_files(filename);
+CREATE INDEX IF NOT EXISTS idx_library_files_source_file ON library_files(source_library_file_id);
+
+-- ============================================================================
+-- LIBRARY TEXT CACHE
+-- Separate table for extracted text (allows large text without bloating main table)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS library_text_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    library_file_id INTEGER NOT NULL UNIQUE,
+    text_content TEXT,
+    extracted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (library_file_id) REFERENCES library_files(id) ON DELETE CASCADE
+);
 
 -- ============================================================================
 -- LIBRARY CHUNKS
