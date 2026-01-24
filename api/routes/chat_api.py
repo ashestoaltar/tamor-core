@@ -21,11 +21,23 @@ from core.deterministic import (
 )
 from services.references.reference_parser import find_references as find_scripture_refs
 from services.references.reference_service import ReferenceService
+from services.library import LibraryContextService
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 
 # Lazy-loaded reference service for scripture context injection
 _reference_service = None
+
+# Lazy-loaded library context service
+_library_context_service = None
+
+
+def get_library_context_service() -> LibraryContextService:
+    """Get or create library context service singleton."""
+    global _library_context_service
+    if _library_context_service is None:
+        _library_context_service = LibraryContextService()
+    return _library_context_service
 
 
 def get_reference_service() -> ReferenceService:
@@ -100,6 +112,88 @@ When discussing these passages:
         return existing_context + "\n\n" + scripture_context
 
     return scripture_context
+
+
+def _build_library_context(
+    user_message: str,
+    project_id: Optional[int],
+    existing_system_prompt: str
+) -> str:
+    """
+    Build enhanced system prompt with library context.
+
+    Finds relevant library content based on the user message and injects
+    it into the system prompt for grounded LLM responses.
+
+    Args:
+        user_message: The user's message
+        project_id: Optional project ID for scoped search
+        existing_system_prompt: The base system prompt to enhance
+
+    Returns:
+        Enhanced system prompt with library context appended
+    """
+    try:
+        ctx_service = get_library_context_service()
+
+        # Get library context
+        library_context = ctx_service.get_context_for_message(
+            message=user_message,
+            project_id=project_id,
+            max_chunks=5,
+            max_chars=4000,
+            min_score=0.4
+        )
+
+        # If no relevant context found, return original prompt
+        if not library_context['context_text']:
+            return existing_system_prompt
+
+        # Build addition to system prompt
+        context_addition = ctx_service.build_system_prompt_addition(
+            context_text=library_context['context_text'],
+            sources=library_context['sources']
+        )
+
+        # Append to system prompt
+        return existing_system_prompt + "\n\n" + context_addition
+
+    except Exception:
+        # Don't fail chat if library context fails
+        return existing_system_prompt
+
+
+def _get_library_context_text(
+    user_message: str,
+    project_id: Optional[int],
+) -> Optional[str]:
+    """
+    Get library context as formatted text for router path.
+
+    Returns just the context text (without system prompt wrapper).
+    """
+    try:
+        ctx_service = get_library_context_service()
+
+        library_context = ctx_service.get_context_for_message(
+            message=user_message,
+            project_id=project_id,
+            max_chunks=5,
+            max_chars=4000,
+            min_score=0.4
+        )
+
+        if not library_context['context_text']:
+            return None
+
+        return ctx_service.build_system_prompt_addition(
+            context_text=library_context['context_text'],
+            sources=library_context['sources']
+        )
+
+    except Exception:
+        return None
+
 
 CHAT_HISTORY_LIMIT = 24
 
@@ -583,6 +677,13 @@ def chat():
         except Exception:
             pass
 
+        # Get library context for relevant library content (Phase 7.3)
+        library_ctx = None
+        try:
+            library_ctx = _get_library_context_text(user_message, project_id)
+        except Exception:
+            pass
+
         # Build router context
         history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
         router_ctx = RouterContext(
@@ -594,6 +695,7 @@ def chat():
             memories=memories,
             mode=effective_mode,
             scripture_context=scripture_ctx,
+            library_context=library_ctx,
         )
 
         # Route the request
@@ -667,6 +769,16 @@ Capability note (Tamor app):
             system_prompt += f"\n\n{scripture_context}"
     except Exception:
         pass  # Don't fail chat if scripture injection fails
+
+    # Inject library context (Phase 7.3)
+    try:
+        system_prompt = _build_library_context(
+            user_message=user_message,
+            project_id=project_id,
+            existing_system_prompt=system_prompt
+        )
+    except Exception:
+        pass  # Don't fail chat if library context fails
 
     history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
 

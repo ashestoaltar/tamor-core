@@ -10,6 +10,7 @@ from flask import Blueprint, jsonify, request
 
 from services.library import (
     LibraryChunkService,
+    LibraryContextService,
     LibraryIndexQueueService,
     LibraryIngestService,
     LibraryReferenceService,
@@ -33,6 +34,7 @@ scanner_service = LibraryScannerService()
 ingest_service = LibraryIngestService()
 index_queue_service = LibraryIndexQueueService()
 search_service = LibrarySearchService()
+context_service = LibraryContextService()
 
 
 # =============================================================================
@@ -894,5 +896,74 @@ def find_similar_files(file_id: int):
             "file_id": file_id,
             "filename": file["filename"],
             "similar_files": similar,
+        }
+    )
+
+
+# =============================================================================
+# CONTEXT PREVIEW
+# =============================================================================
+
+
+@library_bp.post("/api/library/context/preview")
+def preview_context():
+    """
+    Preview what library context would be injected for a message.
+
+    Useful for debugging and understanding what sources will be used.
+
+    Body:
+        message: The user message
+        project_id: Optional project ID for scoped search
+        max_chunks: Max chunks to include (default: 5)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    message = data.get("message")
+
+    if not message:
+        return jsonify({"error": "message required"}), 400
+
+    project_id = data.get("project_id")
+    max_chunks = min(int(data.get("max_chunks", 5)), 10)
+
+    # Verify project access if specified
+    if project_id:
+        conn = get_db()
+        cur = conn.execute(
+            "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+            (project_id, user_id),
+        )
+        if not cur.fetchone():
+            return jsonify({"error": "project not found"}), 404
+
+    context = context_service.get_context_for_message(
+        message=message,
+        project_id=project_id,
+        max_chunks=max_chunks,
+    )
+
+    return jsonify(
+        {
+            "message": message,
+            "project_id": project_id,
+            "sources": context["sources"],
+            "chunk_count": len(context["chunks"]),
+            "chunks": [
+                {
+                    "source": c.source,
+                    "source_id": c.source_id,
+                    "page": c.page,
+                    "relevance": round(c.relevance, 3),
+                    "content_preview": c.content[:200] + "..."
+                    if len(c.content) > 200
+                    else c.content,
+                }
+                for c in context["chunks"]
+            ],
+            "context_text": context["context_text"],
         }
     )
