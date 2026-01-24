@@ -529,19 +529,21 @@ Automated ingestion from configured paths:
 
 ✅ Ingest queue for large batches (background processing)
 
-### 7.3 Library Search & Retrieval
+### 7.3 Library Search & Retrieval ✅
 
 Search capabilities across the full library:
 
-⬜ Extend `file_semantic_service.py` with `scope` parameter (project | library | all)
+✅ LibrarySearchService with `scope` parameter (library | project | all)
 
-⬜ Library-wide semantic search endpoint
+✅ Library-wide semantic search with cosine similarity
 
-⬜ Hybrid search: project-first with library fallback option
+✅ Hybrid search: project-first with 10% boost in 'all' scope
 
-⬜ Search result attribution (which library item, which project refs)
+✅ Search result attribution (library_file_id, filename, chunk_index, page, score)
 
-⬜ API: `GET /api/library/search?q=...&scope=...`
+✅ LibraryContextService for chat context injection
+
+✅ API: POST /api/library/search, GET /search/file/<id>, GET /search/similar/<id>
 
 ### 7.4 Library UI
 
@@ -588,6 +590,19 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.24 – 2026-01-24
+
+Completed Phase 7.3 Library Search & Retrieval:
+
+✅ LibrarySearchService: semantic search with scope control (library/project/all)
+✅ Cosine similarity scoring with project-referenced file boost
+✅ search_by_file() for within-document search
+✅ find_similar_files() using average embeddings
+✅ LibraryContextService: inject library content into chat context
+✅ ContextChunk dataclass with citation formatting
+✅ System prompt builder with source attribution instructions
+✅ API endpoints: search, search by file, find similar files
+
 v1.23 – 2026-01-24
 
 Completed Phase 7.2 Library Ingest Pipeline:
