@@ -423,8 +423,13 @@
 
 .input-actions {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 10px;
+}
+
+/* Push send button to the right */
+.input-actions button:last-child {
+  margin-left: auto;
 }
 
 .input-actions button {
@@ -435,6 +440,7 @@
   color: var(--text);
   cursor: pointer;
   transition: background var(--transition-fast);
+  min-height: 44px;
 }
 
 .input-actions button:hover {
@@ -444,6 +450,32 @@
 .input-actions button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Voice button integration */
+.input-actions .voice-button-wrapper {
+  flex-shrink: 0;
+}
+
+/* Adjust voice button transcript position for chat input */
+.input-actions .voice-button-transcript {
+  bottom: auto;
+  top: calc(100% + 8px);
+  right: auto;
+  left: 0;
+}
+
+.input-actions .voice-button-transcript::after {
+  bottom: auto;
+  top: -6px;
+  right: auto;
+  left: 16px;
+  transform: rotate(-135deg);
+}
+
+.input-actions .voice-button-error {
+  bottom: auto;
+  top: calc(100% + 8px);
 }
 
 /* ================================

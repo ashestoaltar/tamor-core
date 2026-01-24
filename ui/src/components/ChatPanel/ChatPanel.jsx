@@ -7,6 +7,7 @@ import { apiFetch } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { useBreakpoint } from "../../hooks/useBreakpoint";
 import TaskPill from "./TaskPill";
+import VoiceButton from "../VoiceButton/VoiceButton";
 
 const EMPTY_STATE_TEXT = "My name is Tamor. How can I help you today?";
 
@@ -1118,6 +1119,13 @@ export default function ChatPanel({
           disabled={sending}
         />
         <div className="input-actions">
+          <VoiceButton
+            onTranscript={(text) => {
+              // Populate input field with transcript (user can review/edit before sending)
+              setInput((prev) => (prev ? prev + " " + text : text));
+            }}
+            disabled={sending}
+          />
           <button type="button" onClick={handleAttachClick} disabled={uploadingFile} title="Attach a file">
             {uploadingFile ? "Attaching…" : "📎"}
           </button>
