@@ -641,3 +641,54 @@
   }
 }
 
+/* ================================
+   Scripture Citations
+================================ */
+.message-citations {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.citations-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.citations-loading {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Adjust CitationCard styling within chat bubbles */
+.message-citations .citation-card {
+  margin: 6px 0;
+  max-width: 100%;
+}
+
+/* Make citations slightly more compact in chat context */
+.message-citations .citation-card:first-of-type {
+  margin-top: 0;
+}
+
+.message-citations .citation-card:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 599px) {
+  .message-citations {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+
+  .citations-label {
+    font-size: 0.7rem;
+  }
+}
+

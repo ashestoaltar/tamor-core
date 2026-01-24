@@ -1,6 +1,6 @@
 // ui/src/components/ChatPanel/ChatPanel.jsx
 import "./ChatPanel.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { apiFetch } from "../../api/client";
@@ -8,8 +8,11 @@ import { useAuth } from "../../context/AuthContext";
 import { useVoiceSettings } from "../../context/VoiceSettingsContext";
 import { useBreakpoint } from "../../hooks/useBreakpoint";
 import { useVoiceOutput } from "../../hooks/useVoiceOutput";
+import { useReferences } from "../../hooks/useReferences";
+import { findReferences } from "../../utils/referenceParser";
 import TaskPill from "./TaskPill";
 import VoiceButton from "../VoiceButton/VoiceButton";
+import CitationCard from "../CitationCard/CitationCard";
 
 /**
  * Strip markdown formatting from text for speech synthesis.
@@ -265,6 +268,87 @@ function CodeBlock({ inline, className, children }) {
       <pre className="codePre">
         <code className={className}>{code}</code>
       </pre>
+    </div>
+  );
+}
+
+// -----------------------------
+// Message Citations Component
+// -----------------------------
+function MessageCitations({ content, role }) {
+  const [citations, setCitations] = useState([]);
+  const [loadingCitations, setLoadingCitations] = useState(false);
+  const { lookupBatch } = useReferences();
+
+  useEffect(() => {
+    // Only process assistant messages
+    if (role !== "assistant") return;
+    if (!content) return;
+
+    const refs = findReferences(content);
+    if (refs.length === 0) {
+      setCitations([]);
+      return;
+    }
+
+    // Deduplicate by normalized reference
+    const uniqueRefs = [...new Set(refs.map((r) => r.parsed.normalized))];
+
+    // Limit to avoid over-fetching (max 5 citations per message)
+    const refsToFetch = uniqueRefs.slice(0, 5);
+
+    setLoadingCitations(true);
+
+    lookupBatch(refsToFetch, { sources: ["sword"], translations: ["KJV"] })
+      .then((results) => {
+        const citationList = [];
+        for (const [ref, data] of Object.entries(results)) {
+          if (data && data.length > 0) {
+            // Use first result (SWORD default)
+            citationList.push({
+              ref_string: data[0].ref || ref,
+              source: data[0].source || "sword",
+              translation: data[0].translation || "KJV",
+              text: data[0].text || "",
+              hebrew: data[0].hebrew || null,
+              book: data[0].book,
+              chapter: data[0].chapter,
+              verse_start: data[0].verse_start,
+              verse_end: data[0].verse_end,
+            });
+          }
+        }
+        setCitations(citationList);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch citations:", err);
+        setCitations([]);
+      })
+      .finally(() => setLoadingCitations(false));
+  }, [content, role, lookupBatch]);
+
+  // Don't render anything if no citations and not loading
+  if (citations.length === 0 && !loadingCitations) {
+    return null;
+  }
+
+  return (
+    <div className="message-citations">
+      {loadingCitations && (
+        <div className="citations-loading">Loading references...</div>
+      )}
+      {citations.length > 0 && (
+        <>
+          <div className="citations-label">Referenced passages:</div>
+          {citations.map((citation, idx) => (
+            <CitationCard
+              key={`${citation.ref_string}-${idx}`}
+              reference={citation}
+              defaultExpanded={false}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -1191,6 +1275,11 @@ export default function ChatPanel({
                       window.dispatchEvent(new Event("tamor:tasks-updated"));
                     }}
                   />
+                )}
+
+                {/* Scripture citations for assistant messages */}
+                {!isUser && msg.status !== "thinking" && msg.content && (
+                  <MessageCitations content={msg.content} role={msg.role} />
                 )}
 
                 {/* Read aloud button for assistant messages */}
