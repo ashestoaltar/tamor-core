@@ -491,150 +491,182 @@ body {
 
 /* ===========================
    RESPONSIVE LAYOUT
+   Breakpoints:
+   - Mobile: < 768px
+   - Tablet: 768px - 1024px
+   - Desktop: > 1024px
    =========================== */
 
-/* 900–1199px: tighter columns for small desktop / big tablet */
-@media (max-width: 1199px) {
+/* ===========================
+   Header Menu Buttons (Tablet)
+   =========================== */
+
+.app-header-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.app-header-menu-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.app-header-menu-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ===========================
+   Desktop Layout (> 1024px)
+   Three-panel layout
+   =========================== */
+
+@media (min-width: 1025px) {
   .panel-row > .left-panel {
-    width: 20%;
-    min-width: 200px;
+    width: 22%;
+    min-width: var(--panel-min-width-desktop);
   }
 
   .chat-panel-wrapper {
-    flex: 1.6;
+    flex: 1;
     min-width: 0;
   }
 
   .panel-row > .right-panel {
-    width: 24%;
-    min-width: 220px;
+    width: 26%;
+    min-width: var(--panel-min-width-desktop);
   }
 }
 
-/* <900px: tablet + phone
-   - Show ONE panel at a time
-   - Switch via .view-chat / .view-left / .view-right
-*/
-@media (max-width: 899px) {
-  .mobile-nav {
-    display: flex;
-    padding: 0.5rem 0.75rem;
+/* ===========================
+   Tablet Layout (768px - 1024px)
+   Collapsible sidebars
+   =========================== */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .app-shell.is-tablet .panel-row {
+    flex: 1;
+    min-height: 0;
   }
 
-  /* Mobile nav buttons - increase touch targets to 44px+ */
-  .mobile-nav button {
-    padding: 10px 12px;
-    font-size: 0.875rem;
-    min-height: 44px;
-    font-weight: 500;
+  /* Tablet sidebar panels */
+  .left-panel-tablet,
+  .right-panel-tablet {
+    width: var(--panel-min-width-tablet);
+    min-width: var(--panel-min-width-tablet);
+    flex-shrink: 0;
+  }
+
+  .left-panel-tablet {
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  .right-panel-tablet {
+    border-left: 1px solid var(--border-subtle);
+  }
+
+  /* Chat panel fills remaining space */
+  .app-shell.is-tablet .chat-panel-wrapper {
+    flex: 1;
+    min-width: 0;
   }
 
   /* Header controls - larger touch targets */
-  .app-header-mode select {
+  .app-shell.is-tablet .app-header-mode select,
+  .app-shell.is-tablet .app-header-user select {
     padding: 8px 12px;
     font-size: 14px;
     min-height: 44px;
   }
 
-  .app-header-user select {
-    padding: 8px 12px;
-    font-size: 14px;
-    min-height: 44px;
-  }
-
-  .logout-button {
+  .app-shell.is-tablet .logout-button {
     padding: 10px 14px;
     font-size: 13px;
     min-height: 44px;
   }
-
-  /* Panel row fills remaining space under mobile-nav */
-  .panel-row {
-    flex: 1 1 auto;
-    min-height: 0;
-
-    /* one panel at a time; no need for row columns */
-    flex-direction: column;
-  }
-
-  /* Default: hide all; show via view-* classes */
-  .panel-row > .left-panel,
-  .panel-row > .chat-panel-wrapper,
-  .panel-row > .right-panel {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-
-    border-left: none;
-    border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
-    box-sizing: border-box;
-
-    /* This is the key: the active one must be allowed to fill height */
-    flex: 1 1 auto;
-    min-height: 0;
-
-    display: none;
-  }
-
-  /* Active: Chat */
-  .app-main.view-chat .panel-row > .chat-panel-wrapper {
-    display: flex;
-  }
-
-  /* Active: Left */
-  .app-main.view-left .panel-row > .left-panel {
-    display: flex;
-  }
-
-  /* Active: Right */
-  .app-main.view-right .panel-row > .right-panel {
-    display: flex;
-  }
 }
 
-/* <600px: phone portrait
-   - Tighten spacing and fonts (layout only)
-   - Even larger touch targets for small screens
-*/
-@media (max-width: 599px) {
-  .panel-row > .left-panel,
-  .panel-row > .right-panel {
-    padding: 0.5rem 0.5rem;
+/* ===========================
+   Mobile Layout (< 768px)
+   Single panel + drawers + bottom nav
+   =========================== */
+
+@media (max-width: 767px) {
+  /* Mobile shell adjustments */
+  .app-shell.is-mobile {
+    /* Account for bottom navigation */
+    padding-bottom: var(--mobile-nav-height);
   }
 
-  .panel-row > .chat-panel-wrapper {
-    min-width: 0;
+  .app-shell.is-mobile .app-main {
+    /* Fill available height */
+    flex: 1;
+    min-height: 0;
   }
 
-  .app-header {
+  .app-shell.is-mobile .panel-row {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Chat panel on mobile - full width */
+  .chat-panel-mobile {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  /* Header adjustments for mobile */
+  .app-shell.is-mobile .app-header {
     padding: 0 12px;
   }
 
-  .app-header-subtitle {
-    display: none; /* reclaim space */
+  .app-shell.is-mobile .app-header-subtitle {
+    display: none;
   }
 
-  /* Even larger touch targets on phones */
-  .mobile-nav {
-    padding: 0.6rem 0.5rem;
+  .app-shell.is-mobile .app-header-logo {
+    font-size: 1.1rem;
   }
 
-  .mobile-nav button {
-    padding: 12px 10px;
-    font-size: 0.9rem;
-    min-height: 48px;
+  /* Hide user greeting on mobile - too cramped */
+  .app-shell.is-mobile .user-greeting-label,
+  .app-shell.is-mobile .user-greeting {
+    display: none;
   }
 
-  .app-header-mode select,
-  .app-header-user select {
-    padding: 10px 14px;
-    min-height: 48px;
+  /* Hide logout button on mobile - use Settings drawer */
+  .app-shell.is-mobile .logout-button {
+    display: none;
   }
 
-  .logout-button {
-    padding: 12px 16px;
-    min-height: 48px;
+  /* Hide mode selector on mobile - use Settings drawer */
+  .app-shell.is-mobile .app-header-mode {
+    display: none;
+  }
+}
+
+/* ===========================
+   Mobile: Chat Input Safe Area
+   =========================== */
+
+@media (max-width: 767px) {
+  /* Ensure chat input has padding above bottom nav */
+  .app-shell.is-mobile .chat-input-wrapper {
+    padding-bottom: var(--space-sm);
   }
 }
 
