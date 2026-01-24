@@ -1,0 +1,32 @@
+# Tamor Core API Dependencies
+
+# Web Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Database
+flask-sqlalchemy>=3.1.0
+
+# HTTP Client
+requests>=2.31.0
+
+# AI/ML
+anthropic>=0.18.0
+openai>=1.12.0
+
+# Text Processing
+pypdf>=4.0.0
+python-docx>=1.1.0
+python-pptx>=0.6.23
+beautifulsoup4>=4.12.0
+markdown>=3.5.0
+
+# Media
+yt-dlp>=2024.1.0
+mutagen>=1.47.0
+
+# Reference System
+pysword>=0.2.8
+
+# Utilities
+python-dotenv>=1.0.0
