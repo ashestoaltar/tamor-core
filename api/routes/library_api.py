@@ -10,9 +10,12 @@ from flask import Blueprint, jsonify, request
 
 from services.library import (
     LibraryChunkService,
+    LibraryIngestService,
     LibraryReferenceService,
+    LibraryScannerService,
     LibraryService,
     LibraryTextService,
+    ScannedFile,
 )
 from utils.auth import ensure_user
 from utils.db import get_db
@@ -24,6 +27,8 @@ library_service = LibraryService()
 reference_service = LibraryReferenceService()
 text_service = LibraryTextService()
 chunk_service = LibraryChunkService()
+scanner_service = LibraryScannerService()
+ingest_service = LibraryIngestService()
 
 
 # =============================================================================
@@ -360,3 +365,282 @@ def bulk_add_library_refs(project_id: int):
     )
 
     return jsonify(result)
+
+
+# =============================================================================
+# SCANNING
+# =============================================================================
+
+
+@library_bp.get("/api/library/scan/config")
+def get_scan_config():
+    """Get current scan configuration (patterns, mount path)."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    storage = scanner_service.storage
+
+    return jsonify(
+        {
+            "mount_path": str(storage.get_mount_path()),
+            "is_mounted": storage.is_mounted(),
+            "include_patterns": scanner_service.get_include_patterns(),
+            "exclude_patterns": scanner_service.get_exclude_patterns(),
+        }
+    )
+
+
+@library_bp.patch("/api/library/scan/config")
+def update_scan_config():
+    """
+    Update scan configuration.
+
+    Body:
+        include_patterns: List of glob patterns to include
+        exclude_patterns: List of glob patterns to exclude
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+
+    if "include_patterns" in data:
+        scanner_service.set_include_patterns(data["include_patterns"])
+
+    if "exclude_patterns" in data:
+        scanner_service.set_exclude_patterns(data["exclude_patterns"])
+
+    return jsonify({"updated": True})
+
+
+@library_bp.get("/api/library/scan/preview")
+def preview_scan():
+    """
+    Preview what would be scanned without importing.
+
+    Query params:
+        path: Directory to scan (default: mount_path)
+        limit: Max files to list (default: 100)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    path = request.args.get("path")
+    limit = min(int(request.args.get("limit", 100)), 500)
+
+    try:
+        files = []
+        for i, scanned in enumerate(scanner_service.scan_directory(path)):
+            if i >= limit:
+                break
+            files.append(
+                {
+                    "path": scanned.relative_path,
+                    "filename": scanned.filename,
+                    "size_bytes": scanned.size_bytes,
+                    "mime_type": scanned.mime_type,
+                }
+            )
+
+        return jsonify(
+            {"files": files, "count": len(files), "truncated": len(files) == limit}
+        )
+
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@library_bp.get("/api/library/scan/summary")
+def scan_summary():
+    """
+    Get summary statistics for scan path.
+
+    Query params:
+        path: Directory to scan (default: mount_path)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    path = request.args.get("path")
+
+    try:
+        summary = scanner_service.scan_summary(path)
+        return jsonify(summary)
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@library_bp.get("/api/library/scan/new")
+def scan_new_files():
+    """
+    List files in scan path not yet in library.
+
+    Query params:
+        path: Directory to scan (default: mount_path)
+        limit: Max files to return (default: 100)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    path = request.args.get("path")
+    limit = min(int(request.args.get("limit", 100)), 500)
+
+    try:
+        files = []
+        for i, scanned in enumerate(scanner_service.find_new_files(path)):
+            if i >= limit:
+                break
+            files.append(
+                {
+                    "path": scanned.path,
+                    "relative_path": scanned.relative_path,
+                    "filename": scanned.filename,
+                    "size_bytes": scanned.size_bytes,
+                    "mime_type": scanned.mime_type,
+                }
+            )
+
+        total_new = scanner_service.count_new_files(path)
+
+        return jsonify(
+            {
+                "files": files,
+                "count": len(files),
+                "total_new": total_new,
+                "truncated": len(files) < total_new,
+            }
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# INGESTING
+# =============================================================================
+
+
+@library_bp.post("/api/library/ingest")
+def ingest_files():
+    """
+    Import files into the library.
+
+    Body:
+        path: Directory to scan and import (default: mount_path)
+        file_paths: List of specific file paths to import (alternative to path)
+        new_only: Only import files not already in library (default: true)
+        auto_index: Generate embeddings during import (default: true)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+
+    path = data.get("path")
+    file_paths = data.get("file_paths")
+    new_only = data.get("new_only", True)
+    auto_index = data.get("auto_index", True)
+
+    try:
+        if file_paths:
+            # Import specific files
+            progress = ingest_service.ingest_batch(
+                file_paths=file_paths, auto_index=auto_index
+            )
+        else:
+            # Import from directory
+            progress = ingest_service.ingest_directory(
+                path=path, auto_index=auto_index, new_only=new_only
+            )
+
+        return jsonify({"status": "completed", "result": progress.to_dict()})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@library_bp.post("/api/library/sync")
+def sync_library():
+    """
+    Synchronize library with filesystem.
+
+    Adds new files and optionally removes records for deleted files.
+
+    Body:
+        path: Directory to sync (default: mount_path)
+        remove_missing: Remove records for files no longer on disk (default: false)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    path = data.get("path")
+    remove_missing = data.get("remove_missing", False)
+
+    try:
+        result = ingest_service.sync_library(path=path, remove_missing=remove_missing)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@library_bp.post("/api/library/ingest/single")
+def ingest_single_file():
+    """
+    Import a single file by path.
+
+    Body:
+        file_path: Absolute path to the file
+        metadata: Optional metadata dict
+        auto_index: Generate embeddings (default: true)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    file_path = data.get("file_path")
+    metadata = data.get("metadata")
+    auto_index = data.get("auto_index", True)
+
+    if not file_path:
+        return jsonify({"error": "file_path required"}), 400
+
+    from datetime import datetime
+    from pathlib import Path
+
+    path = Path(file_path)
+
+    if not path.exists():
+        return jsonify({"error": f"File not found: {file_path}"}), 404
+
+    # Create ScannedFile
+    scanned = ScannedFile(
+        path=str(path),
+        filename=path.name,
+        size_bytes=path.stat().st_size,
+        modified_at=datetime.fromtimestamp(path.stat().st_mtime),
+        mime_type=scanner_service._guess_mime_type(path.name),
+        relative_path=str(path),
+    )
+
+    result = ingest_service.ingest_file(
+        scanned_file=scanned, auto_index=auto_index, metadata=metadata
+    )
+
+    if result["status"] == "error":
+        return jsonify(result), 500
+
+    return jsonify(result), 201 if result["status"] == "created" else 200
