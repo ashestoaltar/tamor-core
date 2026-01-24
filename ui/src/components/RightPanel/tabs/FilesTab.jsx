@@ -6,12 +6,14 @@ import { useDevMode } from "../../../context/DevModeContext";
 import FileList from "../components/FileList.jsx";
 import StructurePanel from "../components/StructurePanel.jsx";
 import ProjectSummaryPanel from "../components/ProjectSummaryPanel.jsx";
+import ProjectLibraryRefs from "./ProjectLibraryRefs.jsx";
 
 function FilesTab({
   currentProjectId,
   activeConversationId,
   activeMode,
   onConversationsChanged,
+  onOpenLibrary,
 }) {
   const { devMode } = useDevMode();
   // Files list
@@ -332,6 +334,12 @@ function FilesTab({
         onFileAction={handleFileAction}
         fileActionLoading={fileActionLoading}
         fileActionResults={fileActionResults}
+      />
+
+      {/* Library references */}
+      <ProjectLibraryRefs
+        projectId={currentProjectId}
+        onOpenLibrary={onOpenLibrary}
       />
 
       {/* Structure block (dev mode only) */}

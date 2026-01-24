@@ -1,0 +1,130 @@
+.project-library-refs {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+  overflow: hidden;
+}
+
+.project-library-refs.empty {
+  padding: var(--spacing-md);
+}
+
+.refs-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-weight: 500;
+}
+
+.refs-header.clickable {
+  cursor: pointer;
+}
+
+.refs-header.clickable:hover {
+  background: var(--bg-tertiary);
+}
+
+.refs-icon {
+  font-size: 1.1rem;
+}
+
+.expand-icon {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.refs-empty-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent-color);
+  cursor: pointer;
+  padding: 0;
+  margin-left: var(--spacing-xs);
+  text-decoration: underline;
+}
+
+.refs-list {
+  border-top: 1px solid var(--border-color);
+  padding: var(--spacing-sm);
+}
+
+.ref-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+}
+
+.ref-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.ref-icon {
+  flex-shrink: 0;
+}
+
+.ref-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ref-name {
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ref-notes {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.ref-remove {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.ref-item:hover .ref-remove {
+  opacity: 1;
+}
+
+.ref-remove:hover {
+  background: var(--error-bg);
+  color: var(--error-color);
+}
+
+.add-more-btn {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background: none;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-top: var(--spacing-sm);
+}
+
+.add-more-btn:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}

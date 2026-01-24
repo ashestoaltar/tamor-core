@@ -316,6 +316,7 @@ function RightPanel({
             activeConversationId={activeConversationId}
             activeMode={activeMode}
             onConversationsChanged={onConversationsChanged}
+            onOpenLibrary={() => handleTabSelect("library")}
           />
         )}
 
