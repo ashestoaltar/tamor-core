@@ -453,6 +453,48 @@ curl -X POST http://localhost:5055/api/library/ingest \
 
 ---
 
+## UI Components
+
+### Library Tab (RightPanel)
+
+The Library tab provides full access to the global library:
+
+**Views:**
+- **Browse**: File list with icons, search, statistics bar
+- **Search**: Semantic search results with relevance scores
+- **Manage**: Ingest controls, indexing queue, mount status
+- **Settings**: Context injection preferences
+
+**Features:**
+- Library statistics (file count, total size, indexed/pending)
+- Search with scope control (library, project, or all)
+- Add files to current project
+- Process indexing queue
+- Import new files from configured path
+
+### Project Library References
+
+In the Files tab, the `ProjectLibraryRefs` component shows library files linked to the current project:
+
+- Collapsible list with file icons
+- Remove reference (unlinks, doesn't delete file)
+- "Add from library" button opens Library tab
+- "Browse library" link when empty
+
+### Library Settings Panel
+
+Configure context injection behavior:
+
+| Setting | Description |
+|---------|-------------|
+| Enable context injection | Toggle auto-injection on/off |
+| Search scope | Library, project, or both |
+| Max context chunks | Number of chunks to inject (1-10) |
+| Min relevance score | Threshold for inclusion (0-1) |
+| Show sources in response | Display source citations |
+
+---
+
 ## Architecture Notes
 
 ### Database Tables (Library)

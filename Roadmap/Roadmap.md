@@ -545,19 +545,23 @@ Search capabilities across the full library:
 
 ✅ API: POST /api/library/search, GET /search/file/<id>, GET /search/similar/<id>
 
-### 7.4 Library UI
+### 7.4 Library UI ✅
 
 User interface for browsing and managing the library:
 
-⬜ Library tab in RightPanel (or dedicated view)
+✅ Library tab in RightPanel (essential tabs group)
 
-⬜ Browse by folder structure / flat list / search
+✅ Browse files with search, manage view for ingest/indexing
 
-⬜ "Add to project" action (creates reference, not copy)
+✅ "Add to project" action (creates reference, not copy)
 
-⬜ Ingest status and queue visibility
+✅ Ingest status and queue visibility in manage view
 
-⬜ Library statistics (file count, total size, last sync)
+✅ Library statistics (file count, total size, indexed count)
+
+✅ LibrarySettings panel (context injection preferences)
+
+✅ ProjectLibraryRefs component (show linked library files in Files tab)
 
 ### 7.5 Transcription Queue (CPU-Optimized)
 
@@ -590,6 +594,18 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.26 – 2026-01-24
+
+Completed Phase 7.4 Library UI:
+
+✅ useLibrary hook with all library API methods
+✅ LibraryTab component (browse, search, manage views)
+✅ Library statistics bar (file count, size, indexed/pending)
+✅ LibrarySettings panel for context injection preferences
+✅ ProjectLibraryRefs component for Files tab (linked library files)
+✅ RightPanel integration (Library in essential tabs group)
+✅ Add to project, remove reference, open library actions
+
 v1.25 – 2026-01-24
 
 Added Library Settings & Documentation:
