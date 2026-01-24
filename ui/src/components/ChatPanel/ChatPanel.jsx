@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { apiFetch } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import { useVoiceSettings } from "../../context/VoiceSettingsContext";
 import { useBreakpoint } from "../../hooks/useBreakpoint";
 import { useVoiceOutput } from "../../hooks/useVoiceOutput";
 import TaskPill from "./TaskPill";
@@ -475,10 +476,12 @@ export default function ChatPanel({
 }) {
   const { user } = useAuth();
   const { isMobile } = useBreakpoint();
+  const { outputEnabled, autoRead } = useVoiceSettings();
 
   // Text-to-speech for reading messages aloud
   const { speak, stop, isSpeaking, isSupported: isTTSSupported } = useVoiceOutput();
   const [speakingMessageKey, setSpeakingMessageKey] = useState(null);
+  const lastAutoReadMessageIdRef = useRef(null);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -575,6 +578,34 @@ export default function ChatPanel({
       setSpeakingMessageKey(null);
     }
   }, [isSpeaking, speakingMessageKey]);
+
+  // Auto-read new assistant messages when enabled
+  useEffect(() => {
+    if (!autoRead || !isTTSSupported || !outputEnabled) return;
+    if (messages.length === 0) return;
+
+    // Find the last assistant message that's not thinking
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== "assistant" || lastMsg.status === "thinking") return;
+
+    // Get a stable key for this message
+    const msgKey = lastMsg._local_id || (lastMsg.id != null ? `id-${lastMsg.id}` : null);
+    if (!msgKey) return;
+
+    // Only auto-read if we haven't already read this message
+    if (lastAutoReadMessageIdRef.current === msgKey) return;
+
+    // Don't auto-read if we're already speaking something
+    if (isSpeaking) return;
+
+    // Mark as read and speak
+    lastAutoReadMessageIdRef.current = msgKey;
+    const plainText = stripMarkdown(lastMsg.content);
+    if (plainText) {
+      setSpeakingMessageKey(msgKey);
+      speak(plainText);
+    }
+  }, [messages, autoRead, isTTSSupported, outputEnabled, isSpeaking, speak]);
 
   // ---- Project required modal state ----
   const LAST_PROJECT_KEY = "tamor_last_project_id";
@@ -1124,7 +1155,7 @@ export default function ChatPanel({
           const domId = getMsgDomId(msg, idx);
           const msgKey = getMsgKey(msg, idx);
           const isThisMessageSpeaking = speakingMessageKey === msgKey && isSpeaking;
-          const canReadAloud = !isUser && msg.status !== "thinking" && msg.content && isTTSSupported;
+          const canReadAloud = !isUser && msg.status !== "thinking" && msg.content && isTTSSupported && outputEnabled;
 
           return (
             <div

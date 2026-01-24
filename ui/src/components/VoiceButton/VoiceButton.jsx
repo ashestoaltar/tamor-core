@@ -1,6 +1,7 @@
 // ui/src/components/VoiceButton/VoiceButton.jsx
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useVoiceInput } from "../../hooks/useVoiceInput";
+import { useVoiceSettings } from "../../context/VoiceSettingsContext";
 import "./VoiceButton.css";
 
 /**
@@ -12,6 +13,8 @@ import "./VoiceButton.css";
  * @param {string} [props.className] - Additional CSS classes
  */
 export default function VoiceButton({ onTranscript, disabled = false, className = "" }) {
+  const { inputEnabled } = useVoiceSettings();
+
   const {
     isListening,
     transcript,
@@ -88,8 +91,8 @@ export default function VoiceButton({ onTranscript, disabled = false, className 
     [handleClick]
   );
 
-  // Don't render if not supported
-  if (!isSupported) {
+  // Don't render if not supported or disabled in settings
+  if (!isSupported || !inputEnabled) {
     return null;
   }
 
