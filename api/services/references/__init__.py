@@ -5,6 +5,7 @@ Reference storage and retrieval services for Tamor.
 This package provides:
 - ReferenceStorage: Directory structure and configuration management
 - SwordManager: SWORD Bible module download and management
+- SwordClient: Bible passage lookup from local SWORD modules
 - Sefaria API caching (future)
 """
 
@@ -16,6 +17,11 @@ from .sword_manager import (
     DownloadError,
     ExtractionError,
 )
+from .sword_client import (
+    SwordClient,
+    ReferenceParseError,
+    parse_reference,
+)
 
 __all__ = [
     "ReferenceStorage",
@@ -24,4 +30,7 @@ __all__ = [
     "ModuleNotFoundError",
     "DownloadError",
     "ExtractionError",
+    "SwordClient",
+    "ReferenceParseError",
+    "parse_reference",
 ]

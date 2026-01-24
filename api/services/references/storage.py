@@ -18,15 +18,19 @@ class ReferenceStorage:
 
     Directory structure:
         {TAMOR_REFERENCE_PATH}/
-        ├── sword/
+        ├── sword/                      # SWORD root (where pysword looks)
+        │   ├── mods.d/                 # Module config files
         │   └── modules/
-        │       ├── texts/
-        │       └── mods.d/
+        │       └── texts/              # Bible text modules
         ├── sefaria_cache/
         │   ├── texts/
         │   ├── search/
         │   └── commentary/
         └── config.json
+
+    The SWORD structure matches CrossWire's expected layout where
+    DataPath in .conf files (e.g., ./modules/texts/ztext/kjv/)
+    is relative to the sword root directory.
     """
 
     def __init__(self):
@@ -39,8 +43,8 @@ class ReferenceStorage:
     def _ensure_structure(self):
         """Create directory structure if it doesn't exist."""
         dirs = [
+            self.base_path / "sword" / "mods.d",
             self.base_path / "sword" / "modules" / "texts",
-            self.base_path / "sword" / "modules" / "mods.d",
             self.base_path / "sefaria_cache" / "texts",
             self.base_path / "sefaria_cache" / "search",
             self.base_path / "sefaria_cache" / "commentary",
@@ -63,13 +67,13 @@ class ReferenceStorage:
 
     @property
     def sword_path(self) -> Path:
-        """Path to SWORD modules directory."""
-        return self.base_path / "sword" / "modules"
+        """Path to SWORD root directory (where pysword looks for modules)."""
+        return self.base_path / "sword"
 
     @property
     def sword_texts_path(self) -> Path:
         """Path to SWORD text modules."""
-        return self.sword_path / "texts"
+        return self.sword_path / "modules" / "texts"
 
     @property
     def sword_mods_path(self) -> Path:

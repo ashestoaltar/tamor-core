@@ -268,7 +268,8 @@ class SwordManager:
         - mods.d/{module}.conf  (module configuration)
         - modules/texts/{category}/{module}/  (module data)
 
-        We need to merge these into our existing structure.
+        Files are extracted to match the SWORD expected structure where
+        DataPath in .conf files is relative to the sword root.
         """
         with zipfile.ZipFile(zip_path, "r") as zf:
             # Check zip contents
@@ -283,26 +284,10 @@ class SwordManager:
                 # Normalize path separators
                 member_path = member.filename.replace("\\", "/")
 
-                # Handle mods.d files -> goes to sword_mods_path
-                if member_path.startswith("mods.d/"):
-                    rel_path = member_path[len("mods.d/"):]
-                    dest_path = self.storage.sword_mods_path / rel_path
-                    self._extract_member(zf, member, dest_path)
-
-                # Handle modules/texts files -> goes to sword_texts_path
-                elif member_path.startswith("modules/texts/"):
-                    rel_path = member_path[len("modules/texts/"):]
-                    dest_path = self.storage.sword_texts_path / rel_path
-                    self._extract_member(zf, member, dest_path)
-
-                # Handle other modules/ files
-                elif member_path.startswith("modules/"):
-                    rel_path = member_path[len("modules/"):]
-                    dest_path = self.storage.sword_path / rel_path
-                    self._extract_member(zf, member, dest_path)
-
-                else:
-                    logger.warning(f"Unexpected file in zip: {member_path}")
+                # All files extract relative to sword_path
+                # This preserves the structure: mods.d/, modules/texts/, etc.
+                dest_path = self.storage.sword_path / member_path
+                self._extract_member(zf, member, dest_path)
 
     def _extract_member(self, zf: zipfile.ZipFile, member: zipfile.ZipInfo, dest_path: Path):
         """Extract a single zip member to destination path."""
@@ -339,14 +324,15 @@ class SwordManager:
                 break
 
         # Find and remove module data directory
-        # Module data is typically in texts/{category}/{module_lower}/
+        # Module data is in modules/texts/{category}/{module_lower}/
         module_lower = module_code.lower()
-        for category_dir in self.storage.sword_texts_path.iterdir():
-            if category_dir.is_dir():
-                module_dir = category_dir / module_lower
-                if module_dir.exists():
-                    shutil.rmtree(module_dir)
-                    logger.debug(f"Removed data: {module_dir}")
+        if self.storage.sword_texts_path.exists():
+            for category_dir in self.storage.sword_texts_path.iterdir():
+                if category_dir.is_dir():
+                    module_dir = category_dir / module_lower
+                    if module_dir.exists():
+                        shutil.rmtree(module_dir)
+                        logger.debug(f"Removed data: {module_dir}")
 
         # Update config to disable module
         self.storage.disable_module(module_code)
