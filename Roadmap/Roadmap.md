@@ -513,21 +513,21 @@ Database foundation for the global library:
 
 ✅ Deduplication check on ingest (hash-based)
 
-### 7.2 Library Ingest Pipeline
+### 7.2 Library Ingest Pipeline ✅
 
 Automated ingestion from configured paths:
 
-⬜ Mount point configuration (`/mnt/library` or configurable)
+✅ Mount point configuration (`/mnt/library` or configurable)
 
-⬜ Directory scanner (recursive, with include/exclude patterns)
+✅ Directory scanner (recursive, with include/exclude patterns)
 
-⬜ File type detection and routing (PDF → extract, audio → transcribe, etc.)
+✅ File type detection and routing (PDF → extract, audio → transcribe, etc.)
 
-⬜ Batch ingest with progress tracking
+✅ Batch ingest with progress tracking
 
-⬜ Incremental sync (detect new/changed/deleted files)
+✅ Incremental sync (detect new/changed/deleted files)
 
-⬜ Ingest queue for large batches (background processing)
+✅ Ingest queue for large batches (background processing)
 
 ### 7.3 Library Search & Retrieval
 
@@ -588,6 +588,16 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.23 – 2026-01-24
+
+Completed Phase 7.2 Library Ingest Pipeline:
+
+✅ LibraryScannerService: directory scanning with include/exclude patterns
+✅ LibraryIngestService: batch importing with progress tracking
+✅ LibraryIndexQueueService: background embedding generation queue
+✅ Incremental sync: add new files, remove missing
+✅ API endpoints: scan config/preview/summary, ingest, sync, index queue
+
 v1.22 – 2026-01-24
 
 Completed Phase 7.1 Library Schema & Core Service:
