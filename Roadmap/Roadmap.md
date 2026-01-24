@@ -59,7 +59,7 @@ Knowledge tab UI
 
 2.4 File Parsing Stability
 
-PDF / DOCX / XLSX parsing improvements
+PDF / DOCX / XLSX / EPUB parsing
 
 Error handling and resilience
 
@@ -510,6 +510,16 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.20 – 2026-01-24
+
+Added EPUB file parsing support:
+
+✅ ebooklib integration for EPUB text extraction
+✅ Chapter structure preservation with offsets
+✅ Dublin Core metadata extraction (title, author)
+✅ Structure extraction for file analysis
+✅ Seamless integration with semantic search and chunking
+
 v1.19 – 2026-01-24
 
 Completed Phase 3.5.5 Frontend Integration (Reference System):
