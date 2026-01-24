@@ -9,5 +9,11 @@ Provides centralized management for the global library system.
 from .library_service import LibraryService
 from .reference_service import LibraryReferenceService
 from .storage_service import LibraryStorageService
+from .text_service import LibraryTextService
 
-__all__ = ["LibraryStorageService", "LibraryService", "LibraryReferenceService"]
+__all__ = [
+    "LibraryStorageService",
+    "LibraryService",
+    "LibraryReferenceService",
+    "LibraryTextService",
+]

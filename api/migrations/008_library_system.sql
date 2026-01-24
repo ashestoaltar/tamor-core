@@ -56,7 +56,9 @@ CREATE INDEX IF NOT EXISTS idx_library_files_source_file ON library_files(source
 CREATE TABLE IF NOT EXISTS library_text_cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     library_file_id INTEGER NOT NULL UNIQUE,
-    text_content TEXT,
+    text_content TEXT,                          -- Extracted text content
+    meta_json TEXT,                             -- Parsing metadata (page count, etc.)
+    parser TEXT,                                -- Parser used (pdf, docx, txt, etc.)
     extracted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (library_file_id) REFERENCES library_files(id) ON DELETE CASCADE
 );
