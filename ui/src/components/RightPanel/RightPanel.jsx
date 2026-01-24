@@ -16,12 +16,13 @@ import MediaTab from "./tabs/MediaTab.jsx";
 import MemoryTab from "./tabs/MemoryTab.jsx";
 import PluginsTab from "./tabs/PluginsTab.jsx";
 import ReferencesTab from "./tabs/ReferencesTab.jsx";
+import LibraryTab from "./tabs/LibraryTab.jsx";
 
 // Tab grouping configuration
 const TAB_GROUPS = {
   essential: {
     id: "essential",
-    tabs: ["workspace", "files", "memory", "references"],
+    tabs: ["workspace", "files", "library", "memory", "references"],
   },
   research: {
     id: "research",
@@ -39,6 +40,7 @@ const TAB_GROUPS = {
 const TAB_LABELS = {
   workspace: "Workspace",
   files: "Files",
+  library: "Library",
   memory: "Memory",
   references: "Scripture",
   search: "Search",
@@ -247,6 +249,7 @@ function RightPanel({
         <div className="rp-tabs">
           {renderTab("workspace")}
           {renderTab("files")}
+          {renderTab("library")}
           {renderTab("references")}
           {renderTab("search")}
           {renderTab("viewer")}
@@ -267,6 +270,7 @@ function RightPanel({
           <div className="rp-tabs-row rp-tabs-essential">
             {renderTab("workspace")}
             {renderTab("files")}
+            {renderTab("library")}
             {renderTab("memory")}
             {renderTab("references")}
             {renderGroupToggle("research")}
@@ -290,7 +294,7 @@ function RightPanel({
       )}
 
       <div className="rp-body">
-        {!currentProjectId && activeTab !== "playlists" && activeTab !== "memory" && activeTab !== "references" && (
+        {!currentProjectId && activeTab !== "playlists" && activeTab !== "memory" && activeTab !== "references" && activeTab !== "library" && (
           <div className="rp-empty-state">
             <div className="rp-empty-title">
               Select or create a project
@@ -313,6 +317,10 @@ function RightPanel({
             activeMode={activeMode}
             onConversationsChanged={onConversationsChanged}
           />
+        )}
+
+        {activeTab === "library" && (
+          <LibraryTab projectId={currentProjectId} />
         )}
 
         {currentProjectId && activeTab === "search" && (
