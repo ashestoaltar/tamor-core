@@ -11,6 +11,50 @@
 }
 
 /* ================================
+   Mobile Header (Tools button)
+================================ */
+.chat-mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.chat-mobile-tools-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  min-height: 44px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.chat-mobile-tools-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.chat-mobile-tools-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chat-mobile-tools-btn svg {
+  flex-shrink: 0;
+}
+
+/* ================================
    Messages Area
 ================================ */
 .messages {

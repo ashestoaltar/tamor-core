@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { apiFetch } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import { useBreakpoint } from "../../hooks/useBreakpoint";
 import TaskPill from "./TaskPill";
 
 const EMPTY_STATE_TEXT = "My name is Tamor. How can I help you today?";
@@ -431,8 +432,10 @@ export default function ChatPanel({
   currentProjectId,
   setCurrentProjectId, // optional
   conversationRefreshToken,
+  onOpenRightPanel, // mobile only - opens right drawer
 }) {
   const { user } = useAuth();
+  const { isMobile } = useBreakpoint();
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -978,6 +981,26 @@ export default function ChatPanel({
   return (
     <div className="chat-panel">
       <Toast text={toastText} />
+
+      {/* Mobile header with Tools button */}
+      {isMobile && onOpenRightPanel && (
+        <div className="chat-mobile-header">
+          <button
+            type="button"
+            className="chat-mobile-tools-btn"
+            onClick={onOpenRightPanel}
+            aria-label="Open tools panel"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            <span>Tools</span>
+          </button>
+        </div>
+      )}
 
       <ProjectRequiredModal
         open={showProjectModal}
