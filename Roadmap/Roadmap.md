@@ -220,7 +220,7 @@ Align the UI with Tamor's core philosophy (Wholeness • Light • Insight). Sim
 - ✅ Developer tools accessible but hidden by default
 - ✅ Interface embodies Tamor: calm, purposeful, illuminating
 
-3.5 Reference Integration (Local-First) (Proposed)
+3.5 Reference Integration (Local-First) (In Progress)
 
 Integrate biblical and scholarly reference sources into Tamor, enabling grounded research with clear source attribution.
 
@@ -233,48 +233,52 @@ Integrate biblical and scholarly reference sources into Tamor, enabling grounded
 **Storage Structure:**
 ```
 {TAMOR_REFERENCE_PATH}/          # Default: /home/tamor/data/references/
-├── sword/modules/               # SWORD Bible modules (~50-100MB typical)
+├── sword/                       # SWORD root directory
+│   ├── mods.d/                  # Module configuration files
+│   └── modules/texts/           # Module data (~50-100MB typical)
 ├── sefaria_cache/               # Cached Sefaria responses
 └── config.json                  # Module preferences, enabled translations
 ```
 
-3.5.1 Storage & Module Management
+3.5.1 Storage & Module Management (Complete)
 
-⬜ Create reference data directory structure
+✅ Create reference data directory structure (storage.py)
 
-⬜ SWORD module downloader (fetch from CrossWire)
+✅ SWORD module downloader (fetch from CrossWire)
 
-⬜ Module configuration (enable/disable translations)
+✅ Module configuration (enable/disable translations)
 
-⬜ pysword integration for reading modules
+✅ pysword integration for reading modules
 
-3.5.2 SWORD Client
+✅ Setup script for downloading modules (scripts/setup_references.py)
 
-⬜ Read passages from local modules
+3.5.2 SWORD Client (Complete)
 
-⬜ List available/enabled translations
+✅ Read passages from local modules
 
-⬜ Search within modules (basic keyword)
+✅ List available/enabled translations
 
-⬜ Compare translations locally
+✅ Search within modules (basic keyword)
 
-3.5.3 Sefaria Client with Caching
+✅ Compare translations locally
 
-⬜ API client for Sefaria
+3.5.3 Sefaria Client with Caching (Complete)
 
-⬜ File-based cache for responses
+✅ API client for Sefaria
 
-⬜ SQLite index for cache lookups
+✅ File-based cache for responses
 
-⬜ Offline fallback to cache
+✅ TTL-based expiration with offline fallback to expired cache
 
-3.5.4 Unified Reference Service
+✅ Cache management (stats, clear)
 
-⬜ Combined interface for both sources
+3.5.4 Unified Reference Service (Complete)
 
-⬜ Reference parser (human input → structured)
+✅ Combined interface for both sources (reference_service.py)
 
-⬜ API endpoints: /api/references/lookup, /search, /compare, /versions, /modules
+✅ Reference parser with 200+ book abbreviations (reference_parser.py)
+
+✅ API endpoints: /api/references/lookup, /compare, /search, /detect, /commentary, /cross-references, /translations, /modules/*, /book/*, /cache/*
 
 3.5.5 Frontend Integration
 
@@ -506,19 +510,36 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.18 – 2026-01-24
+
+Completed Phase 3.5.1–3.5.4 Reference Integration (Backend):
+
+✅ 3.5.1 Storage & Module Management:
+  - Reference storage system with configurable paths (storage.py)
+  - SWORD module downloader from CrossWire (sword_manager.py)
+  - Setup script with CLI options (scripts/setup_references.py)
+  - Default modules: KJV, ASV, YLT, SBLGNT
+
+✅ 3.5.2 SWORD Client:
+  - Read passages from local modules via pysword
+  - Translation comparison, verse ranges, Greek text support
+  - Book info with chapter/verse counts
+
+✅ 3.5.3 Sefaria Client with Caching:
+  - API client with aggressive file-based caching
+  - TTL-based expiration with offline fallback
+  - Hebrew text support, commentary, cross-references
+
+✅ 3.5.4 Unified Reference Service:
+  - ReferenceService combining SWORD + Sefaria
+  - Reference parser with 200+ book abbreviations
+  - Full API: lookup, compare, search, detect, commentary, cross-references, translations, modules, cache
+
+⬜ 3.5.5 Frontend Integration — pending (CitationCard, ReferencesTab)
+
 v1.17 – 2026-01-23
 
 Added Phase 3.5 Reference Integration (Local-First):
-
-⬜ 3.5.1 Storage & Module Management — directory structure, SWORD downloader, pysword
-
-⬜ 3.5.2 SWORD Client — local Bible module reading, translation comparison
-
-⬜ 3.5.3 Sefaria Client with Caching — API client, file cache, offline fallback
-
-⬜ 3.5.4 Unified Reference Service — combined interface, reference parser, API endpoints
-
-⬜ 3.5.5 Frontend Integration — CitationCard, ReferencesTab, chat citations
 
 Philosophy: Local independence (SWORD local, Sefaria cached, NAS-ready)
 
