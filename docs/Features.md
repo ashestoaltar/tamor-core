@@ -455,43 +455,165 @@ curl -X POST http://localhost:5055/api/library/ingest \
 
 ## UI Components
 
-### Library Tab (RightPanel)
+### RightPanel Tab Structure
 
-The Library tab provides full access to the global library:
+```
+RightPanel
+├── Essential Tabs (always visible)
+│   ├── Workspace    - Project overview, pipeline controls
+│   ├── Files        - Project files, library refs, keyword search
+│   ├── Library      - Global library browser
+│   ├── Memory       - Long-term memory management
+│   └── References   - Scripture lookup (SWORD/Sefaria)
+├── Research Group (collapsible on mobile)
+│   ├── Search       - Semantic cross-file search
+│   ├── Insights     - Auto-generated insights
+│   ├── Reasoning    - Cross-document analysis
+│   └── Knowledge    - Knowledge graph
+└── Tools Group (collapsible on mobile)
+    ├── Media        - Transcription controls
+    ├── Viewer       - Document viewer
+    ├── Plugins      - Import/export/reference plugins
+    └── Playlists    - Media playlists
+```
 
-**Views:**
-- **Browse**: File list with icons, search, statistics bar
-- **Search**: Semantic search results with relevance scores
-- **Manage**: Ingest controls, indexing queue, mount status
-- **Settings**: Context injection preferences
+### Library Tab
 
-**Features:**
-- Library statistics (file count, total size, indexed/pending)
-- Search with scope control (library, project, or all)
-- Add files to current project
-- Process indexing queue
-- Import new files from configured path
+```
+Library Tab
+├── Header
+│   ├── Title
+│   └── Navigation (Browse | Manage | ⚙️ Settings)
+├── Browse View
+│   ├── Stats bar (file count, size, indexed/pending)
+│   ├── Search input with submit
+│   └── File list
+│       └── File item
+│           ├── Type icon (📕 PDF, 📘 EPUB, 🎵 audio, etc.)
+│           ├── Filename + size
+│           └── [+] Add to project button
+├── Search View
+│   ├── Back button + result count
+│   └── Results list
+│       └── Result item
+│           ├── File info
+│           ├── Relevance score (% match)
+│           └── Content excerpt
+├── Manage View
+│   ├── Storage section
+│   │   ├── Mount path
+│   │   └── Mount status (✓ Mounted / ✗ Not Mounted)
+│   ├── Index queue section
+│   │   ├── Queue stats (indexed / pending)
+│   │   └── [Index Next 20] button
+│   └── Import section
+│       └── [Import New Files] button
+└── Settings View
+    ├── Context Injection section
+    │   ├── Enable toggle
+    │   ├── Scope dropdown (library/project/all)
+    │   ├── Max chunks input (1-10)
+    │   └── Min score slider (0-1)
+    ├── Display section
+    │   └── Show sources toggle
+    └── Save/Cancel buttons (when dirty)
+```
 
-### Project Library References
+### Files Tab
 
-In the Files tab, the `ProjectLibraryRefs` component shows library files linked to the current project:
+```
+Files Tab
+├── File List section
+│   └── File items with summarize, structure, actions
+├── Library References section (ProjectLibraryRefs)
+│   ├── Header (📚 Library References + count)
+│   ├── Collapsible list
+│   │   └── Reference item
+│   │       ├── Type icon
+│   │       ├── Filename + notes
+│   │       └── [×] Remove button
+│   └── [+ Add from library] button
+├── Keyword Search section
+│   ├── Search input
+│   └── Results with filename + snippet
+└── Project Summary section
+    ├── Prompt input
+    ├── [Summarize] button
+    └── Summary display with [Send to Chat]
+```
 
-- Collapsible list with file icons
-- Remove reference (unlinks, doesn't delete file)
-- "Add from library" button opens Library tab
-- "Browse library" link when empty
+### References Tab
 
-### Library Settings Panel
+```
+References Tab
+├── Lookup section
+│   ├── Reference input (e.g., "Genesis 1:1-3")
+│   ├── Translation dropdown
+│   └── [Look Up] button
+├── Citation display
+│   └── CitationCard
+│       ├── Reference header
+│       ├── Verse text (RTL for Hebrew)
+│       ├── Source badge (SWORD/Sefaria)
+│       └── Actions (Copy, Compare, External link)
+├── Compare Translations panel
+│   ├── Translation checkboxes
+│   └── Side-by-side display
+├── Recent Lookups
+│   └── Clickable reference list
+└── Module Management
+    ├── Installed modules
+    └── Available modules with [Install] buttons
+```
 
-Configure context injection behavior:
+### Plugins Tab
 
-| Setting | Description |
-|---------|-------------|
-| Enable context injection | Toggle auto-injection on/off |
-| Search scope | Library, project, or both |
-| Max context chunks | Number of chunks to inject (1-10) |
-| Min relevance score | Threshold for inclusion (0-1) |
-| Show sources in response | Display source citations |
+```
+Plugins Tab
+├── Importers section
+│   ├── Plugin selector dropdown
+│   ├── Configuration form (from config_schema)
+│   └── [Import] button
+├── Exporters section
+│   ├── Plugin selector dropdown
+│   ├── Configuration form
+│   ├── [Export] button
+│   └── Download link (after export)
+└── References section
+    ├── Plugin selector dropdown
+    ├── Configuration form
+    ├── [Browse] / [Fetch] button
+    └── Results display
+```
+
+### Memory Tab
+
+```
+Memory Tab
+├── Search/Filter bar
+│   ├── Search input
+│   └── Category filter dropdown
+├── Memory list
+│   └── Memory item
+│       ├── Content text
+│       ├── Category badge
+│       ├── Pinned indicator
+│       └── Actions (Edit, Pin, Delete)
+└── [Add Memory] form
+    ├── Content textarea
+    ├── Category selector
+    └── [Save] button
+```
+
+### Library Settings Reference
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `context_injection_enabled` | boolean | true | Toggle auto-injection on/off |
+| `context_scope` | enum | "all" | "library", "project", or "all" |
+| `context_max_chunks` | number | 5 | Chunks to inject (1-10) |
+| `context_min_score` | number | 0.4 | Minimum relevance (0-1) |
+| `show_sources_in_response` | boolean | true | Display source citations |
 
 ---
 
