@@ -493,6 +493,84 @@ Plugin enhancements:
 
 ⬜ Reference content caching and versioning
 
+## Phase 7 – Global Library System
+
+**Purpose:** Centralized, NAS-backed knowledge repository that serves as the single source of truth for all documents, transcripts, and media. Projects reference library items without duplication.
+
+### 7.1 Library Schema & Core Service
+
+Database foundation for the global library:
+
+⬜ `library_files` table (id, filename, stored_path, mime_type, size_bytes, source_type, metadata_json, created_at)
+
+⬜ `library_chunks` table (id, library_file_id, chunk_index, content, embedding, page)
+
+⬜ `project_library_refs` table (project_id, library_file_id, added_at, notes)
+
+⬜ `library_service.py` with CRUD operations
+
+⬜ Reference management (add/remove library items from projects)
+
+⬜ Deduplication check on ingest (hash-based)
+
+### 7.2 Library Ingest Pipeline
+
+Automated ingestion from configured paths:
+
+⬜ Mount point configuration (`/mnt/library` or configurable)
+
+⬜ Directory scanner (recursive, with include/exclude patterns)
+
+⬜ File type detection and routing (PDF → extract, audio → transcribe, etc.)
+
+⬜ Batch ingest with progress tracking
+
+⬜ Incremental sync (detect new/changed/deleted files)
+
+⬜ Ingest queue for large batches (background processing)
+
+### 7.3 Library Search & Retrieval
+
+Search capabilities across the full library:
+
+⬜ Extend `file_semantic_service.py` with `scope` parameter (project | library | all)
+
+⬜ Library-wide semantic search endpoint
+
+⬜ Hybrid search: project-first with library fallback option
+
+⬜ Search result attribution (which library item, which project refs)
+
+⬜ API: `GET /api/library/search?q=...&scope=...`
+
+### 7.4 Library UI
+
+User interface for browsing and managing the library:
+
+⬜ Library tab in RightPanel (or dedicated view)
+
+⬜ Browse by folder structure / flat list / search
+
+⬜ "Add to project" action (creates reference, not copy)
+
+⬜ Ingest status and queue visibility
+
+⬜ Library statistics (file count, total size, last sync)
+
+### 7.5 Transcription Queue (CPU-Optimized)
+
+Batch transcription for audio/video backlog:
+
+⬜ Transcription queue table (library_file_id, status, model, started_at, completed_at)
+
+⬜ Background worker for queue processing
+
+⬜ Model selection per item (tiny/base/small for speed vs accuracy)
+
+⬜ Progress reporting and ETA estimation
+
+⬜ Store transcript as library item (linked to source media)
+
 Governance Rules
 
 This roadmap is authoritative
@@ -510,6 +588,17 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.21 – 2026-01-24
+
+Added Phase 7 – Global Library System:
+
+- Centralized NAS-backed knowledge repository
+- Library schema with project references (no duplication)
+- Ingest pipeline with directory scanning and batch processing
+- Library-wide semantic search with scope parameter
+- Transcription queue for audio/video backlog
+- UI for browsing, searching, and adding items to projects
+
 v1.20 – 2026-01-24
 
 Added EPUB file parsing support:
