@@ -15,12 +15,13 @@ import ViewerTab from "./tabs/ViewerTab.jsx";
 import MediaTab from "./tabs/MediaTab.jsx";
 import MemoryTab from "./tabs/MemoryTab.jsx";
 import PluginsTab from "./tabs/PluginsTab.jsx";
+import ReferencesTab from "./tabs/ReferencesTab.jsx";
 
 // Tab grouping configuration
 const TAB_GROUPS = {
   essential: {
     id: "essential",
-    tabs: ["workspace", "files", "memory"],
+    tabs: ["workspace", "files", "memory", "references"],
   },
   research: {
     id: "research",
@@ -39,6 +40,7 @@ const TAB_LABELS = {
   workspace: "Workspace",
   files: "Files",
   memory: "Memory",
+  references: "Scripture",
   search: "Search",
   insights: "Insights",
   reasoning: "Reasoning",
@@ -245,6 +247,7 @@ function RightPanel({
         <div className="rp-tabs">
           {renderTab("workspace")}
           {renderTab("files")}
+          {renderTab("references")}
           {renderTab("search")}
           {renderTab("viewer")}
           {renderTab("knowledge")}
@@ -265,6 +268,7 @@ function RightPanel({
             {renderTab("workspace")}
             {renderTab("files")}
             {renderTab("memory")}
+            {renderTab("references")}
             {renderGroupToggle("research")}
             {renderGroupToggle("tools")}
           </div>
@@ -286,7 +290,7 @@ function RightPanel({
       )}
 
       <div className="rp-body">
-        {!currentProjectId && activeTab !== "playlists" && activeTab !== "memory" && (
+        {!currentProjectId && activeTab !== "playlists" && activeTab !== "memory" && activeTab !== "references" && (
           <div className="rp-empty-state">
             <div className="rp-empty-title">
               Select or create a project
@@ -357,6 +361,8 @@ function RightPanel({
         {currentProjectId && activeTab === "plugins" && (
           <PluginsTab currentProjectId={currentProjectId} />
         )}
+
+        {activeTab === "references" && <ReferencesTab />}
       </div>
     </div>
   );
