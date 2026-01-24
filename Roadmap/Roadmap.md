@@ -136,7 +136,7 @@ Phase 3 – Stability, Cleanup, and Refactoring (Complete)
 
 ✅ Add rollback and validation utilities (run_migrations.py, db_validate.py)
 
-3.4 Interface Restoration (Proposed)
+3.4 Interface Restoration (In Progress)
 
 Align the UI with Tamor's core philosophy (Wholeness • Light • Insight). Simplify the default experience, add voice interaction, and make mobile a first-class citizen.
 
@@ -146,52 +146,62 @@ Align the UI with Tamor's core philosophy (Wholeness • Light • Insight). Sim
 - Depth on demand — simple by default, powerful when needed
 - Developer tools are not user tools — separate concerns cleanly
 
-3.4.1 UI Audit & Developer Mode
+3.4.1 UI Audit & Developer Mode (Complete)
 
-⬜ Audit all components in ui/src/components/
+✅ Audit all components in ui/src/components/
 
-⬜ Categorize each as: Essential | Power User | Developer Only
+✅ Categorize each as: Essential | Power User | Developer Only
 
-⬜ Create DevModeContext for toggling developer UI
+✅ Create DevModeContext for toggling developer UI
 
-⬜ Wrap developer-only elements in conditional rendering
+✅ Wrap developer-only elements in conditional rendering (TasksPanel, StructurePanel)
 
-⬜ Remove dead code (unused components, orphaned CSS)
+✅ Remove dead code (MemoryList, MemoryCard, memory.css, MemoryList.css)
 
-⬜ Settings page includes "Developer Mode" toggle (off by default)
+✅ Settings page includes "Developer Mode" toggle (off by default)
 
-3.4.2 Mobile-First Layout Refactor
+3.4.2 Mobile-First Layout Refactor (Complete)
 
-⬜ Responsive breakpoint system (Mobile < 768px, Tablet 768-1024px, Desktop > 1024px)
+✅ Responsive breakpoint system (Mobile < 768px, Tablet 768-1024px, Desktop > 1024px)
 
-⬜ MobileNav component (bottom navigation: Chat, Projects, Settings)
+✅ useBreakpoint hook for responsive logic
 
-⬜ Drawer component (reusable slide-in/slide-up panels)
+✅ MobileNav component (bottom navigation: Chat, Projects, Settings)
 
-⬜ Layout behavior by breakpoint:
-  - Mobile: Slide-out drawer (left), Full screen chat, Slide-up drawer (right)
-  - Tablet: Collapsible sidebars, Primary chat
-  - Desktop: Fixed sidebars, Primary chat
+✅ Drawer component (reusable slide-in panels with focus trap, scroll lock)
 
-⬜ Touch targets minimum 44px throughout
+✅ Layout behavior by breakpoint:
+  - Mobile: Slide-out drawers, Full screen chat, Bottom navigation
+  - Tablet: Collapsible sidebars with header toggle buttons
+  - Desktop: Fixed three-panel layout
 
-⬜ Test on iOS Safari, Android Chrome, desktop browsers
+✅ Touch targets minimum 44px throughout
 
-3.4.3 Voice Input/Output
+✅ RightPanel tab grouping for mobile (Essential | Research ▼ | Tools ▼)
 
-⬜ useVoiceInput hook (Web Speech API speech-to-text)
+✅ Tools button in mobile chat header for RightPanel access
 
-⬜ useVoiceOutput hook (Web Speech API text-to-speech)
+3.4.3 Voice Input/Output (Complete)
 
-⬜ Mic button in chat input (prominent, easy to tap)
+✅ useVoiceInput hook (Web Speech API speech-to-text)
 
-⬜ Visual feedback during listening (pulse animation)
+✅ useVoiceOutput hook (Web Speech API text-to-speech)
 
-⬜ "Read aloud" button on assistant messages
+✅ VoiceButton component with visual states (idle, listening, error)
 
-⬜ Voice settings in Settings page (enable/disable, speech rate, voice selection)
+✅ Mic button in chat input (prominent, easy to tap)
 
-⬜ Graceful degradation when Speech API unavailable
+✅ Visual feedback during listening (pulse animation, live transcript preview)
+
+✅ "Read aloud" button on assistant messages (hover on desktop, visible on mobile)
+
+✅ VoiceSettingsContext for app-wide voice preferences
+
+✅ Voice settings in Settings page (enable/disable, voice selection, speech rate, auto-read)
+
+✅ Graceful degradation when Speech API unavailable
+
+✅ Auto-read responses option
 
 3.4.4 Focus Mode (Optional)
 
@@ -204,11 +214,11 @@ Align the UI with Tamor's core philosophy (Wholeness • Light • Insight). Sim
 ⬜ Easy toggle in/out of Focus Mode
 
 **Success Criteria:**
-- New user sees clean, simple chat interface by default
-- Mobile experience is native-feeling (bottom nav, appropriate sizing)
-- Voice input/output works reliably on iOS Safari and Android Chrome
-- Developer tools accessible but hidden by default
-- Interface embodies Tamor: calm, purposeful, illuminating
+- ✅ New user sees clean, simple chat interface by default
+- ✅ Mobile experience is native-feeling (bottom nav, appropriate sizing)
+- ✅ Voice input/output works reliably on iOS Safari and Android Chrome
+- ✅ Developer tools accessible but hidden by default
+- ✅ Interface embodies Tamor: calm, purposeful, illuminating
 
 Phase 4 – Research & Intelligence Expansion
 4.1 Auto-Insights Engine (Complete)
@@ -410,6 +420,54 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.16 – 2026-01-23
+
+Completed Phase 3.4.1 UI Audit & Developer Mode:
+
+✅ UI audit with component categorization (Essential, Power User, Developer Only)
+
+✅ DevModeContext with localStorage persistence
+
+✅ TasksPanel and StructurePanel hidden behind dev mode toggle
+
+✅ Removed dead components (MemoryList, MemoryCard, orphaned CSS)
+
+✅ Developer Mode toggle in Settings panel
+
+Completed Phase 3.4.2 Mobile-First Layout Refactor:
+
+✅ useBreakpoint hook with responsive breakpoint detection
+
+✅ Drawer component (slide-in panels with focus trap, escape key, backdrop)
+
+✅ MobileNav bottom navigation component
+
+✅ Settings panel for mobile drawer
+
+✅ App.jsx refactored with conditional rendering by breakpoint
+
+✅ RightPanel tab grouping (Essential tabs + collapsible Research/Tools groups)
+
+✅ Tools button in mobile chat header
+
+Completed Phase 3.4.3 Voice Input/Output:
+
+✅ useVoiceInput hook (Web Speech API speech-to-text)
+
+✅ useVoiceOutput hook (Web Speech API text-to-speech with Chrome bug workaround)
+
+✅ VoiceButton component with pulse animation and live transcript preview
+
+✅ Mic button integrated into chat input area
+
+✅ Read aloud button on assistant messages (strips markdown for clean speech)
+
+✅ VoiceSettingsContext for voice preferences (input/output enable, voice selection, rate, auto-read)
+
+✅ Full voice settings UI in Settings panel with test button
+
+✅ Auto-read responses feature
+
 v1.15 – 2026-01-23
 
 Added Phase 3.4 Interface Restoration:
