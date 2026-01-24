@@ -46,6 +46,7 @@ from routes.status_api import status_bp
 from routes.messages_api import messages_bp
 from routes.plugins_api import plugins_bp
 from routes.references_api import references_bp
+from routes.library_api import library_bp
 
 
 
@@ -62,6 +63,7 @@ app.register_blueprint(status_bp, url_prefix="/api")
 app.register_blueprint(messages_bp)
 app.register_blueprint(plugins_bp)
 app.register_blueprint(references_bp)
+app.register_blueprint(library_bp)
 
 
 
