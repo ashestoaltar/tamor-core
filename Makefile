@@ -1,4 +1,4 @@
-.PHONY: doctor doctor-db doctor-health doctor-ui audit audit-py audit-ui
+.PHONY: doctor doctor-db doctor-health doctor-ui audit audit-py audit-ui health-hw
 
 doctor: doctor-db doctor-health doctor-ui
 	@echo "Doctor: OK"
@@ -14,6 +14,9 @@ audit-py:
 audit-ui:
 	@echo "=== Frontend dependency audit ==="
 	@cd ui && npm audit 2>&1 || true
+
+health-hw:
+	@scripts/health_check.sh
 
 doctor-db:
 	@python3 api/scripts/db_doctor.py
