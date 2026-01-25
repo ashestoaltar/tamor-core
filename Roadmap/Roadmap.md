@@ -563,19 +563,23 @@ User interface for browsing and managing the library:
 
 ✅ ProjectLibraryRefs component (show linked library files in Files tab)
 
-### 7.5 Transcription Queue (CPU-Optimized)
+### 7.5 Transcription Queue (CPU-Optimized) ✅
 
 Batch transcription for audio/video backlog:
 
-⬜ Transcription queue table (library_file_id, status, model, started_at, completed_at)
+✅ Transcription queue table (library_file_id, status, model, started_at, completed_at)
 
-⬜ Background worker for queue processing
+✅ Background worker for queue processing (TranscriptionWorker with faster-whisper)
 
-⬜ Model selection per item (tiny/base/small for speed vs accuracy)
+✅ Model selection per item (tiny/base/small/medium/large-v2 for speed vs accuracy)
 
-⬜ Progress reporting and ETA estimation
+✅ Progress reporting and queue statistics
 
-⬜ Store transcript as library item (linked to source media)
+✅ Store transcript as library item (linked via source_library_file_id)
+
+✅ TranscriptionQueue UI component (queue management, add candidates, model selection)
+
+✅ Standalone worker runner script (systemd service ready)
 
 Governance Rules
 
@@ -594,6 +598,21 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.27 – 2026-01-24
+
+Completed Phase 7.5 Transcription Queue (CPU-Optimized):
+
+✅ TranscriptionQueueService: queue management with priority ordering
+✅ TranscriptionWorker: faster-whisper processing with model caching
+✅ Whisper models: tiny, base, small, medium, large-v2 (speed vs accuracy)
+✅ Queue states: pending, processing, completed, failed
+✅ Candidate discovery: find transcribable library files without transcripts
+✅ API endpoints: 10 new endpoints for queue management
+✅ TranscriptionQueue UI component with queue view and add candidates view
+✅ Standalone worker runner script with --interval, --once, --batch options
+✅ Systemd service file for background daemon deployment
+✅ CSS standardization: all Library components use project CSS variables
+
 v1.26 – 2026-01-24
 
 Completed Phase 7.4 Library UI:

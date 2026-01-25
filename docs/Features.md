@@ -371,9 +371,11 @@ curl http://localhost:5055/api/projects/13/reasoning/logic-flow
 
 ## Media & Transcription
 
-Audio/video transcription with timestamps.
+Audio/video transcription with timestamps and batch queue processing.
 
 ### API Endpoints
+
+#### Direct Transcription
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -384,6 +386,31 @@ Audio/video transcription with timestamps.
 | `/api/transcripts/<id>` | DELETE | Delete transcript |
 | `/api/transcripts/<id>/pdf` | GET | Export as PDF |
 
+#### Transcription Queue (Library)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/library/transcription/models` | GET | List available Whisper models |
+| `/api/library/transcription/queue` | GET | List queue items with status |
+| `/api/library/transcription/queue/stats` | GET | Queue statistics |
+| `/api/library/transcription/queue/add` | POST | Add file to queue |
+| `/api/library/transcription/queue/<id>` | DELETE | Remove from queue |
+| `/api/library/transcription/candidates` | GET | Files without transcripts |
+| `/api/library/transcription/candidates/queue-all` | POST | Queue all candidates |
+| `/api/library/transcription/process/next` | POST | Process next queue item |
+| `/api/library/transcription/process/batch` | POST | Process batch of items |
+| `/api/library/transcription/<file_id>/transcript` | GET | Get transcript for library file |
+
+### Whisper Models
+
+| Model | Speed | Accuracy | Use Case |
+|-------|-------|----------|----------|
+| `tiny` | Fastest | Lower | Quick previews, testing |
+| `base` | Fast | Good | General use (default) |
+| `small` | Medium | Better | Important content |
+| `medium` | Slower | High | High-quality needs |
+| `large-v2` | Slowest | Highest | Critical accuracy |
+
 ### Example: YouTube Transcription
 
 ```bash
@@ -392,7 +419,37 @@ curl -X POST http://localhost:5055/api/projects/13/transcribe-url \
   -d '{"url": "https://youtube.com/watch?v=xxx", "model": "base"}'
 ```
 
-Models: `tiny`, `base`, `small` (speed vs accuracy tradeoff)
+### Example: Queue Library Files
+
+```bash
+# List files that can be transcribed
+curl http://localhost:5055/api/library/transcription/candidates
+
+# Queue all candidates with base model
+curl -X POST http://localhost:5055/api/library/transcription/candidates/queue-all \
+  -H "Content-Type: application/json" \
+  -d '{"model": "base"}'
+
+# Process next item in queue
+curl -X POST http://localhost:5055/api/library/transcription/process/next
+```
+
+### Background Worker
+
+Run the transcription worker as a background service:
+
+```bash
+# Run continuously (polls every 60 seconds)
+python -m scripts.run_transcription_worker --interval 60
+
+# Process one item and exit
+python -m scripts.run_transcription_worker --once
+
+# Process batch of 10 items
+python -m scripts.run_transcription_worker --batch 10
+```
+
+Systemd service file available at `api/scripts/tamor-transcription.service`
 
 ---
 
@@ -506,8 +563,19 @@ Library Tab
 │   ├── Index queue section
 │   │   ├── Queue stats (indexed / pending)
 │   │   └── [Index Next 20] button
-│   └── Import section
-│       └── [Import New Files] button
+│   ├── Import section
+│   │   └── [Import New Files] button
+│   └── Transcription section
+│       └── [Open Transcription Queue] button
+├── Transcription Queue (overlay)
+│   ├── Queue View
+│   │   ├── Stats bar (pending / processing / completed / failed)
+│   │   ├── Action buttons ([Process Next] [Add Files])
+│   │   └── Queue item list with status icons
+│   └── Add View
+│       ├── Model selector dropdown
+│       ├── [Queue All] button
+│       └── Candidates list with individual [Queue] buttons
 └── Settings View
     ├── Context Injection section
     │   ├── Enable toggle
@@ -631,17 +699,19 @@ Memory Tab
 
 ```
 api/services/library/
-├── storage_service.py    # Path resolution, deduplication
-├── library_service.py    # CRUD operations
-├── reference_service.py  # Project references
-├── text_service.py       # Text extraction
-├── chunk_service.py      # Chunking & embeddings
-├── scanner_service.py    # Directory scanning
-├── ingest_service.py     # Batch importing
-├── index_queue_service.py # Background indexing
-├── search_service.py     # Semantic search
-├── context_service.py    # Chat context injection
-└── settings_service.py   # User preferences
+├── storage_service.py       # Path resolution, deduplication
+├── library_service.py       # CRUD operations
+├── reference_service.py     # Project references
+├── text_service.py          # Text extraction
+├── chunk_service.py         # Chunking & embeddings
+├── scanner_service.py       # Directory scanning
+├── ingest_service.py        # Batch importing
+├── index_queue_service.py   # Background indexing
+├── search_service.py        # Semantic search
+├── context_service.py       # Chat context injection
+├── settings_service.py      # User preferences
+├── transcription_service.py # Transcription queue management
+└── transcription_worker.py  # Queue processing with faster-whisper
 ```
 
 ### Embedding Model
@@ -653,4 +723,4 @@ Uses sentence-transformers locally (no API costs):
 
 ---
 
-*Last updated: 2026-01-24*
+*Last updated: 2026-01-24 (v1.27)*
