@@ -188,7 +188,7 @@
 /* Speaking state */
 .read-aloud-btn.speaking {
   background: var(--accent);
-  color: #111827;
+  color: var(--accent-text);
   opacity: 1;
   animation: read-aloud-pulse 1.5s ease-in-out infinite;
 }

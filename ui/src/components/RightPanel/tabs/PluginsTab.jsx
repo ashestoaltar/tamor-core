@@ -748,7 +748,7 @@ function PluginsTab({ currentProjectId }) {
                           </span>
                         </div>
                         {exportResult.metadata && (
-                          <div className="rp-export-meta" style={{ marginTop: 8, fontSize: "0.85em", color: "#666" }}>
+                          <div className="rp-export-meta rp-help-text" style={{ marginTop: 8 }}>
                             {exportResult.metadata.total_files !== undefined && (
                               <div>Files: {exportResult.metadata.total_files}</div>
                             )}
@@ -846,7 +846,7 @@ function PluginsTab({ currentProjectId }) {
                         {item.size_bytes && <span> - {formatBytes(item.size_bytes)}</span>}
                       </div>
                       {item.content_preview && (
-                        <div className="rp-list-item-preview" style={{ fontSize: "0.85em", color: "#666", marginTop: 4 }}>
+                        <div className="rp-list-item-preview rp-help-text" style={{ marginTop: 4 }}>
                           {item.content_preview.substring(0, 100)}
                           {item.content_preview.length > 100 && "..."}
                         </div>
@@ -880,25 +880,16 @@ function PluginsTab({ currentProjectId }) {
                 {!fetchedContent.error && (
                   <>
                     {fetchedContent.url && (
-                      <div className="rp-content-meta" style={{ marginBottom: 8, fontSize: "0.85em", color: "#666" }}>
+                      <div className="rp-content-meta rp-help-text" style={{ marginBottom: 8 }}>
                         Source: {fetchedContent.url}
                       </div>
                     )}
                     {fetchedContent.fetchedAt && (
-                      <div className="rp-content-meta" style={{ marginBottom: 8, fontSize: "0.85em", color: "#666" }}>
+                      <div className="rp-content-meta rp-help-text" style={{ marginBottom: 8 }}>
                         Fetched: {new Date(fetchedContent.fetchedAt).toLocaleString()}
                       </div>
                     )}
-                    <pre className="rp-content-preview" style={{
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      fontSize: "0.9em",
-                      background: "#f5f5f5",
-                      padding: 12,
-                      borderRadius: 4,
-                      maxHeight: 400,
-                      overflow: "auto",
-                    }}>
+                    <pre className="rp-content-preview rp-file-summary">
                       {fetchedContent.content}
                     </pre>
                   </>

@@ -32,7 +32,7 @@
   z-index: 101;
 
   width: var(--drawer-width);
-  max-width: var(--drawer-max-width);
+  max-width: min(var(--drawer-max-width), calc(100vw - 20px));
 
   display: flex;
   flex-direction: column;

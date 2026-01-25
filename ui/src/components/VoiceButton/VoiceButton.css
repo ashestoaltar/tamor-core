@@ -69,14 +69,14 @@
 .voice-button-listening {
   background: var(--accent);
   border-color: var(--accent);
-  color: #111827;
+  color: var(--accent-text);
   animation: voice-pulse 1.5s ease-in-out infinite;
 }
 
 .voice-button-listening:hover:not(:disabled) {
   background: var(--accent);
   border-color: var(--accent);
-  color: #111827;
+  color: var(--accent-text);
 }
 
 @keyframes voice-pulse {
@@ -212,5 +212,21 @@
 
   .voice-button-ring {
     display: none;
+  }
+}
+
+/* Mobile tooltip positioning */
+@media (max-width: 599px) {
+  .voice-button-transcript {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(280px, calc(100vw - 32px));
+  }
+
+  .voice-button-transcript::after {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
   }
 }

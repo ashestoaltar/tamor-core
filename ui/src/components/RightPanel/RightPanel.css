@@ -70,7 +70,7 @@
 
 .rp-tab-active {
   background: var(--accent-gradient);
-  color: #111827;
+  color: var(--accent-text);
 }
 
 /* Grouped Tabs (Mobile/Tablet) --------------------------------------- */
@@ -205,8 +205,8 @@
 
 .rp-divider {
   height: 1px;
-  margin: 10px 0;
-  background: #0b1020;
+  margin: var(--space-md) 0;
+  background: var(--border-subtle);
   border-radius: 999px;
 }
 
@@ -283,7 +283,7 @@
   font-size: 12px;
   cursor: pointer;
   background: var(--accent-gradient);
-  color: #111827;
+  color: var(--accent-text);
   font-weight: 500;
   display: inline-flex;
   align-items: center;
@@ -295,7 +295,7 @@
 
 .rp-button.primary {
   background: var(--accent-gradient);
-  color: #111827;
+  color: var(--accent-text);
 }
 
 .rp-button.subtle {
@@ -424,8 +424,8 @@
   margin-top: 4px;
   padding: 6px 8px;
   border-radius: 8px;
-  background: #020617;
-  border: 1px solid #111827;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
   max-height: 220px;
   overflow: auto;
 }
@@ -446,10 +446,10 @@
   font-size: 12px;
   max-height: 220px;
   overflow: auto;
-  background: #020617;
+  background: var(--bg);
   border-radius: 8px;
   padding: 6px 8px;
-  border: 1px solid #111827;
+  border: 1px solid var(--border-subtle);
 }
 
 /* Search results ----------------------------------------------------- */
@@ -464,14 +464,14 @@
 .rp-hit-row {
   border-radius: 8px;
   padding: 6px 8px;
-  background: #020617;
-  border: 1px solid #020617;
+  background: var(--bg);
+  border: 1px solid var(--bg);
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .rp-hit-row:hover {
-  border-color: #374151;
-  background: #030712;
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
 }
 
 .rp-hit-title {
@@ -495,8 +495,8 @@
   margin-top: 8px;
   padding: 8px 9px;
   border-radius: 10px;
-  background: #020617;
-  border: 1px solid #111827;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
   max-height: 260px;
   overflow: auto;
 }
@@ -646,7 +646,7 @@
 .rp-button-pill-active {
   background: var(--accent-gradient);
   border-color: var(--accent);
-  color: #111827;
+  color: var(--accent-text);
 }
 
 .rp-button-compact {
@@ -697,7 +697,7 @@
   padding: var(--space-sm) 14px;
   font-size: 0.85rem;
   background: var(--accent-gradient);
-  color: #111827;
+  color: var(--accent-text);
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -855,7 +855,7 @@
 
 .rp-btn-danger:hover {
   background: var(--error, #ef4444);
-  color: white;
+  color: var(--text-bright);
 }
 
 .rp-section-flex {
@@ -1280,7 +1280,7 @@
 
 .rp-pipeline-step.completed .rp-pipeline-step-marker {
   background: var(--success-soft);
-  color: #111;
+  color: var(--accent-text);
 }
 
 .rp-pipeline-step.pending {
@@ -1305,7 +1305,7 @@
 .rp-pipeline-step.active .rp-pipeline-step-marker {
   background: var(--accent-gradient);
   border-color: transparent;
-  color: #111;
+  color: var(--accent-text);
 }
 
 .rp-pipeline-step-info {
@@ -1658,7 +1658,7 @@
 
 .rp-btn-primary {
   background: var(--accent-gradient);
-  color: #111827;
+  color: var(--accent-text);
   border-color: transparent;
 }
 
@@ -1881,4 +1881,17 @@
 .rp-ref-module-name {
   font-size: 12px;
   color: var(--text-soft);
+}
+
+/* Content preview for fetched references */
+.rp-content-preview {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.9em;
+  max-height: 400px;
+}
+
+/* Opacity utility for subtle elements */
+.rp-subtle {
+  opacity: 0.7;
 }

@@ -157,7 +157,7 @@
 .settings-actions button:first-child {
   background: var(--accent);
   border: none;
-  color: white;
+  color: var(--accent-text);
 }
 
 .settings-actions button:first-child:hover:not(:disabled) {

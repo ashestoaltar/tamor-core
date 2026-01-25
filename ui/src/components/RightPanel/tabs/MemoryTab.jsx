@@ -350,8 +350,8 @@ function MemoryTab() {
           </div>
 
           {/* Developer Mode - subtle at bottom */}
-          <div className="rp-divider" style={{ margin: "16px 0" }} />
-          <div className="rp-memory-setting" style={{ opacity: 0.7 }}>
+          <div className="rp-divider" />
+          <div className="rp-memory-setting rp-subtle">
             <label className="rp-memory-setting-label">
               <input
                 type="checkbox"

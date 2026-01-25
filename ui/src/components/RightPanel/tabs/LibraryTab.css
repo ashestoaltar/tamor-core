@@ -41,7 +41,7 @@
 
 .library-nav button.active {
   background: var(--accent);
-  color: white;
+  color: var(--accent-text);
   border-color: var(--accent);
 }
 
@@ -109,7 +109,7 @@
 .library-search-form button {
   padding: var(--space-sm) var(--space-md);
   background: var(--accent);
-  color: white;
+  color: var(--accent-text);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -204,7 +204,7 @@
 
 .btn-small:hover {
   background: var(--accent);
-  color: white;
+  color: var(--accent-text);
   border-color: var(--accent);
 }
 
