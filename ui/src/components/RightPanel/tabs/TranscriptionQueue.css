@@ -1,0 +1,238 @@
+.transcription-queue {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panel-header h4 {
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+/* Stats */
+.transcription-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+/* Queue actions */
+.queue-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+}
+
+.queue-actions button {
+  flex: 1;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  cursor: pointer;
+}
+
+.queue-actions button:first-child {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+.queue-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Queue list */
+.queue-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+}
+
+.empty-queue {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-muted);
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-xs);
+  background: var(--bg-secondary);
+}
+
+.queue-item.status-processing {
+  background: var(--info-bg);
+}
+
+.queue-item.status-completed {
+  opacity: 0.7;
+}
+
+.queue-item.status-failed {
+  background: var(--error-bg);
+}
+
+.status-icon {
+  font-size: 1.2rem;
+}
+
+.item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-filename {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-meta {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.error-text {
+  color: var(--error-color);
+}
+
+.item-actions button {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+/* Add view */
+.add-header {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.back-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+}
+
+.model-selector select {
+  flex: 1;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.queue-all-section {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.queue-all-section button {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.candidates-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+}
+
+.no-candidates {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-muted);
+}
+
+.candidate-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.candidate-item .file-icon {
+  font-size: 1.2rem;
+}
+
+.candidate-item .file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.candidate-item .filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate-item button {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--accent-color);
+  background: none;
+  color: var(--accent-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.candidate-item button:hover {
+  background: var(--accent-color);
+  color: white;
+}
