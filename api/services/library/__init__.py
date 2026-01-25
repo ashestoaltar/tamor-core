@@ -17,6 +17,7 @@ from .search_service import LibrarySearchService, SearchResult
 from .settings_service import LibrarySettingsService
 from .storage_service import LibraryStorageService
 from .text_service import LibraryTextService
+from .transcription_service import TranscriptionQueueService, WHISPER_MODELS, TRANSCRIBABLE_TYPES
 
 __all__ = [
     "LibraryStorageService",
@@ -34,4 +35,7 @@ __all__ = [
     "LibraryContextService",
     "ContextChunk",
     "LibrarySettingsService",
+    "TranscriptionQueueService",
+    "WHISPER_MODELS",
+    "TRANSCRIBABLE_TYPES",
 ]
