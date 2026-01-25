@@ -1,7 +1,19 @@
-.PHONY: doctor doctor-db doctor-health doctor-ui
+.PHONY: doctor doctor-db doctor-health doctor-ui audit audit-py audit-ui
 
 doctor: doctor-db doctor-health doctor-ui
 	@echo "Doctor: OK"
+
+audit: audit-py audit-ui
+	@echo "Audit: complete"
+
+audit-py:
+	@echo "=== Python dependency audit ==="
+	@command -v safety >/dev/null || pip install safety -q
+	@safety check -r api/requirements.txt --output text 2>&1 | grep -E "(vulnerabilities reported|Vulnerability found|ADVISORY)" || true
+
+audit-ui:
+	@echo "=== Frontend dependency audit ==="
+	@cd ui && npm audit 2>&1 || true
 
 doctor-db:
 	@python3 api/scripts/db_doctor.py
