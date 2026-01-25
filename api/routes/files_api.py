@@ -39,7 +39,7 @@ from services.transcript_service import transcribe_file
 
 # Optional: PDF text extraction
 try:
-    from PyPDF2 import PdfReader
+    from pypdf import PdfReader
 except ImportError:  # still works without this, but PDFs won't be parsed as well
     PdfReader = None
 

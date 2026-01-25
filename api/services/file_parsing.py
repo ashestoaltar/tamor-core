@@ -83,7 +83,7 @@ def _read_small_text_file(full_path: str) -> str:
 
 def _parse_pdf(full_path: str) -> Dict[str, Any]:
     """
-    Best-effort PDF parsing using PyPDF2 if available.
+    Best-effort PDF parsing using pypdf if available.
 
     Preserves the legacy placeholder messages so that other parts
     of the system can continue to detect non-parseable PDFs.
@@ -91,17 +91,17 @@ def _parse_pdf(full_path: str) -> Dict[str, Any]:
     back to page numbers.
     """
     try:
-        from PyPDF2 import PdfReader  # type: ignore
+        from pypdf import PdfReader  # type: ignore
     except Exception:
         return {
             "text": (
-                "This file is a PDF, but the PDF parser (PyPDF2) is not installed "
-                "on the server yet. Install it with `pip install PyPDF2` to enable "
+                "This file is a PDF, but the PDF parser (pypdf) is not installed "
+                "on the server yet. Install it with `pip install pypdf` to enable "
                 "text extraction, summarization, and QA for PDFs."
             ),
             "meta": {},
             "warnings": [],
-            "parser": "pdf-pypdf2-missing",
+            "parser": "pdf-pypdf-missing",
         }
 
     try:

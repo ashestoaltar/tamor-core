@@ -28,14 +28,14 @@ def extract_pdf_structure(file_path: str) -> Dict[str, Any]:
     }
 
     Implementation details:
-    - Use PyPDF2 if available.
+    - Use pypdf if available.
     - For each page, record:
       - index (1-based)
       - char_count
       - a naive heading: first non-empty line, truncated to 120 chars.
     """
     try:
-        from PyPDF2 import PdfReader  # type: ignore
+        from pypdf import PdfReader  # type: ignore
     except Exception:
         # No PDF parser installed → we can still say "it's a PDF"
         return {
