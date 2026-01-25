@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLibrary } from '../../../hooks/useLibrary';
 import LibrarySettings from './LibrarySettings';
+import TranscriptionQueue from './TranscriptionQueue';
 import './LibraryTab.css';
 
 // File type icons
@@ -37,6 +38,7 @@ function LibraryTab({ projectId }) {
   } = useLibrary();
 
   const [view, setView] = useState('browse'); // browse | search | manage | settings
+  const [showTranscription, setShowTranscription] = useState(false);
   const [files, setFiles] = useState([]);
   const [stats, setStats] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -292,6 +294,14 @@ function LibraryTab({ projectId }) {
           {loading ? 'Importing...' : 'Import New Files'}
         </button>
       </div>
+
+      <div className="transcription-section">
+        <h5>Transcription</h5>
+        <p>Transcribe audio and video files to searchable text.</p>
+        <button onClick={() => setShowTranscription(true)}>
+          Open Transcription Queue
+        </button>
+      </div>
     </div>
   );
 
@@ -335,6 +345,12 @@ function LibraryTab({ projectId }) {
           <LibrarySettings onClose={() => setView('browse')} />
         )}
       </div>
+
+      {showTranscription && (
+        <div className="transcription-overlay">
+          <TranscriptionQueue onClose={() => setShowTranscription(false)} />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 .library-tab {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -295,6 +296,31 @@
   font-size: var(--font-size-sm);
   color: var(--text-muted);
   margin-bottom: var(--spacing-sm);
+}
+
+/* Transcription */
+.transcription-section {
+  background: var(--bg-secondary);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.transcription-section p {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-sm);
+}
+
+.transcription-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary);
+  z-index: 10;
+  overflow: hidden;
 }
 
 /* Mobile */
