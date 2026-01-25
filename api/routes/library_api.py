@@ -8,6 +8,8 @@ Provides REST API for managing the global library and project references.
 
 from flask import Blueprint, jsonify, request
 
+import json
+
 from services.library import (
     LibraryChunkService,
     LibraryContextService,
@@ -20,6 +22,10 @@ from services.library import (
     LibrarySettingsService,
     LibraryTextService,
     ScannedFile,
+    TranscriptionQueueService,
+    TranscriptionWorker,
+    WHISPER_MODELS,
+    TRANSCRIBABLE_TYPES,
 )
 from utils.auth import ensure_user
 from utils.db import get_db
@@ -37,6 +43,8 @@ index_queue_service = LibraryIndexQueueService()
 search_service = LibrarySearchService()
 context_service = LibraryContextService()
 settings_service = LibrarySettingsService()
+transcription_service = TranscriptionQueueService()
+transcription_worker = TranscriptionWorker()
 
 
 # =============================================================================
@@ -1019,3 +1027,233 @@ def reset_library_settings():
 
     settings = settings_service.reset_settings(user_id)
     return jsonify({"settings": settings, "reset": True})
+
+
+# =============================================================================
+# TRANSCRIPTION QUEUE
+# =============================================================================
+
+
+@library_bp.get("/api/library/transcription/models")
+def list_transcription_models():
+    """List available transcription models."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    default = transcription_service.get_default_model()
+
+    return jsonify({"models": WHISPER_MODELS, "default": default})
+
+
+@library_bp.get("/api/library/transcription/queue")
+def get_transcription_queue():
+    """
+    Get transcription queue status and items.
+
+    Query params:
+        status: Filter by status (pending/processing/completed/failed)
+        limit: Max items (default 50)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    status = request.args.get("status")
+    limit = min(int(request.args.get("limit", 50)), 200)
+
+    items = transcription_service.list_queue(status=status, limit=limit)
+    stats = transcription_service.get_queue_stats()
+
+    return jsonify({"items": items, "stats": stats})
+
+
+@library_bp.post("/api/library/transcription/queue")
+def add_to_transcription_queue():
+    """
+    Add a file to the transcription queue.
+
+    Body:
+        library_file_id: File to transcribe
+        model: Whisper model (optional, default from config)
+        language: Language code (optional, auto-detect)
+        priority: 1-10 (optional, default 5)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    library_file_id = data.get("library_file_id")
+
+    if not library_file_id:
+        return jsonify({"error": "library_file_id required"}), 400
+
+    result = transcription_service.add_to_queue(
+        library_file_id=library_file_id,
+        model=data.get("model"),
+        language=data.get("language"),
+        priority=data.get("priority", 5),
+    )
+
+    if result["status"] == "error":
+        return jsonify(result), 400
+
+    return jsonify(result), 201 if result["status"] == "queued" else 200
+
+
+@library_bp.delete("/api/library/transcription/queue/<int:queue_id>")
+def remove_from_transcription_queue(queue_id: int):
+    """Remove an item from the queue (only if pending)."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    removed = transcription_service.remove_from_queue(queue_id)
+
+    if not removed:
+        return jsonify({"error": "Item not found or not pending"}), 404
+
+    return jsonify({"removed": True})
+
+
+@library_bp.post("/api/library/transcription/queue/<int:queue_id>/retry")
+def retry_transcription(queue_id: int):
+    """Retry a failed transcription."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    result = transcription_service.retry_failed(queue_id)
+
+    if not result:
+        return jsonify({"error": "Item not found or not failed"}), 404
+
+    return jsonify({"retried": True})
+
+
+@library_bp.patch("/api/library/transcription/queue/<int:queue_id>")
+def update_queue_item(queue_id: int):
+    """
+    Update a queue item.
+
+    Body:
+        priority: New priority (1-10)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+
+    if "priority" in data:
+        result = transcription_service.update_priority(queue_id, data["priority"])
+        if not result:
+            return jsonify({"error": "Item not found or not pending"}), 404
+
+    item = transcription_service.get_queue_item(queue_id)
+    return jsonify({"item": item})
+
+
+@library_bp.get("/api/library/transcription/candidates")
+def get_transcription_candidates():
+    """
+    Get files that can be transcribed but haven't been.
+
+    Query params:
+        limit: Max files (default 50)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    limit = min(int(request.args.get("limit", 50)), 200)
+
+    files = transcription_service.find_transcribable_files(limit=limit)
+
+    return jsonify({"files": files, "count": len(files)})
+
+
+@library_bp.post("/api/library/transcription/queue-all")
+def queue_all_for_transcription():
+    """
+    Add all transcribable files to the queue.
+
+    Body:
+        model: Whisper model to use (optional)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    model = data.get("model")
+
+    result = transcription_service.queue_all_pending(model=model)
+
+    return jsonify(result)
+
+
+@library_bp.post("/api/library/transcription/process")
+def process_transcription_queue():
+    """
+    Process items from the transcription queue.
+
+    Body:
+        count: Number of items to process (default 1, max 10)
+
+    Note: This runs synchronously and may take a long time.
+    For large queues, use the background worker instead.
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    count = min(int(data.get("count", 1)), 10)
+
+    result = transcription_worker.process_batch(count=count)
+
+    return jsonify(result)
+
+
+@library_bp.get("/api/library/<int:file_id>/transcript")
+def get_file_transcript(file_id: int):
+    """
+    Get transcript for a library file (if it has one).
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    transcript = library_service.get_transcript_for_source(file_id)
+
+    if not transcript:
+        return jsonify({"error": "No transcript found"}), 404
+
+    # Get the transcript text
+    text_result = text_service.get_text(transcript["id"])
+
+    if text_result[0]:
+        # Parse JSON transcript
+        try:
+            content = json.loads(text_result[0])
+            return jsonify(
+                {
+                    "transcript_id": transcript["id"],
+                    "source_id": file_id,
+                    "text": content.get("text", ""),
+                    "segments": content.get("segments", []),
+                    "metadata": content.get("transcription", {}),
+                }
+            )
+        except json.JSONDecodeError:
+            return jsonify(
+                {
+                    "transcript_id": transcript["id"],
+                    "source_id": file_id,
+                    "text": text_result[0],
+                }
+            )
+
+    return jsonify({"error": "Transcript content not available"}), 500
