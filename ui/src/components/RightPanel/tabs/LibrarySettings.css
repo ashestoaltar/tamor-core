@@ -1,5 +1,5 @@
 .library-settings {
-  padding: var(--spacing-md);
+  padding: var(--space-md);
 }
 
 .library-settings.loading {
@@ -14,12 +14,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .settings-header h4 {
   margin: 0;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-lg);
 }
 
 .close-btn {
@@ -37,32 +37,32 @@
 }
 
 .close-btn:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .settings-section {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .settings-section h5 {
-  margin: 0 0 var(--spacing-xs) 0;
-  font-size: var(--font-size-md);
+  margin: 0 0 var(--space-xs) 0;
+  font-size: var(--font-md);
   font-weight: 600;
 }
 
 .section-desc {
-  margin: 0 0 var(--spacing-md) 0;
-  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--font-sm);
   color: var(--text-muted);
 }
 
 .setting-row {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--border-color);
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .setting-row:last-child {
@@ -71,7 +71,7 @@
 
 .setting-row > span:first-child {
   flex: 1;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-sm);
 }
 
 .setting-row.toggle {
@@ -79,83 +79,83 @@
 }
 
 .setting-row.toggle:hover {
-  background: var(--bg-secondary);
-  margin: 0 calc(-1 * var(--spacing-sm));
-  padding-left: var(--spacing-sm);
-  padding-right: var(--spacing-sm);
+  background: var(--bg-soft);
+  margin: 0 calc(-1 * var(--space-sm));
+  padding-left: var(--space-sm);
+  padding-right: var(--space-sm);
   border-radius: var(--radius-sm);
 }
 
 .setting-row input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: var(--accent-color);
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
 .setting-row select {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  color: var(--text);
+  font-size: var(--font-sm);
   min-width: 160px;
 }
 
 .setting-row select:focus {
   outline: none;
-  border-color: var(--accent-color);
+  border-color: var(--accent);
 }
 
 .setting-row input[type="number"] {
   width: 60px;
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  color: var(--text);
+  font-size: var(--font-sm);
   text-align: center;
 }
 
 .setting-row input[type="number"]:focus {
   outline: none;
-  border-color: var(--accent-color);
+  border-color: var(--accent);
 }
 
 .setting-row input[type="range"] {
   flex: 1;
   max-width: 120px;
-  accent-color: var(--accent-color);
+  accent-color: var(--accent);
 }
 
 .range-value {
   min-width: 32px;
   text-align: right;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-sm);
   color: var(--text-muted);
   font-family: monospace;
 }
 
 .settings-actions {
   display: flex;
-  gap: var(--spacing-sm);
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--border-color);
-  margin-top: var(--spacing-md);
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: var(--space-md);
 }
 
 .settings-actions button {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-sm);
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s;
 }
 
 .settings-actions button:first-child {
-  background: var(--accent-color);
+  background: var(--accent);
   border: none;
   color: white;
 }
@@ -171,10 +171,10 @@
 
 .settings-actions button.secondary {
   background: none;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-soft);
 }
 
 .settings-actions button.secondary:hover {
-  background: var(--bg-secondary);
+  background: var(--bg-soft);
 }

@@ -1,19 +1,19 @@
 .project-library-refs {
-  background: var(--bg-secondary);
+  background: var(--bg-soft);
   border-radius: var(--radius-sm);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--space-md);
   overflow: hidden;
 }
 
 .project-library-refs.empty {
-  padding: var(--spacing-md);
+  padding: var(--space-md);
 }
 
 .refs-header {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
   font-weight: 500;
 }
 
@@ -22,7 +22,7 @@
 }
 
 .refs-header.clickable:hover {
-  background: var(--bg-tertiary);
+  background: var(--bg-hover);
 }
 
 .refs-icon {
@@ -36,7 +36,7 @@
 }
 
 .refs-empty-text {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-sm);
   color: var(--text-muted);
   margin: 0;
 }
@@ -44,28 +44,28 @@
 .link-btn {
   background: none;
   border: none;
-  color: var(--accent-color);
+  color: var(--accent);
   cursor: pointer;
   padding: 0;
-  margin-left: var(--spacing-xs);
+  margin-left: var(--space-xs);
   text-decoration: underline;
 }
 
 .refs-list {
-  border-top: 1px solid var(--border-color);
-  padding: var(--spacing-sm);
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-sm);
 }
 
 .ref-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-sm);
 }
 
 .ref-item:hover {
-  background: var(--bg-tertiary);
+  background: var(--bg-hover);
 }
 
 .ref-icon {
@@ -78,14 +78,14 @@
 }
 
 .ref-name {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ref-notes {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-xs);
   color: var(--text-muted);
 }
 
@@ -109,22 +109,22 @@
 }
 
 .ref-remove:hover {
-  background: var(--error-bg);
-  color: var(--error-color);
+  background: var(--error-soft);
+  color: var(--error);
 }
 
 .add-more-btn {
   width: 100%;
-  padding: var(--spacing-sm);
+  padding: var(--space-sm);
   background: none;
-  border: 1px dashed var(--border-color);
+  border: 1px dashed var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
-  margin-top: var(--spacing-sm);
+  margin-top: var(--space-sm);
 }
 
 .add-more-btn:hover {
-  border-color: var(--accent-color);
-  color: var(--accent-color);
+  border-color: var(--accent);
+  color: var(--accent);
 }
