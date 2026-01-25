@@ -18,6 +18,7 @@ from .settings_service import LibrarySettingsService
 from .storage_service import LibraryStorageService
 from .text_service import LibraryTextService
 from .transcription_service import TranscriptionQueueService, WHISPER_MODELS, TRANSCRIBABLE_TYPES
+from .transcription_worker import TranscriptionWorker
 
 __all__ = [
     "LibraryStorageService",
@@ -38,4 +39,5 @@ __all__ = [
     "TranscriptionQueueService",
     "WHISPER_MODELS",
     "TRANSCRIBABLE_TYPES",
+    "TranscriptionWorker",
 ]
