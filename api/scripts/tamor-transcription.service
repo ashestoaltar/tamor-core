@@ -1,0 +1,14 @@
+[Unit]
+Description=Tamor Transcription Worker
+After=network.target
+
+[Service]
+Type=simple
+User=tamor
+WorkingDirectory=/home/tamor/tamor-core/api
+ExecStart=/home/tamor/tamor-core/venv/bin/python -m scripts.run_transcription_worker --interval 60
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
