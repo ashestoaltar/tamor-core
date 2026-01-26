@@ -15,6 +15,7 @@ This document provides a reference for Tamor's major features, their APIs, and u
 7. [Auto-Insights & Reasoning](#auto-insights--reasoning)
 8. [Media & Transcription](#media--transcription)
 9. [Epistemic Honesty System](#epistemic-honesty-system)
+10. [Focus Mode](#focus-mode)
 
 ---
 
@@ -886,4 +887,122 @@ Messages table includes `epistemic_json` column for storing classification metad
 
 ---
 
-*Last updated: 2026-01-26 (v1.29)*
+## Focus Mode
+
+Focus Mode provides a distraction-free, voice-first interface for interacting with Tamor. It's designed for situations where the full panel layout is unnecessary or overwhelming.
+
+### Core Concepts
+
+- **Voice-First**: Large microphone button as primary input method
+- **Minimal Chrome**: Only project indicator and exit button visible
+- **Full-Screen Overlay**: Replaces the entire app interface when active
+- **Conversation Continuity**: Shares context with main app (same conversation, project)
+
+### Entering Focus Mode
+
+**From Header:**
+- Click the ◉ button in the app header (visible on all screen sizes)
+
+**From Settings:**
+- Navigate to Settings → Focus Mode → "Enter" button
+
+**Programmatically:**
+```jsx
+import { useFocusMode } from './contexts/FocusModeContext';
+
+const { enterFocusMode, toggleFocusMode } = useFocusMode();
+enterFocusMode();  // or toggleFocusMode();
+```
+
+### Exiting Focus Mode
+
+- **Keyboard**: Press `Escape` key (if allowEscape setting is true)
+- **Button**: Click the × button in the top-right corner
+- **Programmatically**: Call `exitFocusMode()` from context
+
+### Settings
+
+Focus Mode settings are persisted to localStorage and accessible from the Settings panel:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `voiceFirst` | `true` | Show large mic button as primary input |
+| `autoEnterOnMobile` | `false` | Automatically enter Focus Mode on mobile devices |
+| `showProjectIndicator` | `true` | Display current project name in header |
+| `allowEscape` | `true` | Allow Escape key to exit Focus Mode |
+
+### Using Focus Mode Settings
+
+```jsx
+import { useFocusMode } from './contexts/FocusModeContext';
+
+function MyComponent() {
+  const { focusSettings, updateFocusSettings } = useFocusMode();
+
+  // Read settings
+  console.log(focusSettings.voiceFirst);
+
+  // Update settings
+  updateFocusSettings({ voiceFirst: false });
+}
+```
+
+### UI Components
+
+#### FocusMode Component
+
+The main Focus Mode interface (`ui/src/components/FocusMode/FocusMode.jsx`):
+
+```jsx
+<FocusMode
+  projectName="My Project"           // Optional: displayed in header
+  activeConversationId={123}         // Optional: loads existing conversation
+  currentProjectId={456}             // Optional: project context for new messages
+  activeMode="Auto"                  // Chat mode (Auto, Scholar, etc.)
+  onConversationCreated={(id) => {}} // Callback when new conversation created
+/>
+```
+
+#### Visual States
+
+1. **Welcome**: "Ready" message with "Speak or type your question"
+2. **Listening**: Mic button pulsing red, live transcript displayed
+3. **Thinking**: Animated dots with "Thinking..." text
+4. **Response**: Last assistant message displayed with read-aloud button
+
+### Voice Integration
+
+Focus Mode uses the existing voice hooks:
+
+- **useVoiceInput**: Speech-to-text via Web Speech API
+- **useVoiceOutput**: Text-to-speech for reading responses
+
+When `voiceFirst` is enabled:
+- Responses are automatically read aloud after receiving
+- Mic button is prominently displayed
+- Text input is available as fallback
+
+### File Structure
+
+```
+ui/src/
+├── contexts/
+│   └── FocusModeContext.jsx    # State management, localStorage persistence
+├── components/
+│   └── FocusMode/
+│       ├── FocusMode.jsx       # Main component
+│       └── FocusMode.css       # Styling
+```
+
+### Mobile Considerations
+
+Focus Mode is particularly useful on mobile where:
+- Screen space is limited
+- Voice input is natural
+- Touch targets need to be large
+
+The `autoEnterOnMobile` setting (when enabled) will automatically activate Focus Mode when the app loads on a mobile device.
+
+---
+
+*Last updated: 2026-01-26 (v1.30)*
