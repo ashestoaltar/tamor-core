@@ -1,92 +1,195 @@
 # Tamor Architecture Overview
 
-This document explains how Tamor is structured and why certain boundaries exist.
+This document explains how Tamor is structured and the key design decisions.
 
 ---
 
-## High-Level Components
+## High-Level Architecture
 
-UI (React)
-↓
-API (Flask)
-↓
-Agent Logic
-↓
-Memory Store (SQLite)
-
-yaml
-Copy code
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        UI (React)                           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │LeftPanel │  │ChatPanel │  │RightPanel│  │FocusMode │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ HTTP/JSON
+┌─────────────────────────▼───────────────────────────────────┐
+│                    API (Flask/Gunicorn)                     │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
+│  │  Chat   │  │ Library │  │  Refs   │  │ Memory  │       │
+│  └─────────┘  └─────────┘  └─────────┘  └─────────┘       │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                      Services Layer                          │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
+│  │  LLM    │  │Epistemic│  │ Router  │  │Embedding│       │
+│  └─────────┘  └─────────┘  └─────────┘  └─────────┘       │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                    Data Layer (SQLite)                       │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ conversations │ messages │ library_files │ memories │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## UI Layer (React + Vite)
 
-Key components:
+### Core Components
 
-- `ChatPanel`
-- `TaskPill`
-- `LeftPanel` (Conversations / Tasks)
-- `TasksPanel`
+| Component | Purpose |
+|-----------|---------|
+| `LeftPanel` | Project/conversation navigation |
+| `ChatPanel` | Main chat interface |
+| `RightPanel` | Tabbed tools (Library, References, Memory, etc.) |
+| `FocusMode` | Distraction-free voice-first interface |
+| `Settings` | User preferences |
 
-### Rules
+### Key Principles
 
-- UI does not invent state
-- TaskPill attaches to the assistant message following the user message
-- TasksPanel is isolated from chat hydration
-
-Violating these rules causes UI instability.
-
----
-
-## API Layer
-
-Primary endpoints:
-
-- `/api/chat`
-- `/api/tasks`
-- `/api/tasks/:id/confirm`
-- `/api/tasks/:id/cancel`
-- `/api/tasks/:id/complete`
-
-The API enforces lifecycle rules and persistence.
+- **UI does not invent state** — all truth comes from API
+- **Responsive by design** — Mobile, Tablet, Desktop breakpoints
+- **Developer mode** — Advanced panels hidden by default
 
 ---
 
-## Agent Logic
+## API Layer (Flask)
 
-The agent:
+### Route Organization
 
-- detects tasks
-- normalizes dates and recurrence
-- assigns initial status
-- never executes unconfirmed tasks
+| Blueprint | Endpoints | Purpose |
+|-----------|-----------|---------|
+| `chat_api` | `/api/chat` | Main conversation endpoint |
+| `projects_api` | `/api/projects/*` | Project CRUD |
+| `files_api` | `/api/files/*` | File management |
+| `library_api` | `/api/library/*` | Global library system |
+| `references_api` | `/api/references/*` | Scripture references |
+| `memory_api` | `/api/memory/*` | Long-term memory |
+| `system_api` | `/api/status`, `/api/health` | System diagnostics |
 
-The agent is intentionally conservative.
+### Request Flow
+
+```
+User message
+    ↓
+Router (intent classification)
+    ↓
+Agent selection (Researcher/Writer/Engineer/Archivist)
+    ↓
+Context injection (memory, library, references)
+    ↓
+LLM call
+    ↓
+Epistemic processing (classify, lint, anchor, repair)
+    ↓
+Response with metadata
+```
 
 ---
 
-## Executor
+## Services Layer
 
-- Polling loop
-- Selects `status = confirmed`
-- Ignores UI state
-- Updates DB after execution
+### Core Services
+
+| Service | Purpose |
+|---------|---------|
+| `llm_service` | LLM provider abstraction (OpenAI) |
+| `router` | Intent-based agent routing |
+| `embedding_service` | Local sentence-transformers |
+| `epistemic/pipeline` | Truth signaling system |
+
+### Library Services
+
+| Service | Purpose |
+|---------|---------|
+| `library_service` | File CRUD and deduplication |
+| `library_search_service` | Semantic search |
+| `library_context_service` | Chat context injection |
+
+### Reference Services
+
+| Service | Purpose |
+|---------|---------|
+| `sword_client` | Local Bible modules |
+| `sefaria_client` | Jewish text API with caching |
+| `reference_service` | Unified reference interface |
 
 ---
 
-## Memory Store
+## Data Layer (SQLite)
 
-Single source of truth:
+### Core Tables
 
-api/memory/tamor.db
+| Table | Purpose |
+|-------|---------|
+| `users` | User accounts |
+| `projects` | Project containers |
+| `project_files` | Files within projects |
+| `conversations` | Chat sessions |
+| `messages` | Individual messages |
+| `memories` | Long-term memory entries |
+| `detected_tasks` | Task/reminder tracking |
 
-diff
-Copy code
+### Library Tables
 
-Contains:
-- conversations
-- messages
-- detected tasks
-- long-term memory entries
+| Table | Purpose |
+|-------|---------|
+| `library_files` | Global document store |
+| `library_chunks` | Embedded text segments |
+| `project_library_refs` | Project-to-library links |
 
-No secondary databases should exist.
+### Location
+
+Single database at: `api/memory/tamor.db`
+
+---
+
+## External Dependencies
+
+| Dependency | Purpose | Local/Remote |
+|------------|---------|--------------|
+| OpenAI API | LLM responses | Remote |
+| sentence-transformers | Embeddings | Local |
+| SWORD modules | Bible texts | Local |
+| Sefaria API | Jewish texts | Remote (cached) |
+| faster-whisper | Transcription | Local |
+
+---
+
+## Configuration
+
+| File | Purpose |
+|------|---------|
+| `.env` | Environment variables, API keys |
+| `config/modes.yml` | Assistant mode definitions |
+| `config/personality.yml` | Tamor's identity |
+| `config/epistemic_rules.yml` | Truth signaling rules |
+
+---
+
+## Deployment
+
+- **Server**: Gunicorn with Flask
+- **Frontend**: Vite dev server or static build
+- **Access**: Cloudflare Tunnel for HTTPS
+- **Storage**: Local SQLite + optional NAS mount for library
+
+---
+
+## Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| SQLite over Postgres | Single-user, zero config, file-based |
+| Local embeddings | No API cost, works offline |
+| Flask over FastAPI | Simplicity, sufficient for workload |
+| Cloudflare Tunnel | Secure access without port exposure |
+
+---
+
+*Last updated: Phase 8.6 (v1.32)*

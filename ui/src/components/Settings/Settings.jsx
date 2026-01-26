@@ -409,9 +409,50 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* Documentation Section */}
+      <section className="settings-section">
+        <h3 className="settings-section-title">Documentation</h3>
+        <div className="settings-section-content">
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <div className="settings-row-label">Learn about Tamor</div>
+              <div className="settings-row-description">
+                Features, design principles, and API reference
+              </div>
+            </div>
+          </div>
+          <div className="settings-docs-links">
+            <a
+              href="https://github.com/ashestoaltar/tamor-core/blob/main/docs/INDEX.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="settings-doc-link"
+            >
+              Documentation Index
+            </a>
+            <a
+              href="https://github.com/ashestoaltar/tamor-core/blob/main/docs/Features.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="settings-doc-link"
+            >
+              Features Guide
+            </a>
+            <a
+              href="https://github.com/ashestoaltar/tamor-core/blob/main/docs/BOUNDARIES.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="settings-doc-link"
+            >
+              Boundaries & Principles
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Version info */}
       <div className="settings-footer">
-        <div className="settings-version">Tamor v1.15</div>
+        <div className="settings-version">Tamor v1.32</div>
         <div className="settings-tagline">Wholeness • Light • Insight</div>
       </div>
     </div>
