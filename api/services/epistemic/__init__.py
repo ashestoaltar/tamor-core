@@ -34,6 +34,15 @@ from .linter import (
     lint_response
 )
 
+from .anchor_service import (
+    Anchor,
+    AnchorResult,
+    AnchorService,
+    get_anchor_service,
+    find_anchors,
+    set_session_context
+)
+
 __all__ = [
     # Config loader
     'load_rules',
@@ -58,5 +67,12 @@ __all__ = [
     'LintResult',
     'ConfidenceLinter',
     'get_linter',
-    'lint_response'
+    'lint_response',
+    # Anchor service
+    'Anchor',
+    'AnchorResult',
+    'AnchorService',
+    'get_anchor_service',
+    'find_anchors',
+    'set_session_context'
 ]
