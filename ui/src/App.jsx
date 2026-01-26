@@ -15,6 +15,7 @@ import MobileNav from "./components/MobileNav/MobileNav";
 import Settings from "./components/Settings/Settings";
 import FocusMode from "./components/FocusMode/FocusMode";
 import StatusIndicator from "./components/StatusIndicator/StatusIndicator";
+import UpdateNotification from "./components/UpdateNotification/UpdateNotification";
 
 function getTimeGreeting(d = new Date()) {
   const h = d.getHours();
@@ -418,6 +419,9 @@ function App() {
           onNavigate={handleMobileNav}
         />
       )}
+
+      {/* PWA Update Notification */}
+      <UpdateNotification />
     </div>
   );
 }
