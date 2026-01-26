@@ -1122,6 +1122,12 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.35 – 2026-01-25
+
+PWA refinement:
+- ✅ Install prompt now only displays on mobile devices
+- Desktop users can still install via browser's native address bar icon
+
 v1.34 – 2026-01-25
 
 Completed PWA Implementation (Phase 8 Prerequisite):
