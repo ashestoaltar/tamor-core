@@ -8,6 +8,12 @@ function InstallPrompt() {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Only show on mobile devices
+    const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobile) {
+      return;
+    }
+
     // Don't show if already installed
     if (isInstalledPWA()) {
       return;
