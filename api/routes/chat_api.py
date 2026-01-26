@@ -2,7 +2,7 @@
 import json
 import re
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
 from flask import Blueprint, jsonify, request, session
 
@@ -22,6 +22,7 @@ from core.deterministic import (
 from services.references.reference_parser import find_references as find_scripture_refs
 from services.references.reference_service import ReferenceService
 from services.library import LibraryContextService, LibrarySettingsService
+from services.epistemic import process_response as epistemic_process, EpistemicResult
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 
@@ -308,21 +309,83 @@ def get_or_create_conversation(user_id, conversation_id=None, title="New chat", 
     return cid
 
 
-def add_message(conversation_id, sender, role, content):
+def add_message(conversation_id, sender, role, content, epistemic_json=None):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
         """
-        INSERT INTO messages (conversation_id, sender, role, content, created_at)
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO messages (conversation_id, sender, role, content, epistemic_json, created_at)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """,
-        (conversation_id, sender, role, content),
+        (conversation_id, sender, role, content, epistemic_json),
     )
     mid = cur.lastrowid
     cur.execute("UPDATE conversations SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (conversation_id,))
     conn.commit()
     conn.close()
     return mid
+
+
+def _build_epistemic_context(
+    effective_mode: str,
+    library_chunks: list = None,
+    scripture_refs: list = None,
+) -> Dict[str, Any]:
+    """Build context for epistemic processing."""
+    # Map mode to query type
+    mode_to_query = {
+        "Scholar": "theological",
+        "Forge": "creative",
+        "Path": "devotional",
+        "Anchor": "practical",
+        "Creative": "creative",
+        "System": "system",
+    }
+    query_type = mode_to_query.get(effective_mode, "general")
+
+    return {
+        "query_type": query_type,
+        "sources": [],
+        "library_chunks": library_chunks or [],
+        "references": scripture_refs or [],
+        "user_prefers_accuracy": False,
+    }
+
+
+def _process_epistemic(
+    response_text: str,
+    epistemic_context: Dict[str, Any],
+) -> tuple[str, Dict[str, Any]]:
+    """
+    Process response through epistemic pipeline.
+
+    Returns:
+        (processed_text, epistemic_metadata_dict)
+    """
+    try:
+        result = epistemic_process(
+            response_text=response_text,
+            context=epistemic_context,
+            skip_repair=False,
+        )
+
+        metadata = {
+            "badge": result.metadata.badge,
+            "answer_type": result.metadata.answer_type,
+            "is_contested": result.metadata.is_contested,
+            "contestation_level": result.metadata.contestation_level,
+            "contested_domains": result.metadata.contested_domains,
+            "alternative_positions": result.metadata.alternative_positions,
+            "has_sources": result.metadata.has_sources,
+            "sources": result.metadata.sources,
+            "was_repaired": result.metadata.was_repaired,
+        }
+
+        return result.processed_text, metadata
+
+    except Exception:
+        # Don't fail chat if epistemic processing fails
+        return response_text, None
 
 
 def fetch_chat_history(conversation_id: int, limit: int = CHAT_HISTORY_LIMIT) -> list[dict]:
@@ -771,15 +834,32 @@ def chat():
         if router_result.handled_by not in ("llm_single_passthrough", "error"):
             reply_text = router_result.content
 
+            # Phase 8.2: Epistemic processing
+            epistemic_context = _build_epistemic_context(
+                effective_mode=effective_mode,
+                library_chunks=[],  # Router may have its own context
+                scripture_refs=[],
+            )
+            processed_text, epistemic_metadata = _process_epistemic(
+                reply_text, epistemic_context
+            )
+            epistemic_json = json.dumps(epistemic_metadata) if epistemic_metadata else None
+
             user_mid = add_message(conv_id, "user", "user", user_message)
-            assistant_mid = add_message(conv_id, "tamor", "assistant", reply_text)
+            assistant_mid = add_message(
+                conv_id, "tamor", "assistant", processed_text, epistemic_json
+            )
 
             response_data = {
-                "tamor": reply_text,
+                "tamor": processed_text,
                 "conversation_id": conv_id,
                 "detected_task": detected_task,
                 "message_ids": {"user": user_mid, "assistant": assistant_mid},
             }
+
+            # Include epistemic metadata if available
+            if epistemic_metadata:
+                response_data["epistemic"] = epistemic_metadata
 
             # Include citations if present
             if router_result.citations:
@@ -912,9 +992,17 @@ Capability note (Tamor app):
 
         reply_text = (reply_text or "") + line
 
+    # Phase 8.2: Epistemic processing
+    epistemic_context = _build_epistemic_context(
+        effective_mode=effective_mode,
+        library_chunks=[],  # Could populate from library context if available
+        scripture_refs=[],  # Could populate from scripture context if available
+    )
+    processed_text, epistemic_metadata = _process_epistemic(reply_text, epistemic_context)
+    epistemic_json = json.dumps(epistemic_metadata) if epistemic_metadata else None
 
     user_mid = add_message(conv_id, "user", "user", user_message)
-    assistant_mid = add_message(conv_id, "tamor", "assistant", reply_text)
+    assistant_mid = add_message(conv_id, "tamor", "assistant", processed_text, epistemic_json)
 
     task_id = persist_detected_task(
         user_id=user_id,
@@ -928,12 +1016,16 @@ Capability note (Tamor app):
         detected_task["conversation_id"] = conv_id
         detected_task["message_id"] = user_mid
 
-    return jsonify(
-        {
-            "tamor": reply_text,
-            "conversation_id": conv_id,
-            "detected_task": detected_task,
-            "message_ids": {"user": user_mid, "assistant": assistant_mid},
-        }
-    )
+    response_data = {
+        "tamor": processed_text,
+        "conversation_id": conv_id,
+        "detected_task": detected_task,
+        "message_ids": {"user": user_mid, "assistant": assistant_mid},
+    }
+
+    # Include epistemic metadata if available
+    if epistemic_metadata:
+        response_data["epistemic"] = epistemic_metadata
+
+    return jsonify(response_data)
 

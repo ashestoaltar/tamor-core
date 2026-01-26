@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS messages (
     sender TEXT,
     role TEXT,
     content TEXT,
+    epistemic_json TEXT,  -- Phase 8.2: Epistemic metadata (badge, contestation, etc.)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
