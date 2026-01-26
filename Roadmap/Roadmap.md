@@ -889,22 +889,23 @@ Faithful readers may agree on the text while differing on application.
 
 ---
 
-### 8.3 Focus Mode Completion
+### 8.3 Focus Mode Completion ✅
 
 **Purpose:** Deliver a distraction-free Tamor experience.
 
 > **Design Note:** Focus Mode is one valuable mode among equals, not "Tamor's final form." The research/citation workflow remains equally central.
 
 #### Features
-- Single screen
-- Voice-first option
-- No panels, no noise
-- Explicit "thinking space"
+- ✅ Single screen (full-screen overlay)
+- ✅ Voice-first option (large mic button, auto-read responses)
+- ✅ No panels, no noise (minimal header with exit button)
+- ✅ Explicit "thinking space" (animated dots during processing)
 
 #### Deliverables
-- Toggle in header
-- Keyboard + voice exit
-- Auto-enter on mobile if enabled in preferences
+- ✅ Toggle in header (◉ button)
+- ✅ Keyboard exit (Escape key via FocusModeContext)
+- ✅ Settings panel integration (voice-first, auto-enter mobile, show project indicator)
+- ✅ Direct API integration (shares conversation context with main app)
 
 ---
 
@@ -1088,6 +1089,21 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.30 – 2026-01-26
+
+Completed Phase 8.3 Focus Mode:
+- ✅ FocusModeContext for state management (localStorage persistence)
+- ✅ FocusMode component with voice-first interface
+- ✅ Large mic button with pulse animation when listening
+- ✅ Thinking animation (three animated dots)
+- ✅ Response display with read-aloud toggle
+- ✅ Text input fallback for non-voice usage
+- ✅ Header toggle button (◉) in main app
+- ✅ Conditional render in App.jsx (Focus Mode replaces main layout when active)
+- ✅ Settings panel integration (voice-first, auto-enter mobile, show project indicator)
+- ✅ Direct API calls sharing conversation context
+- ✅ Escape key exit via context
+
 v1.29 – 2026-01-26
 
 Completed Phase 8.1 Tamor Principles & Boundaries Manifesto:
