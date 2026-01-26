@@ -909,19 +909,23 @@ Faithful readers may agree on the text while differing on application.
 
 ---
 
-### 8.4 System State Awareness & Indicators
+### 8.4 System State Awareness & Indicators ✅
 
 **Purpose:** Make system behavior legible.
 
 #### Indicators
-- Offline vs online
-- Cached vs live data
-- Library-only vs web-assisted
-- Voice available/unavailable
+- ✅ Online vs offline (network status)
+- ✅ LLM availability and provider
+- ✅ Library mount status and file count
+- ✅ SWORD module availability
+- ✅ Embeddings availability
 
 #### Deliverables
-- Minimal status bar (icon-only by default)
-- Expandable diagnostics (Developer Mode)
+- ✅ `SystemStatus` service (`api/services/system_status.py`)
+- ✅ `GET /api/system-status` endpoint
+- ✅ `StatusIndicator` component (minimal dot, expandable panel)
+- ✅ Auto-refresh every 60 seconds
+- ✅ Expanded by default in Developer Mode
 
 ---
 
@@ -1089,6 +1093,17 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.31 – 2026-01-26
+
+Completed Phase 8.4 System State Awareness & Indicators:
+- ✅ SystemStatus dataclass with component availability flags
+- ✅ get_system_status() checks: library, LLM, SWORD, Sefaria, embeddings
+- ✅ GET /api/system-status endpoint in system_api.py
+- ✅ StatusIndicator component with minimal/expanded views
+- ✅ Color-coded status items (ok/warn/error)
+- ✅ Auto-refresh every 60 seconds
+- ✅ Integrated in header (expanded by default in dev mode)
+
 v1.30 – 2026-01-26
 
 Completed Phase 8.3 Focus Mode:
