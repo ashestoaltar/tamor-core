@@ -1,0 +1,153 @@
+.epistemic-badge-container {
+  position: relative;
+  display: inline-flex;
+  margin-left: var(--spacing-xs);
+}
+
+.epistemic-badge {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+  border-radius: var(--radius-sm);
+}
+
+.epistemic-badge:hover {
+  opacity: 1;
+  background: var(--bg-secondary);
+}
+
+.badge-icon {
+  font-weight: 600;
+}
+
+/* Badge variants */
+.badge-deterministic {
+  color: var(--success-color);
+}
+
+.badge-grounded {
+  color: var(--info-color);
+}
+
+.badge-contested {
+  color: var(--warning-color);
+}
+
+/* Popover */
+.epistemic-popover {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: var(--spacing-xs);
+
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+
+  padding: var(--spacing-sm) var(--spacing-md);
+  min-width: 250px;
+  max-width: 350px;
+
+  z-index: 100;
+}
+
+/* Arrow */
+.epistemic-popover::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bg-primary);
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+}
+
+.popover-icon {
+  font-size: 1rem;
+}
+
+.popover-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.contestation-info {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+.contestation-level,
+.contested-domains {
+  margin-bottom: var(--spacing-xs);
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  color: var(--accent-color);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+}
+
+.expand-btn:hover {
+  color: var(--accent-hover);
+}
+
+.alternatives {
+  margin-top: var(--spacing-sm);
+}
+
+.alternatives ul,
+.sources-info ul {
+  margin: var(--spacing-xs) 0 0;
+  padding-left: var(--spacing-md);
+}
+
+.alternatives li,
+.sources-info li {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.sources-info {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+/* Mobile: tap instead of hover */
+@media (max-width: 768px) {
+  .epistemic-popover {
+    position: fixed;
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    max-width: 90vw;
+  }
+
+  .epistemic-popover::after {
+    display: none;
+  }
+}

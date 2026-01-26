@@ -13,6 +13,7 @@ import { findReferences } from "../../utils/referenceParser";
 import TaskPill from "./TaskPill";
 import VoiceButton from "../VoiceButton/VoiceButton";
 import CitationCard from "../CitationCard/CitationCard";
+import EpistemicBadge from "../Chat/EpistemicBadge";
 
 /**
  * Strip markdown formatting from text for speech synthesis.
@@ -1023,6 +1024,7 @@ export default function ChatPanel({
               status: "done",
               detected_task: data?.detected_task || null,
               meta: data?.meta || null,
+              epistemic: data?.epistemic || null,
             };
             break;
           }
@@ -1252,6 +1254,12 @@ export default function ChatPanel({
                   {msg.content}
                 </ReactMarkdown>
 
+                {/* Phase 8.2: Epistemic badge for answer classification */}
+                {!isUser && msg.status !== "thinking" && msg.epistemic && (
+                  <div className="epistemic-row">
+                    <EpistemicBadge epistemic={msg.epistemic} />
+                  </div>
+                )}
 
                 {!isUser && msg.status === "thinking" && (
                   <div className="thinkingLine">

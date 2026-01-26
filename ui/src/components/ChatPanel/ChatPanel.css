@@ -198,6 +198,17 @@
   50% { transform: scale(1.1); }
 }
 
+/* ================================
+   Epistemic Badge Row (Phase 8.2)
+================================ */
+.epistemic-row {
+  display: flex;
+  align-items: center;
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-subtle);
+}
+
 /* Ensure markdown content doesn't break the bubble */
 .chat-bubble * {
   box-sizing: border-box;
