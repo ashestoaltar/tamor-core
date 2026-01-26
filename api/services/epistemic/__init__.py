@@ -43,6 +43,13 @@ from .anchor_service import (
     set_session_context
 )
 
+from .repair_service import (
+    RepairResult,
+    RepairService,
+    get_repair_service,
+    repair_response
+)
+
 __all__ = [
     # Config loader
     'load_rules',
@@ -74,5 +81,10 @@ __all__ = [
     'AnchorService',
     'get_anchor_service',
     'find_anchors',
-    'set_session_context'
+    'set_session_context',
+    # Repair service
+    'RepairResult',
+    'RepairService',
+    'get_repair_service',
+    'repair_response'
 ]
