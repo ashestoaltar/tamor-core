@@ -1,0 +1,100 @@
+.install-prompt {
+  position: fixed;
+  bottom: var(--spacing-md);
+  left: var(--spacing-md);
+  right: var(--spacing-md);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+
+  padding: var(--spacing-md);
+
+  z-index: 9998;
+
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.install-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+}
+
+.install-icon {
+  font-size: 2rem;
+}
+
+.install-text strong {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+}
+
+.install-text p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.ios-share {
+  display: inline-block;
+  background: var(--bg-secondary);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.install-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.install-btn {
+  flex: 1;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.install-btn.primary {
+  background: var(--accent-color);
+  color: white;
+}
+
+.install-btn.secondary {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+/* Desktop: narrower, positioned at corner */
+@media (min-width: 768px) {
+  .install-prompt {
+    left: auto;
+    right: var(--spacing-md);
+    max-width: 320px;
+  }
+}
+
+/* Mobile with bottom nav */
+@media (max-width: 768px) {
+  .install-prompt {
+    bottom: calc(var(--spacing-md) + 60px);
+  }
+}
