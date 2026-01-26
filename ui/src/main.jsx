@@ -4,13 +4,16 @@ import App from './App.jsx'
 import { AuthProvider } from "./context/AuthContext.jsx"
 import { DevModeProvider } from "./context/DevModeContext.jsx"
 import { VoiceSettingsProvider } from "./context/VoiceSettingsContext.jsx"
+import { FocusModeProvider } from "./contexts/FocusModeContext.jsx"
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
       <DevModeProvider>
         <VoiceSettingsProvider>
-          <App />
+          <FocusModeProvider>
+            <App />
+          </FocusModeProvider>
         </VoiceSettingsProvider>
       </DevModeProvider>
     </AuthProvider>
