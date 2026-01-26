@@ -16,6 +16,7 @@ This document provides a reference for Tamor's major features, their APIs, and u
 8. [Media & Transcription](#media--transcription)
 9. [Epistemic Honesty System](#epistemic-honesty-system)
 10. [Focus Mode](#focus-mode)
+11. [Progressive Web App (PWA)](#progressive-web-app-pwa)
 
 ---
 
@@ -1005,4 +1006,144 @@ The `autoEnterOnMobile` setting (when enabled) will automatically activate Focus
 
 ---
 
-*Last updated: 2026-01-26 (v1.30)*
+## Progressive Web App (PWA)
+
+Tamor is installable as a Progressive Web App on desktop and mobile devices, providing a native-like experience with offline capabilities.
+
+### Installation
+
+**Desktop (Chrome, Edge):**
+1. Visit Tamor in browser
+2. Click the install icon in the address bar, or
+3. Wait for the install prompt (appears after 3 seconds for first-time users)
+4. Click "Install"
+
+**Android:**
+1. Visit Tamor in Chrome
+2. Tap "Add to Home Screen" when prompted, or
+3. Open Chrome menu → "Add to Home screen"
+
+**iOS Safari:**
+1. Visit Tamor in Safari
+2. Tap the Share button (⬆️)
+3. Select "Add to Home Screen"
+4. Tap "Add"
+
+### Offline Capabilities
+
+PWA caching ensures Tamor remains usable with limited connectivity:
+
+| Resource Type | Strategy | Cache Duration | Behavior |
+|---------------|----------|----------------|----------|
+| API calls | NetworkFirst | 5 minutes | Try network, fall back to cache |
+| Images | CacheFirst | 30 days | Use cache, update in background |
+| Fonts | CacheFirst | 1 year | Use cache, update in background |
+| JS/CSS | StaleWhileRevalidate | 7 days | Use cache while fetching update |
+
+### Update Handling
+
+When a new version is deployed:
+1. Service worker detects the update
+2. `UpdateNotification` component appears
+3. User can choose "Update Now" or "Later"
+4. "Update Now" activates new service worker and reloads
+
+### Install Prompt
+
+The `InstallPrompt` component provides a friendly UX for first-time users:
+
+- **Android/Desktop**: Captures `beforeinstallprompt` event, shows native install button
+- **iOS Safari**: Shows manual instructions with share icon
+- **Dismissal**: Remembers user choice for 7 days
+- **Already installed**: Prompt is hidden when running as PWA
+
+### Utility Functions
+
+```javascript
+import {
+  isInstalledPWA,
+  isOnline,
+  onOnlineStatusChange
+} from './pwa/registerSW';
+
+// Check if running as installed PWA
+if (isInstalledPWA()) {
+  console.log('Running as standalone app');
+}
+
+// Check network status
+if (isOnline()) {
+  console.log('Connected to network');
+}
+
+// Listen for connectivity changes
+const cleanup = onOnlineStatusChange((online) => {
+  console.log(online ? 'Back online' : 'Gone offline');
+});
+// Later: cleanup();
+```
+
+### File Structure
+
+```
+ui/
+├── public/
+│   ├── manifest.json           # PWA manifest
+│   ├── sw.js                   # Generated service worker
+│   └── icons/
+│       ├── icon.svg            # Source SVG
+│       ├── icon-72x72.png      # iOS, Android
+│       ├── icon-96x96.png
+│       ├── icon-128x128.png
+│       ├── icon-144x144.png
+│       ├── icon-152x152.png    # iPad
+│       ├── icon-192x192.png    # Android
+│       ├── icon-384x384.png
+│       └── icon-512x512.png    # Splash screens
+├── src/
+│   ├── pwa/
+│   │   └── registerSW.js       # SW registration & utilities
+│   └── components/
+│       ├── UpdateNotification/
+│       │   ├── UpdateNotification.jsx
+│       │   └── UpdateNotification.css
+│       └── InstallPrompt/
+│           ├── InstallPrompt.jsx
+│           └── InstallPrompt.css
+└── vite.config.js              # PWA plugin configuration
+```
+
+### Manifest Configuration
+
+Key manifest.json settings:
+
+```json
+{
+  "name": "Tamor",
+  "short_name": "Tamor",
+  "description": "Personal AI workspace for research and knowledge",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#1a1a2e",
+  "background_color": "#0f0f1a",
+  "shortcuts": [
+    { "name": "New Conversation", "url": "/?action=new" },
+    { "name": "Focus Mode", "url": "/?mode=focus" }
+  ]
+}
+```
+
+### iOS Considerations
+
+iOS requires additional meta tags in `index.html`:
+
+```html
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tamor">
+<link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+```
+
+---
+
+*Last updated: 2026-01-25 (v1.34)*
