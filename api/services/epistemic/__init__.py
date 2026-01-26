@@ -16,7 +16,17 @@ from .config_loader import (
     is_allowed_absolute
 )
 
+from .classifier import (
+    AnswerType,
+    ContestationLevel,
+    ClassificationResult,
+    AnswerClassifier,
+    get_classifier,
+    classify_answer
+)
+
 __all__ = [
+    # Config loader
     'load_rules',
     'reload_rules',
     'get_risky_phrases',
@@ -25,5 +35,12 @@ __all__ = [
     'get_hedge_tokens',
     'get_max_hedges',
     'get_anchor_settings',
-    'is_allowed_absolute'
+    'is_allowed_absolute',
+    # Classifier
+    'AnswerType',
+    'ContestationLevel',
+    'ClassificationResult',
+    'AnswerClassifier',
+    'get_classifier',
+    'classify_answer'
 ]
