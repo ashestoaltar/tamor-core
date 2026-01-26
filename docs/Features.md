@@ -14,6 +14,7 @@ This document provides a reference for Tamor's major features, their APIs, and u
 6. [Project Pipelines](#project-pipelines)
 7. [Auto-Insights & Reasoning](#auto-insights--reasoning)
 8. [Media & Transcription](#media--transcription)
+9. [Epistemic Honesty System](#epistemic-honesty-system)
 
 ---
 
@@ -723,4 +724,166 @@ Uses sentence-transformers locally (no API costs):
 
 ---
 
-*Last updated: 2026-01-24 (v1.27)*
+## Epistemic Honesty System
+
+Phase 8.2 introduces a unified system for truth signaling — combining provenance transparency, confidence enforcement, and user-facing indicators into one coherent honesty layer.
+
+### Pipeline Flow
+
+```
+User asks theological question
+        ↓
+LLM generates response
+        ↓
+Epistemic pipeline classifies:
+  → Deterministic? ✔︎
+  → Grounded direct? ●
+  → Grounded contested? ◐ (+ popover with alternatives)
+  → Ungrounded? (no badge, but lint for risky claims)
+        ↓
+If risky claims found:
+  → Try to attach anchor (≤250ms)
+  → Else minimal sentence rewrite
+        ↓
+Response displayed with badge
+User can hover/tap for details
+```
+
+### Answer Classification (Four-Tier Model)
+
+| Category | Badge | Definition | Example |
+|----------|-------|------------|---------|
+| **Deterministic** | ✔︎ (green) | Computed, exact, from trusted data | "There are 12 items." |
+| **Grounded-Direct** | ● (blue) | Restating explicit text | "Paul says X in Romans 8." |
+| **Grounded-Contested** | ◐ (orange) | Grounded but interpretive | "Romans 9 is about corporate election." |
+| **Ungrounded** | (no badge) | Purely inferential | General reasoning |
+
+### Contested Domains
+
+Six domains where contestation detection is active:
+1. **Theology** - election, predestination, atonement, etc.
+2. **Eschatology** - rapture, millennium, tribulation views
+3. **Ecclesiology** - baptism, communion, church governance
+4. **Authorship** - Pauline debates, documentary hypothesis
+5. **History** - historical Jesus, early church, councils
+6. **Ethics** - "Christians must/should" claims
+
+### Contestation Levels
+
+| Level | Name | Meaning |
+|-------|------|---------|
+| **C1** | Intra-tradition | Nuance within same tradition |
+| **C2** | Cross-tradition | Major traditions diverge |
+| **C3** | Minority position | Legitimate but not widely held |
+
+### API Response
+
+Chat responses now include an `epistemic` object:
+
+```json
+{
+  "tamor": "processed response text",
+  "conversation_id": 123,
+  "epistemic": {
+    "badge": "contested",
+    "answer_type": "grounded_contested",
+    "is_contested": true,
+    "contestation_level": "C2",
+    "contested_domains": ["theology"],
+    "alternative_positions": ["Reformed view", "Arminian view"],
+    "has_sources": true,
+    "sources": ["Romans 9:11"],
+    "was_repaired": false
+  }
+}
+```
+
+### Repair Strategies
+
+When risky claims are detected:
+
+1. **Anchor Strategy** (preferred) - Attach supporting evidence
+   - Searches session context, library cache, reference cache
+   - Time budget: ≤250ms (fast) or ≤800ms (deep)
+
+2. **Rewrite Strategy** - Minimal sentence softening
+   - "This proves" → "This strongly suggests"
+   - "Beyond doubt" → "With high confidence"
+
+3. **Clarify Strategy** - Flag for manual improvement
+   - Used when hedges obscure the thesis
+
+### Configuration
+
+Rules are configured in `api/config/epistemic_rules.yml`:
+
+```yaml
+risky_phrases:
+  high_risk:
+    - "this proves"
+    - "without question"
+  medium_risk:
+    - "certainly"
+    - "always"
+
+contested_markers:
+  theology:
+    - "election"
+    - "predestination"
+    - "atonement"
+
+topic_contestation:
+  "Romans 9 election":
+    level: "C2"
+    positions:
+      - "Corporate election (New Perspective)"
+      - "Individual unconditional (Reformed)"
+      - "Based on foreknowledge (Arminian)"
+
+allowed_absolutes:
+  - pattern: "there are \\d+ (files|items|tasks)"
+    reason: "deterministic count"
+
+hedge_tokens:
+  - "maybe"
+  - "possibly"
+  - "perhaps"
+
+max_hedges_per_sentence: 2
+
+anchor_settings:
+  fast_budget_ms: 250
+  deep_budget_ms: 800
+  sources:
+    - "session_context"
+    - "library_cache"
+    - "reference_cache"
+```
+
+### UI Components
+
+**EpistemicBadge** - Progressive disclosure:
+1. **Badge only** (always visible) - Small icon indicating answer type
+2. **Popover** (hover/tap) - Description + contestation info
+3. **Expanded** (click "Why?") - Alternative positions listed
+
+### Backend Services
+
+```
+api/services/epistemic/
+├── __init__.py           # Module exports, main entry point
+├── config_loader.py      # YAML rules loading with caching
+├── classifier.py         # Four-tier answer classification
+├── linter.py             # Confidence linting (certainty/clarity)
+├── anchor_service.py     # Evidence search within time budget
+├── repair_service.py     # Minimal claim fixes
+└── pipeline.py           # Main orchestration
+```
+
+### Database
+
+Messages table includes `epistemic_json` column for storing classification metadata with each assistant message.
+
+---
+
+*Last updated: 2026-01-26 (v1.29)*

@@ -623,15 +623,15 @@ These are core, not extensions.
 
 ---
 
-### 8.1 Tamor Principles & Boundaries Manifesto
+### 8.1 Tamor Principles & Boundaries Manifesto ✅
 
 **Purpose:** Formally document what Tamor will never do, even if it technically could.
 
 #### Deliverables
 
-- `docs/BOUNDARIES.md` (user-readable)
-- Short in-app "What Tamor Is / Is Not" page
-- Linked from Settings
+- ✅ `docs/BOUNDARIES.md` (user-readable)
+- ⬜ Short in-app "What Tamor Is / Is Not" page
+- ⬜ Linked from Settings
 
 #### Boundaries
 
@@ -645,9 +645,37 @@ These are core, not extensions.
 
 ---
 
-### 8.2 Epistemic Honesty System
+### 8.2 Epistemic Honesty System ✅
 
 **Purpose:** Unified system for truth signaling — combining provenance transparency, confidence enforcement, and user-facing indicators into one coherent honesty layer.
+
+#### Implementation Status
+
+✅ **Backend Services** (`api/services/epistemic/`)
+- `config_loader.py` - YAML rules configuration
+- `classifier.py` - Four-tier answer classification
+- `linter.py` - Confidence linting (certainty/clarity)
+- `anchor_service.py` - Evidence attachment with time budget
+- `repair_service.py` - Minimal claim fixes
+- `pipeline.py` - Main orchestration
+
+✅ **Configuration** (`api/config/epistemic_rules.yml`)
+- Risky phrases (high/medium risk)
+- Six contested domains with markers
+- Manual topic contestation mappings (C1/C2/C3)
+- Allowed absolutes patterns
+- Hedge detection settings
+- Anchor search budgets
+
+✅ **Chat Integration** (`api/routes/chat_api.py`)
+- Epistemic processing on all responses
+- Metadata included in JSON response
+- Stored in messages table (epistemic_json column)
+
+✅ **UI Components** (`ui/src/components/Chat/`)
+- `EpistemicBadge.jsx` - Badge with progressive disclosure
+- Popover with contestation details
+- Mobile-responsive (tap for modal)
 
 > **Design Note:** This section merges the original 8.2 (Deterministic vs Probabilistic Transparency) and 8.3 (Confidence Language Enforcement) into a single integrated design. The separation was artificial; they're one system.
 
@@ -1060,6 +1088,22 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.29 – 2026-01-26
+
+Completed Phase 8.1 Tamor Principles & Boundaries Manifesto:
+- ✅ Created `docs/BOUNDARIES.md` defining Tamor's philosophical limits
+
+Completed Phase 8.2 Epistemic Honesty System:
+- ✅ Four-tier answer classification (Deterministic/Grounded-Direct/Grounded-Contested/Ungrounded)
+- ✅ Confidence linting with risky phrase detection
+- ✅ Anchor service for evidence attachment (≤250ms budget)
+- ✅ Repair service (anchor, rewrite, clarify strategies)
+- ✅ Main pipeline orchestrating classify → lint → anchor → repair
+- ✅ Chat integration with epistemic metadata in responses
+- ✅ EpistemicBadge UI component with progressive disclosure
+- ✅ Configurable rules via `epistemic_rules.yml`
+- ✅ Database schema update (epistemic_json column)
+
 v1.28 – 2026-01-25
 
 Added Phase 8 – Trust, Restraint, and Completion:
