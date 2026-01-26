@@ -945,20 +945,21 @@ Faithful readers may agree on the text while differing on application.
 
 ---
 
-### 8.6 Documentation as First-Class Artifact
+### 8.6 Documentation as First-Class Artifact ✅
 
 **Purpose:** Make Tamor understandable without oral tradition.
 
 #### Finalize
-- Features Guide (already started)
-- Architecture overview
-- Philosophy & boundaries
-- Roadmap freeze note
+- ✅ Features Guide (Features.md - comprehensive, 31KB)
+- ✅ Architecture overview (architecture.md - fully updated)
+- ✅ Philosophy & boundaries (philosophy.md, BOUNDARIES.md)
+- ✅ Epistemic system (epistemic-system.md)
 
 #### Deliverables
-- `/docs` index
-- Linked from Settings
-- Printable / exportable
+- ✅ `/docs/INDEX.md` — central documentation hub
+- ✅ Documentation section in Settings with links
+- ✅ AboutTamor in-app page (modal from Settings)
+- ✅ All docs linked and status tracked in INDEX.md
 
 ---
 
@@ -1093,6 +1094,15 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.33 – 2026-01-26
+
+Completed Phase 8.6 Documentation as First-Class Artifact:
+- ✅ Created `docs/INDEX.md` with links to all documentation
+- ✅ Updated `docs/architecture.md` with current system design
+- ✅ Added Documentation section to Settings with GitHub links
+- ✅ Created AboutTamor in-app page (modal from Settings)
+- ✅ Document status tracking in INDEX.md
+
 v1.32 – 2026-01-26
 
 Completed Phase 8.5 Feature Freeze & Deprecation Pass:

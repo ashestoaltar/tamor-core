@@ -89,9 +89,10 @@ Welcome to Tamor's documentation. This index provides access to all documentatio
 | epistemic-system.md | ✅ Complete | v1.29 (Phase 8.2) |
 | philosophy.md | ✅ Complete | Phase 1 |
 | tasks.md | ✅ Complete | Phase 2 |
-| architecture.md | ⚠️ Needs update | Phase 1 |
+| architecture.md | ✅ Complete | v1.33 (Phase 8.6) |
 | system-config.md | ✅ Complete | Phase 7 |
 | maintenance-runbook.md | ✅ Complete | Phase 7 |
+| INDEX.md | ✅ Complete | v1.33 (Phase 8.6) |
 
 ---
 
