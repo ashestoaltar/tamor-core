@@ -2,6 +2,19 @@
 Epistemic Honesty System
 
 Phase 8.2: Truth signaling for Tamor responses.
+
+Main entry point: process_response()
+
+Example:
+    from services.epistemic import process_response
+
+    result = process_response(
+        response_text="This proves that election is corporate...",
+        context={'query_type': 'theological'}
+    )
+
+    print(result.metadata.badge)  # "contested"
+    print(result.processed_text)  # May be repaired
 """
 
 from .config_loader import (
@@ -50,41 +63,46 @@ from .repair_service import (
     repair_response
 )
 
+from .pipeline import (
+    EpistemicMetadata,
+    EpistemicResult,
+    EpistemicPipeline,
+    get_pipeline,
+    process_response
+)
+
 __all__ = [
-    # Config loader
+    # Config
     'load_rules',
     'reload_rules',
     'get_risky_phrases',
     'get_contested_markers',
     'get_topic_contestation',
-    'get_hedge_tokens',
-    'get_max_hedges',
-    'get_anchor_settings',
-    'is_allowed_absolute',
-    # Classifier
+
+    # Classification
     'AnswerType',
     'ContestationLevel',
     'ClassificationResult',
-    'AnswerClassifier',
-    'get_classifier',
     'classify_answer',
-    # Linter
+
+    # Linting
     'LintSeverity',
     'LintIssue',
     'LintResult',
-    'ConfidenceLinter',
-    'get_linter',
     'lint_response',
-    # Anchor service
+
+    # Anchoring
     'Anchor',
     'AnchorResult',
-    'AnchorService',
-    'get_anchor_service',
     'find_anchors',
     'set_session_context',
-    # Repair service
+
+    # Repair
     'RepairResult',
-    'RepairService',
-    'get_repair_service',
-    'repair_response'
+    'repair_response',
+
+    # Pipeline (main entry)
+    'EpistemicMetadata',
+    'EpistemicResult',
+    'process_response',
 ]
