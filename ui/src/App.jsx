@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useAuth } from "./context/AuthContext";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import { useFocusMode } from "./contexts/FocusModeContext";
+import { useDevMode } from "./context/DevModeContext";
 
 import LeftPanel from "./components/LeftPanel/LeftPanel";
 import ChatPanel from "./components/ChatPanel/ChatPanel";
@@ -13,6 +14,7 @@ import Drawer from "./components/Drawer/Drawer";
 import MobileNav from "./components/MobileNav/MobileNav";
 import Settings from "./components/Settings/Settings";
 import FocusMode from "./components/FocusMode/FocusMode";
+import StatusIndicator from "./components/StatusIndicator/StatusIndicator";
 
 function getTimeGreeting(d = new Date()) {
   const h = d.getHours();
@@ -25,6 +27,7 @@ function App() {
   const { user, users, loading, login, logout } = useAuth();
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
   const { isFocusMode, toggleFocusMode } = useFocusMode();
+  const { devMode } = useDevMode();
 
   // --------------------------------------------
   // Global UI + mode state
@@ -324,6 +327,12 @@ function App() {
                 <path d="M12 16v-4M12 8h.01" />
               </svg>
             </button>
+          )}
+
+          {!isMobile && (
+            <div className="status-indicator-wrapper">
+              <StatusIndicator showExpanded={devMode} />
+            </div>
           )}
 
           {!isMobile && (

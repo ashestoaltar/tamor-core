@@ -209,6 +209,11 @@ body {
   border-color: var(--accent-color);
 }
 
+/* Status indicator wrapper for positioning */
+.status-indicator-wrapper {
+  position: relative;
+}
+
 /* User greeting / account */
 .app-header-user {
   display: flex;
