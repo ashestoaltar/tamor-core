@@ -25,6 +25,15 @@ from .classifier import (
     classify_answer
 )
 
+from .linter import (
+    LintSeverity,
+    LintIssue,
+    LintResult,
+    ConfidenceLinter,
+    get_linter,
+    lint_response
+)
+
 __all__ = [
     # Config loader
     'load_rules',
@@ -42,5 +51,12 @@ __all__ = [
     'ClassificationResult',
     'AnswerClassifier',
     'get_classifier',
-    'classify_answer'
+    'classify_answer',
+    # Linter
+    'LintSeverity',
+    'LintIssue',
+    'LintResult',
+    'ConfidenceLinter',
+    'get_linter',
+    'lint_response'
 ]
