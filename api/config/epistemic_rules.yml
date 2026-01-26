@@ -1,0 +1,224 @@
+# Epistemic Rules Configuration
+# Phase 8.2: Epistemic Honesty System
+#
+# This file governs how Tamor detects and handles certainty claims.
+# Edit with care — these rules define Tamor's epistemic character.
+
+version: "1.0"
+
+# =============================================================================
+# RISKY PHRASES
+# =============================================================================
+# Absolutist language that requires grounding or softening
+
+risky_phrases:
+  high_risk:
+    - "this proves"
+    - "this definitively"
+    - "this settles"
+    - "this refutes"
+    - "without question"
+    - "beyond doubt"
+    - "the only interpretation"
+    - "clearly teaches"
+    - "obviously means"
+
+  medium_risk:
+    - "certainly"
+    - "definitely"
+    - "always"
+    - "never"
+    - "must be"
+    - "cannot be"
+    - "the real meaning"
+    - "what this really says"
+
+# =============================================================================
+# CONTESTED DOMAIN MARKERS
+# =============================================================================
+# Phrases that indicate we're in contested territory
+
+contested_markers:
+  theology:
+    - "election"
+    - "predestination"
+    - "free will"
+    - "salvation"
+    - "justification"
+    - "sanctification"
+    - "atonement"
+    - "covenant theology"
+    - "dispensationalism"
+    - "cessationism"
+    - "continuationism"
+    - "inerrancy"
+    - "infallibility"
+
+  eschatology:
+    - "rapture"
+    - "tribulation"
+    - "millennium"
+    - "premillennial"
+    - "postmillennial"
+    - "amillennial"
+    - "preterist"
+    - "futurist"
+    - "second coming"
+
+  ecclesiology:
+    - "baptism mode"
+    - "infant baptism"
+    - "believer's baptism"
+    - "church governance"
+    - "episcopal"
+    - "presbyterian polity"
+    - "congregational"
+    - "real presence"
+    - "transubstantiation"
+    - "ordinance"
+    - "sacrament"
+
+  authorship:
+    - "Pauline authorship"
+    - "Mosaic authorship"
+    - "documentary hypothesis"
+    - "JEDP"
+    - "deutero-Isaiah"
+    - "Johannine comma"
+    - "textual variant"
+
+  history:
+    - "historical Jesus"
+    - "early church"
+    - "council of"
+    - "church fathers"
+    - "reformation"
+    - "great awakening"
+
+  ethics:
+    - "Christians must"
+    - "Christians should"
+    - "the Bible clearly says about"
+    - "Scripture teaches that we should"
+    - "biblical position on"
+    - "if you disagree, you're"
+
+# =============================================================================
+# MANUAL CONTESTATION MAPPINGS
+# =============================================================================
+# Specific topics with known contestation levels
+# C1 = intra-tradition, C2 = cross-tradition, C3 = minority
+
+topic_contestation:
+  "Romans 9 election":
+    level: "C2"
+    positions:
+      - "Corporate/national election (New Perspective)"
+      - "Individual unconditional election (Reformed)"
+      - "Election based on foreknowledge (Arminian)"
+
+  "Law and Gospel":
+    level: "C2"
+    positions:
+      - "Law abrogated in Christ (traditional Protestant)"
+      - "Law fulfilled, moral law continues (Reformed)"
+      - "Torah observance for Messiah followers (Messianic)"
+
+  "Israel and the Church":
+    level: "C2"
+    positions:
+      - "Replacement/fulfillment (supersessionism)"
+      - "Distinction maintained (dispensationalism)"
+      - "One people, two expressions (progressive covenantalism)"
+
+  "Baptism mode":
+    level: "C2"
+    positions:
+      - "Immersion only (Baptist)"
+      - "Sprinkling/pouring valid (Reformed, Catholic)"
+
+  "Baptism subjects":
+    level: "C2"
+    positions:
+      - "Believers only (credobaptist)"
+      - "Believers and their children (paedobaptist)"
+
+  "Spiritual gifts today":
+    level: "C2"
+    positions:
+      - "Ceased with apostles (cessationist)"
+      - "Continue today (continuationist)"
+
+  "Creation days":
+    level: "C1"
+    positions:
+      - "24-hour days (young earth)"
+      - "Long ages (day-age)"
+      - "Literary framework (framework hypothesis)"
+
+  "Women in ministry":
+    level: "C2"
+    positions:
+      - "Complementarian (role distinctions)"
+      - "Egalitarian (full equality in roles)"
+
+# =============================================================================
+# ALLOWED ABSOLUTES
+# =============================================================================
+# Claims that CAN use absolute language
+
+allowed_absolutes:
+  # Computational facts
+  - pattern: "there are \\d+ (files|items|tasks|projects)"
+    reason: "deterministic count"
+
+  - pattern: "your (reminder|task) is (at|on|scheduled for)"
+    reason: "deterministic schedule"
+
+  # Direct scripture quotation
+  - pattern: "(says|wrote|states),? ['\"]"
+    reason: "direct quotation"
+
+  # Explicit attribution
+  - pattern: "according to (the text|this passage|verse \\d+)"
+    reason: "grounded attribution"
+
+# =============================================================================
+# CLARITY EROSION DETECTION
+# =============================================================================
+# Too many hedges = evasion, not honesty
+
+hedge_tokens:
+  - "maybe"
+  - "possibly"
+  - "perhaps"
+  - "might"
+  - "could"
+  - "seems"
+  - "appears"
+  - "somewhat"
+  - "arguably"
+  - "potentially"
+
+max_hedges_per_sentence: 2
+flag_hedges_without_thesis: true
+
+# =============================================================================
+# ANCHOR SEARCH SETTINGS
+# =============================================================================
+
+anchor_settings:
+  # Time budget for finding supporting evidence
+  fast_budget_ms: 250
+  deep_budget_ms: 800
+
+  # Sources to check (in order)
+  sources:
+    - "session_context"      # Already retrieved this session
+    - "library_cache"        # Cached library chunks
+    - "reference_cache"      # SWORD/Sefaria cache
+
+  # When to use deep search
+  deep_search_triggers:
+    - "high_risk_phrase"
+    - "user_prefers_accuracy"

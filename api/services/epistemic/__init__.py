@@ -1,0 +1,29 @@
+"""
+Epistemic Honesty System
+
+Phase 8.2: Truth signaling for Tamor responses.
+"""
+
+from .config_loader import (
+    load_rules,
+    reload_rules,
+    get_risky_phrases,
+    get_contested_markers,
+    get_topic_contestation,
+    get_hedge_tokens,
+    get_max_hedges,
+    get_anchor_settings,
+    is_allowed_absolute
+)
+
+__all__ = [
+    'load_rules',
+    'reload_rules',
+    'get_risky_phrases',
+    'get_contested_markers',
+    'get_topic_contestation',
+    'get_hedge_tokens',
+    'get_max_hedges',
+    'get_anchor_settings',
+    'is_allowed_absolute'
+]
