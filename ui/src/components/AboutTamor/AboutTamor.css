@@ -1,0 +1,123 @@
+.about-tamor {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.about-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.about-header h2 {
+  margin: 0;
+}
+
+.about-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: var(--spacing-xs);
+  line-height: 1;
+}
+
+.about-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.about-content {
+  padding: var(--spacing-lg);
+}
+
+.about-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.about-section h3 {
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.about-section p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: var(--spacing-sm) 0;
+}
+
+.about-section ul {
+  padding-left: var(--spacing-lg);
+  color: var(--text-secondary);
+}
+
+.about-section li {
+  margin-bottom: var(--spacing-xs);
+  line-height: 1.5;
+}
+
+.about-principles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.about-principle {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: flex-start;
+}
+
+.about-principle-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.about-principle p {
+  margin: var(--spacing-xs) 0 0;
+  font-size: var(--font-size-sm);
+}
+
+.about-quote {
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-md);
+  border-left: 3px solid var(--accent-color);
+  background: var(--bg-secondary);
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.about-links {
+  list-style: none;
+  padding: 0;
+}
+
+.about-links li {
+  margin-bottom: var(--spacing-sm);
+}
+
+.about-links a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.about-links a:hover {
+  text-decoration: underline;
+}
+
+.about-footer {
+  text-align: center;
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+.about-footer p {
+  margin: var(--spacing-xs) 0;
+}
+
+.about-version {
+  font-size: var(--font-size-sm);
+}

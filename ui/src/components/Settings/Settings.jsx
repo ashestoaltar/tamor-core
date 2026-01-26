@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useDevMode } from "../../context/DevModeContext";
 import { useVoiceSettings } from "../../context/VoiceSettingsContext";
 import { useFocusMode } from "../../contexts/FocusModeContext";
+import AboutTamor from "../AboutTamor/AboutTamor";
 import "./Settings.css";
 
 /**
@@ -31,6 +32,7 @@ export default function Settings() {
   // Available voices (loaded async)
   const [voices, setVoices] = useState([]);
   const [testingSpeech, setTestingSpeech] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   // Load available voices
   useEffect(() => {
@@ -420,6 +422,14 @@ export default function Settings() {
                 Features, design principles, and API reference
               </div>
             </div>
+            <div className="settings-row-control">
+              <button
+                className="settings-button settings-button-outline"
+                onClick={() => setShowAbout(true)}
+              >
+                About
+              </button>
+            </div>
           </div>
           <div className="settings-docs-links">
             <a
@@ -455,6 +465,15 @@ export default function Settings() {
         <div className="settings-version">Tamor v1.32</div>
         <div className="settings-tagline">Wholeness • Light • Insight</div>
       </div>
+
+      {/* About Tamor Modal */}
+      {showAbout && (
+        <div className="settings-modal-overlay" onClick={() => setShowAbout(false)}>
+          <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+            <AboutTamor onClose={() => setShowAbout(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
