@@ -3,6 +3,8 @@ routes/system_api.py
 
 System-level endpoints for health and diagnostics.
 These are used by the UI RightPanel (getHealth / getStatus).
+
+Phase 8.4: Added /api/system-status for UI indicators.
 """
 
 import os
@@ -11,6 +13,7 @@ from typing import Dict, Any
 from flask import Blueprint, jsonify
 
 from utils.db import get_db, DB_PATH
+from services.system_status import get_status_dict
 
 system_bp = Blueprint("system_api", __name__, url_prefix="/api")
 
@@ -177,4 +180,18 @@ def status():
     }
 
     return jsonify(payload)
+
+
+@system_bp.get("/system-status")
+def system_status():
+    """
+    Phase 8.4: System status for UI indicators.
+
+    Returns component availability for status bar display:
+    - Library mount status
+    - LLM availability
+    - Reference sources (SWORD, Sefaria)
+    - Embeddings availability
+    """
+    return jsonify(get_status_dict())
 
