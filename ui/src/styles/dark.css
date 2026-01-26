@@ -191,6 +191,24 @@ body {
   border-color: rgba(255, 255, 255, 0.35);
 }
 
+/* Focus Mode toggle */
+.focus-mode-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text-muted);
+  transition: all 0.15s;
+  margin-left: 8px;
+}
+
+.focus-mode-toggle:hover {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
 /* User greeting / account */
 .app-header-user {
   display: flex;

@@ -3,6 +3,7 @@ import "./styles/dark.css";
 import { useMemo, useState } from "react";
 import { useAuth } from "./context/AuthContext";
 import { useBreakpoint } from "./hooks/useBreakpoint";
+import { useFocusMode } from "./contexts/FocusModeContext";
 
 import LeftPanel from "./components/LeftPanel/LeftPanel";
 import ChatPanel from "./components/ChatPanel/ChatPanel";
@@ -11,6 +12,7 @@ import LoginPanel from "./components/LoginPanel";
 import Drawer from "./components/Drawer/Drawer";
 import MobileNav from "./components/MobileNav/MobileNav";
 import Settings from "./components/Settings/Settings";
+import FocusMode from "./components/FocusMode/FocusMode";
 
 function getTimeGreeting(d = new Date()) {
   const h = d.getHours();
@@ -22,6 +24,7 @@ function getTimeGreeting(d = new Date()) {
 function App() {
   const { user, users, loading, login, logout } = useAuth();
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
+  const { isFocusMode, toggleFocusMode } = useFocusMode();
 
   // --------------------------------------------
   // Global UI + mode state
@@ -173,6 +176,24 @@ function App() {
   }
 
   // --------------------------------------------
+  // Focus Mode: full-screen overlay when active
+  // --------------------------------------------
+  if (isFocusMode) {
+    return (
+      <FocusMode
+        projectName={currentProjectId ? `Project ${currentProjectId}` : null}
+        activeConversationId={activeConversationId}
+        currentProjectId={currentProjectId}
+        activeMode={activeMode}
+        onConversationCreated={(newId) => {
+          setActiveConversationId(newId);
+          setConversationRefreshToken(prev => prev + 1);
+        }}
+      />
+    );
+  }
+
+  // --------------------------------------------
   // Shared panel props
   // --------------------------------------------
   const leftPanelProps = {
@@ -254,6 +275,15 @@ function App() {
             </select>
           </div>
         )}
+
+        {/* Focus Mode toggle */}
+        <button
+          className="focus-mode-toggle"
+          onClick={toggleFocusMode}
+          title="Enter Focus Mode"
+        >
+          ◉
+        </button>
 
         <div className="app-header-user">
           {!isMobile && (

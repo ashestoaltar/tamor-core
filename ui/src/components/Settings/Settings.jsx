@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDevMode } from "../../context/DevModeContext";
 import { useVoiceSettings } from "../../context/VoiceSettingsContext";
+import { useFocusMode } from "../../contexts/FocusModeContext";
 import "./Settings.css";
 
 /**
@@ -11,6 +12,7 @@ import "./Settings.css";
 export default function Settings() {
   const { user, logout } = useAuth();
   const { devMode, toggleDevMode } = useDevMode();
+  const { focusSettings, updateFocusSettings, enterFocusMode } = useFocusMode();
   const {
     inputEnabled,
     setInputEnabled,
@@ -283,6 +285,99 @@ export default function Settings() {
               </div>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Focus Mode Section */}
+      <section className="settings-section">
+        <h3 className="settings-section-title">Focus Mode</h3>
+        <div className="settings-section-content">
+          {/* Enter Focus Mode button */}
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <div className="settings-row-label">Focus Mode</div>
+              <div className="settings-row-description">
+                Minimal, distraction-free interface
+              </div>
+            </div>
+            <div className="settings-row-control">
+              <button
+                className="settings-button settings-button-outline"
+                onClick={enterFocusMode}
+              >
+                Enter
+              </button>
+            </div>
+          </div>
+
+          {/* Voice-first toggle */}
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <div className="settings-row-label">Voice-First Input</div>
+              <div className="settings-row-description">
+                Show large microphone button as primary input
+              </div>
+            </div>
+            <div className="settings-row-control">
+              <button
+                className={`settings-toggle ${focusSettings.voiceFirst ? "active" : ""}`}
+                onClick={() => updateFocusSettings({ voiceFirst: !focusSettings.voiceFirst })}
+                role="switch"
+                aria-checked={focusSettings.voiceFirst}
+                aria-label="Voice-First Input"
+              >
+                <span className="settings-toggle-track">
+                  <span className="settings-toggle-thumb" />
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Auto-enter on mobile */}
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <div className="settings-row-label">Auto-Enter on Mobile</div>
+              <div className="settings-row-description">
+                Automatically enter Focus Mode on mobile devices
+              </div>
+            </div>
+            <div className="settings-row-control">
+              <button
+                className={`settings-toggle ${focusSettings.autoEnterOnMobile ? "active" : ""}`}
+                onClick={() => updateFocusSettings({ autoEnterOnMobile: !focusSettings.autoEnterOnMobile })}
+                role="switch"
+                aria-checked={focusSettings.autoEnterOnMobile}
+                aria-label="Auto-Enter on Mobile"
+              >
+                <span className="settings-toggle-track">
+                  <span className="settings-toggle-thumb" />
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Show project indicator */}
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <div className="settings-row-label">Show Project Indicator</div>
+              <div className="settings-row-description">
+                Display current project name in Focus Mode
+              </div>
+            </div>
+            <div className="settings-row-control">
+              <button
+                className={`settings-toggle ${focusSettings.showProjectIndicator ? "active" : ""}`}
+                onClick={() => updateFocusSettings({ showProjectIndicator: !focusSettings.showProjectIndicator })}
+                role="switch"
+                aria-checked={focusSettings.showProjectIndicator}
+                aria-label="Show Project Indicator"
+              >
+                <span className="settings-toggle-track">
+                  <span className="settings-toggle-thumb" />
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
