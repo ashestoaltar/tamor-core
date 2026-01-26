@@ -581,6 +581,468 @@ Batch transcription for audio/video backlog:
 
 ✅ Standalone worker runner script (systemd service ready)
 
+## Phase 8 – Trust, Restraint, and Completion
+
+**Theme:** Tamor becomes unmistakably reliable, bounded, and calm.
+
+**Core Philosophy:** Phase 1–7 built Tamor's mind. Phase 8 defines its soul.
+
+---
+
+### Why Phase 8 Exists
+
+By the end of Phase 7, Tamor is capable. Phase 8 ensures Tamor is understandable, trustworthy, and finished-feeling — to you and to any future user.
+
+This phase is about:
+- Making boundaries explicit
+- Making system behavior visible
+- Removing ambiguity
+- Preventing future scope creep
+
+**Phase 8 is about trust, not power.**
+
+---
+
+### Phase 8 Goals
+
+1. Make Tamor's limits as clear as its abilities
+2. Surface system confidence and uncertainty honestly
+3. Lock in philosophical and ethical boundaries
+4. Eliminate "mystery behavior"
+5. Declare Tamor complete — not endless
+
+---
+
+### Prerequisites
+
+Before declaring Phase 8 complete, the following must be resolved:
+- **Mobile access** (APK or PWA) — a personal AI agent you can only use at your desk isn't complete
+- **NAS integration** (Synology DS224+) — storage architecture is infrastructure, not a feature
+
+These are core, not extensions.
+
+---
+
+### 8.1 Tamor Principles & Boundaries Manifesto
+
+**Purpose:** Formally document what Tamor will never do, even if it technically could.
+
+#### Deliverables
+
+- `docs/BOUNDARIES.md` (user-readable)
+- Short in-app "What Tamor Is / Is Not" page
+- Linked from Settings
+
+#### Boundaries
+
+- ❌ No autonomous actions without consent
+- ❌ No silent memory persistence
+- ❌ No scraping private systems
+- ❌ No pretending certainty where none exists
+- ❌ No replacing human judgment, conscience, or authority
+
+**Why this matters:** This locks Tamor's character, not just its code.
+
+---
+
+### 8.2 Epistemic Honesty System
+
+**Purpose:** Unified system for truth signaling — combining provenance transparency, confidence enforcement, and user-facing indicators into one coherent honesty layer.
+
+> **Design Note:** This section merges the original 8.2 (Deterministic vs Probabilistic Transparency) and 8.3 (Confidence Language Enforcement) into a single integrated design. The separation was artificial; they're one system.
+
+#### 8.2.1 Answer Classification (Four-Tier Model)
+
+Every response is classified by provenance:
+
+| Category | Definition | Example |
+|----------|------------|---------|
+| **Deterministic** | Computed, exact, from trusted data | "There are 12 items." / "Your next reminder is at 3:15 PM." |
+| **Grounded–Direct** | Restating or summarizing explicit text | "Paul says X, then Y." / "Jeremiah 7 describes..." |
+| **Grounded–Contested** | Grounded in text but interpretive, with live disagreement | "Romans 9 is about corporate election, not individual predestination." |
+| **Ungrounded Synthesis** | No anchors, purely inferential | General reasoning without source backing |
+
+**Key rule:** Grounded–Contested is not "less true." It means the claim requires a stated interpretive frame.
+
+#### 8.2.2 Contested Domains (v1)
+
+Six domains where contestation detection is active:
+
+1. **Theology / doctrinal conclusions**
+2. **Historical reconstruction** beyond explicit sources
+3. **Authorship/dating debates**
+4. **Prophecy interpretations**
+5. **Denominational distinctives**
+6. **Ethical application / contemporary mapping** *(added based on design review)*
+
+##### Ethical Application Domain
+
+Flag patterns:
+- "Scripture clearly teaches X about modern issue Y"
+- "Therefore Christians must/should support/oppose…"
+- "This passage proves we should do policy/action Y"
+- "If you disagree, you're disobeying Scripture" (high severity)
+
+**Why separate from theology?** Even when doctrine is agreed, application can be contested:
+- Same text, different prudential judgments
+- Same principle, different real-world constraints
+- Same moral aim, different means
+
+**Behavior in this domain:** Show the bridge explicitly:
+1. What the text says (Grounded–Direct)
+2. What principle is being inferred (Grounded–Contested often)
+3. What assumptions map to modern issue Y (often ungrounded/prudential)
+4. What other faithful applications exist
+
+#### 8.2.3 Contestation Intensity Scale
+
+Three levels (shown only when relevant, not by default):
+
+| Level | Name | Meaning |
+|-------|------|---------|
+| **C1** | Intra-tradition nuance | Disagreement within the same broad interpretive family |
+| **C2** | Cross-tradition split | Major traditions diverge (Reformed vs Arminian, Catholic vs Protestant, etc.) |
+| **C3** | Minority/novel position | Legitimate but not widely held historically or academically |
+
+**Key insight:** Contestation is relative to declared lens. A Torah-observant Messianic reading isn't C3 within that tradition.
+
+##### v1 Implementation: How to Determine C1/C2/C3
+
+1. **Manual overrides** (best for recurring topics)
+   - Small mapping file for: Romans 9 election, Law/Grace frameworks, Eschatology schemas, Israel/Church identity, Torah observance debates
+
+2. **Rule-based defaults**
+   - Claim asserts "the" interpretation / "clearly teaches" → bump to C2
+   - Claim contradicts multiple mainstream frames → bump to C3 unless user has declared that frame as primary
+
+3. **Project lens**
+   - If project declares a lens (e.g., "Foundations / Torah frame"), system marks it as "Primary lens for this workspace"
+   - Reduces friction while acknowledging alternatives
+
+#### 8.2.4 Confidence Language Enforcement
+
+**Core principle:** Don't enforce "confidence language." Enforce "confidence claims."
+
+We don't prescribe how Tamor must sound; we prevent it from making invalid certainty assertions.
+
+##### What We Prevent
+- "This proves…", "It's definitely…", "Always…", "Never…"
+- Hard factual claims without deterministic backing or cited text
+
+##### What We Do NOT Do
+- Auto-insert "Based on available information…" everywhere
+- Rewrite tone
+- Add hedges to everything
+
+##### Two Lint Dimensions
+
+1. **Certainty posture vs provenance**
+   - Absolute phrasing allowed if: Deterministic, OR Grounded–Direct with anchor, OR matches Allowed Absolutes
+
+2. **Clarity erosion**
+   - Flag sentences with 3+ hedge tokens and no thesis
+   - "Maybe possibly seems like could suggest" is evasive, not honest
+
+##### Risky Claim Patterns (Configurable)
+
+`config/epistemic_rules.yml`:
+- `risky_phrases`: absolutist verbs (proves, refutes, settles, definitely)
+- `theology_contested_markers`: "the real meaning," "clearly teaches," "is about corporate election"
+- `allowed_absolutes`: facts allowed in certain contexts
+- `domain_overrides`: per project (teaching vs engineering vs general)
+
+**The guardrails are governed, not "the model decided."**
+
+##### Repair Strategies (Only When Needed)
+
+**Strategy A (preferred): Anchor, don't hedge**
+- If Tamor can pull an anchor quickly, attach evidence and keep confident tone
+- Best outcome: honest + natural
+
+**Strategy B: Minimal sentence rewrite**
+- Only the offending sentence, not global tone
+- "This proves X" → "This strongly suggests X"
+- "It's definitely X" → "It appears to be X"
+
+**Strategy C: Clarifying question**
+- For high-stakes ungrounded claims
+- "Do you mean X or Y?" or "Do you want sources, or a best-guess explanation?"
+
+##### Latency Budget
+
+- **Fast anchor pass (≤150–250ms):** Use cached sources only
+  - Project file chunks already retrieved this session
+  - Library context injection cache
+  - Recent reference lookups (SWORD/Sefaria cache)
+- **Deeper anchor pass (≤500–800ms):** Only if claim is high-risk AND user has "accuracy > speed" preference
+- **Fallback:** If anchor not found in budget, use Grounded–Contested framing or minimal rewrite
+
+#### 8.2.5 UI Design: Progressive Disclosure
+
+**Design principle:** Most users should sense contestation before they ever read about it.
+
+##### Primary Signal: Single Calm Badge (Always Present)
+
+Near timestamp or message footer:
+- ✔︎ Deterministic
+- ● Grounded
+- ◐ Contested
+
+No C1/C2/C3 exposed at this level. Badge answers: "What kind of answer is this?"
+
+##### Secondary Signal: Contestation Detail (On Intent)
+
+**Desktop:** Hover on Contested badge
+**Mobile:** Long-press
+
+Popover content:
+```
+Contested interpretation
+Level: Cross-tradition (C2)
+
+Meaning:
+Major Christian traditions interpret this passage differently.
+
+This response reflects:
+• Primary lens: [Project lens or default]
+• Notable alternatives: [short labels only]
+```
+
+##### Tertiary Signal: Expandable Explanation
+
+Inside popover, "Why?" link expands to 2–4 bullet summary:
+```
+Why this is contested:
+• Some read Romans 9 as addressing corporate identity (Israel/Gentiles).
+• Others read it as individual election tied to salvation.
+• Both readings appeal to different sections of the chapter.
+```
+
+##### Intensity Visibility Rules
+
+- **C1:** Only visible inside popover
+- **C2:** Visible in popover header
+- **C3:** Visible and lightly emphasized ("Minority position" label)
+
+##### Ethical Application: Extra Affordance
+
+Same Contested badge, but popover includes labeled divider:
+```
+This response includes:
+• Textual interpretation
+• Ethical application (modern context)
+
+Faithful readers may agree on the text while differing on application.
+```
+
+##### Badge Fatigue Prevention
+
+1. **Follow-up suppression:** In contested threads, badge dims or shows only on first message
+2. **Project defaults:** Setting "Assume declared lens unless noted" — badge still exists but explanatory text adapts: "Within this project's framework, this is a standard reading."
+
+#### 8.2.6 Target Voice Example
+
+**User:** "Was Paul's argument in Romans 9 about individual or corporate election?"
+
+**Bad (overconfident):** "It was definitely about corporate election."
+
+**Bad (formulaic):** "Based on the available information, it is possible that some scholars believe..."
+
+**Good (Phase 8 voice):**
+> My reading: Paul's argument in Romans 9 is primarily about God's covenant purposes and the identity of God's people (a "corporate election" lens), not a philosophical treatise on individual predestination.
+>
+> **Text anchors:** [key moves in the passage]
+>
+> **But:** Many readers (Augustinian/Reformed traditions) take the same chapters as individual election; their strongest hooks are [cite them].
+>
+> If you want, I can lay both readings side-by-side with the exact verses each one leans on.
+
+**The badge doesn't weaken authority — it earns it.**
+
+---
+
+### 8.3 Focus Mode Completion
+
+**Purpose:** Deliver a distraction-free Tamor experience.
+
+> **Design Note:** Focus Mode is one valuable mode among equals, not "Tamor's final form." The research/citation workflow remains equally central.
+
+#### Features
+- Single screen
+- Voice-first option
+- No panels, no noise
+- Explicit "thinking space"
+
+#### Deliverables
+- Toggle in header
+- Keyboard + voice exit
+- Auto-enter on mobile if enabled in preferences
+
+---
+
+### 8.4 System State Awareness & Indicators
+
+**Purpose:** Make system behavior legible.
+
+#### Indicators
+- Offline vs online
+- Cached vs live data
+- Library-only vs web-assisted
+- Voice available/unavailable
+
+#### Deliverables
+- Minimal status bar (icon-only by default)
+- Expandable diagnostics (Developer Mode)
+
+---
+
+### 8.5 Feature Freeze & Deprecation Pass
+
+**Purpose:** Stop the slow creep.
+
+#### Actions
+- Audit unused or redundant features
+- Mark deprecated APIs and UI paths
+- Remove experimental flags that graduated or failed
+
+#### Deliverables
+- `docs/DEPRECATIONS.md`
+- Code cleanup PR
+- Reduced cognitive load in UI
+
+---
+
+### 8.6 Documentation as First-Class Artifact
+
+**Purpose:** Make Tamor understandable without oral tradition.
+
+#### Finalize
+- Features Guide (already started)
+- Architecture overview
+- Philosophy & boundaries
+- Roadmap freeze note
+
+#### Deliverables
+- `/docs` index
+- Linked from Settings
+- Printable / exportable
+
+---
+
+### 8.7 Declaration of Stability
+
+**Purpose:** Formally end "core feature development."
+
+#### Deliverable
+
+Roadmap entry:
+
+> **Tamor core is feature-complete.**
+> Future work focuses on content, libraries, and refinement — not expansion.
+
+**This is significant. Most systems never do this.**
+
+---
+
+### What Phase 8 Is NOT
+
+- ❌ Not new agents
+- ❌ Not new plugins
+- ❌ Not more automation
+- ❌ Not more intelligence
+
+---
+
+### Phase 8 Success Criteria
+
+Tamor passes Phase 8 when:
+
+1. A new user understands its limits in 5 minutes
+2. You never wonder why it answered the way it did
+3. Nothing feels hidden
+4. Nothing feels rushed
+5. You stop asking "what should we add next?"
+
+---
+
+### v1 Implementation Notes
+
+#### What's In Scope for v1
+
+1. **Four-tier answer classification** (Deterministic / Grounded–Direct / Grounded–Contested / Ungrounded)
+2. **Six contested domains** with configurable detection
+3. **Three-level contestation scale** (C1/C2/C3)
+4. **Two lint dimensions** (certainty posture, clarity erosion)
+5. **Budgeted anchor attempts** using cached sources
+6. **Configurable rules file** (`epistemic_rules.yml`)
+7. **Progressive disclosure UI** (badge → popover → expandable)
+8. **Manual topic mappings** for recurring theological debates
+
+#### What Can Wait for v2+
+
+- ML-based contestation detection
+- Automatic C-level inference from source analysis
+- Cross-project lens inheritance
+- Badge analytics (which topics trigger most expansions)
+
+#### Technical Pipeline (v1)
+
+```
+Generate draft response (agent)
+    ↓
+Determine answer_type (deterministic/grounded-direct/grounded-contested/ungrounded)
+    ↓
+Lint for risky certainty claims + clarity erosion
+    ↓
+If needed:
+    → Try to attach anchors (search refs/library, ≤250ms budget)
+    → Else minimal sentence-level rewrite
+    ↓
+Assign badge + contestation metadata
+    ↓
+Display with progressive disclosure UI
+```
+
+---
+
+### Decision Rationale & Design Notes
+
+#### Why Four Tiers Instead of Two?
+
+The original "deterministic vs probabilistic" split was too coarse. Theological interpretation needed its own category because you can be 100% grounded in text and still make a contestable inference. "Grounded–Contested" captures this: it's not about being less confident, it's about being transparent about *what kind* of confidence you're expressing.
+
+#### Why "Anchor, Don't Hedge"?
+
+The biggest insight from design review: epistemic humility shouldn't mean weakening claims. It should mean strengthening transparency. Citations do the epistemic work — if Tamor attaches the relevant passage, it can speak plainly. This reframes the restriction as a positive behavior.
+
+#### Why Ethical Application as Separate Domain?
+
+The move from "Scripture says X" to "therefore policy Y" almost always hides assumptions (prudential judgments, contextual factors, competing goods). Even when doctrine is agreed, application can be contested. Forcing Tamor to *show the bridge* makes reasoning auditable without weakening conviction.
+
+#### Why Contestation Relative to Lens?
+
+Contestation isn't absolute in the abstract. A Torah-observant reading isn't "minority" within that tradition. The project lens concept makes the system usable for focused theological work without constantly "arguing with itself."
+
+#### Why Progressive Disclosure?
+
+If C1/C2/C3 is always visible, it becomes noise. If hidden too deeply, it fails its purpose. The three-tier approach (badge → popover → explanation) matches how curiosity actually works. Most users sense it; some investigate; few need full detail.
+
+#### Why "Governed, Not Model-Decided"?
+
+The `epistemic_rules.yml` approach keeps you in control. The guardrails are authored, versioned, and project-specific. Tamor serves your judgment; it doesn't replace it.
+
+#### Why Merged 8.2 and 8.3?
+
+The original roadmap separated "Deterministic vs Probabilistic Transparency" (UI) from "Confidence Language Enforcement" (backend). In practice, they're one system: badge handles provenance metadata; linting handles content integrity; popover handles explanation. Separating them was artificial.
+
+---
+
+### Closing Frame
+
+> "I know where the ground is firm, and I won't pretend the hills are bedrock."
+
+That's Tamor's voice. Phase 8 succeeds when the system consistently embodies this.
+
 Governance Rules
 
 This roadmap is authoritative
@@ -598,6 +1060,27 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.28 – 2026-01-25
+
+Added Phase 8 – Trust, Restraint, and Completion:
+
+- 8.1 Tamor Principles & Boundaries Manifesto (BOUNDARIES.md, in-app page)
+- 8.2 Epistemic Honesty System (merged transparency + confidence enforcement)
+  - Four-tier answer classification (Deterministic/Grounded-Direct/Grounded-Contested/Ungrounded)
+  - Six contested domains with configurable detection
+  - Three-level contestation scale (C1/C2/C3)
+  - Progressive disclosure UI (badge → popover → expandable)
+  - Configurable epistemic_rules.yml
+- 8.3 Focus Mode Completion
+- 8.4 System State Awareness & Indicators
+- 8.5 Feature Freeze & Deprecation Pass
+- 8.6 Documentation as First-Class Artifact
+- 8.7 Declaration of Stability
+
+Prerequisites: Mobile access (APK/PWA), NAS integration (Synology DS224+)
+
+Philosophy: "Phase 1–7 built Tamor's mind. Phase 8 defines its soul."
+
 v1.27 – 2026-01-24
 
 Completed Phase 7.5 Transcription Queue (CPU-Optimized):
