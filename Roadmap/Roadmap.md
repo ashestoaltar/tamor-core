@@ -929,19 +929,19 @@ Faithful readers may agree on the text while differing on application.
 
 ---
 
-### 8.5 Feature Freeze & Deprecation Pass
+### 8.5 Feature Freeze & Deprecation Pass ✅
 
 **Purpose:** Stop the slow creep.
 
 #### Actions
-- Audit unused or redundant features
-- Mark deprecated APIs and UI paths
-- Remove experimental flags that graduated or failed
+- ✅ Audit unused or redundant features (all components, CSS, Python modules)
+- ✅ Mark deprecated APIs and UI paths (stable vs experimental classification)
+- ✅ Remove experimental flags that graduated or failed (none found - codebase clean)
 
 #### Deliverables
-- `docs/DEPRECATIONS.md`
-- Code cleanup PR
-- Reduced cognitive load in UI
+- ✅ `docs/DEPRECATIONS.md` with full audit results
+- ✅ Code audit: no unused files found (prior cleanup in 3.1, 3.4.1 was thorough)
+- ✅ API stability classification documented
 
 ---
 
@@ -1093,6 +1093,15 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.32 – 2026-01-26
+
+Completed Phase 8.5 Feature Freeze & Deprecation Pass:
+- ✅ Created `docs/DEPRECATIONS.md`
+- ✅ Documented previously removed items (Phase 3.1, 3.4.1)
+- ✅ Classified API stability (stable vs experimental)
+- ✅ Audited React components, CSS files, Python modules
+- ✅ Result: Codebase is clean, no unused code found
+
 v1.31 – 2026-01-26
 
 Completed Phase 8.4 System State Awareness & Indicators:
