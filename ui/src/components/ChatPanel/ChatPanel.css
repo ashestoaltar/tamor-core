@@ -220,6 +220,25 @@
   word-break: break-word;
 }
 
+/* Fix excessive spacing in markdown list items */
+.chat-bubble ul,
+.chat-bubble ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.chat-bubble li {
+  margin-bottom: 0.5em;
+}
+
+.chat-bubble li > p {
+  margin: 0;
+}
+
+.chat-bubble li > p:first-child {
+  display: inline;
+}
+
 /* Inline code (still used) */
 .chat-bubble code,
 .inlineCode {
