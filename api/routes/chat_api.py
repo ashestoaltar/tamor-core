@@ -23,7 +23,7 @@ from services.references.reference_parser import find_references as find_scriptu
 from services.references.reference_service import ReferenceService
 from services.library import LibraryContextService, LibrarySettingsService
 from services.epistemic import process_response as epistemic_process, EpistemicResult
-from services.ghm import detect_scripture_content, enforce_ghm
+from services.ghm import detect_scripture_content, enforce_ghm, should_challenge_frame
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 
@@ -489,6 +489,34 @@ def apply_ghm_pipeline(user_message: str, assistant_response: str, project_id: i
     }
 
     return assistant_response, ghm_metadata, ghm_is_active
+
+
+def get_ghm_frame_challenge(user_message: str, project_id: int) -> Optional[str]:
+    """
+    Pre-LLM check: if GHM is active and the question assumes a post-biblical
+    framework, return a prompt injection that tells the LLM to challenge the
+    frame before answering within it.
+
+    Returns None if GHM is inactive or no frame assumption is detected.
+    """
+    ghm_status = get_project_ghm_status(project_id)
+    if not ghm_status['active']:
+        return None
+
+    needs_challenge, challenge_text = should_challenge_frame(user_message)
+    if not needs_challenge:
+        return None
+
+    return (
+        "\n\n[GHM — FRAME CHALLENGE REQUIRED]\n"
+        "The user's question assumes a post-biblical framework. "
+        "You MUST surface this assumption before answering. "
+        "Do NOT answer within the assumed framework as though it is the default biblical view.\n\n"
+        "Challenge to surface:\n"
+        f"{challenge_text}\n\n"
+        "After surfacing the assumption, proceed to examine what the biblical texts actually say. "
+        "You may then present the framework as ONE reading among others, with proper disclosure."
+    )
 
 
 def get_or_create_conversation(user_id, conversation_id=None, title="New chat", project_id=None):
@@ -1048,6 +1076,13 @@ def chat():
         except Exception:
             pass
 
+        # Phase 8.2.7: GHM frame challenge (pre-LLM)
+        ghm_challenge = None
+        try:
+            ghm_challenge = get_ghm_frame_challenge(user_message, project_id)
+        except Exception:
+            pass
+
         # Build router context
         history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
         router_ctx = RouterContext(
@@ -1061,6 +1096,7 @@ def chat():
             scripture_context=scripture_ctx,
             library_context=library_ctx,
             project_files_context=project_files_ctx,
+            ghm_frame_challenge=ghm_challenge,
         )
 
         # Route the request
@@ -1180,6 +1216,14 @@ Capability note (Tamor app):
             system_prompt += f"\n\n{project_files_ctx}"
     except Exception:
         pass  # Don't fail chat if project files context fails
+
+    # Phase 8.2.7: GHM frame challenge injection (pre-LLM)
+    try:
+        ghm_challenge = get_ghm_frame_challenge(user_message, project_id)
+        if ghm_challenge:
+            system_prompt += ghm_challenge
+    except Exception:
+        pass  # Don't fail chat if GHM frame analysis fails
 
     history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
 

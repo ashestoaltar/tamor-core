@@ -25,6 +25,13 @@ from .enforcer import (
     get_enforcer,
     enforce_ghm,
 )
+from .frame_analyzer import (
+    FrameAssumption,
+    FrameAnalyzer,
+    get_frame_analyzer,
+    analyze_question_frames,
+    should_challenge_frame,
+)
 
 __all__ = [
     'load_ghm_rules',
@@ -42,4 +49,9 @@ __all__ = [
     'GHMEnforcer',
     'get_enforcer',
     'enforce_ghm',
+    'FrameAssumption',
+    'FrameAnalyzer',
+    'get_frame_analyzer',
+    'analyze_question_frames',
+    'should_challenge_frame',
 ]

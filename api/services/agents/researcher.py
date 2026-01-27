@@ -116,6 +116,10 @@ class ResearcherAgent(BaseAgent):
         # Build the prompt
         system_prompt = RESEARCHER_SYSTEM_PROMPT
 
+        # Phase 8.2.7: GHM frame challenge injection
+        if ctx.ghm_frame_challenge:
+            system_prompt += f"\n\n{ctx.ghm_frame_challenge}"
+
         # Add memory context if available
         if ctx.memories:
             memory_context = self._format_memories(ctx.memories)
