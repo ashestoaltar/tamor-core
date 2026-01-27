@@ -52,3 +52,19 @@ Running log of issues, root causes, and fixes.
 **Files changed:**
 - `api/routes/chat_api.py`
 - `api/services/agents/base.py`
+
+---
+
+### Fix: LLM generates fake download links in chat
+
+**Symptom:** When asked to generate a downloadable file, Tamor outputs a fake markdown link (e.g., `Acts_15_Gentiles_Law_Synagogue.md`) that does nothing when clicked. The file was never actually created.
+
+**Root cause:** The system prompt had no guidance on file capabilities. The LLM hallucinated the ability to create downloadable files and generated links pointing to non-existent resources.
+
+**Fix:**
+- Added "File capabilities" section to the system prompt in `core/prompt.py` instructing the LLM to never generate fake file links, and to use fenced code blocks instead so the user can copy the content.
+
+**Files changed:**
+- `api/core/prompt.py`
+
+**Future upgrade:** Add real file generation from chat — the LLM outputs content, the backend creates an actual file (md, txt, pdf, docx), and a real download link is returned in the response. This would involve a new API endpoint for generated artifacts and a download button in chat message rendering.
