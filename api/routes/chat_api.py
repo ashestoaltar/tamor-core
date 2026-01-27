@@ -475,13 +475,7 @@ def apply_ghm_pipeline(user_message: str, assistant_response: str, project_id: i
         if ghm_result.disclosure_required and ghm_result.disclosure_text:
             assistant_response = assistant_response + "\n\n---\n" + ghm_result.disclosure_text
 
-    # 5. Acknowledgment for user override
-    if user_override == 'deactivate':
-        assistant_response = "**GHM deactivated for this conversation.**\n\n" + assistant_response
-    elif user_override == 'activate':
-        assistant_response = "**GHM activated for this conversation.**\n\n" + assistant_response
-
-    # 6. Build metadata
+    # 5. Build metadata
     ghm_metadata = {
         'active': ghm_is_active,
         'mode': ghm_status.get('mode'),
@@ -993,6 +987,27 @@ def chat():
                 "meta": deterministic_result.get("meta", {}),
             }
         )
+
+    # Phase 8.2.7: GHM override short-circuit (don't send meta-commands to LLM)
+    ghm_override = check_user_ghm_override(user_message)
+    if ghm_override:
+        if ghm_override == 'activate':
+            reply_text = "Got it — GHM is now active for this conversation. Hermeneutic constraints will be enforced."
+            ghm_meta = {'active': True, 'mode': 'ghm', 'override': 'activate'}
+        else:
+            reply_text = "Got it — GHM is deactivated for this conversation."
+            ghm_meta = {'active': False, 'mode': None, 'override': 'deactivate'}
+
+        user_mid = add_message(conv_id, "user", "user", user_message)
+        assistant_mid = add_message(conv_id, "tamor", "assistant", reply_text,
+                                    ghm_active=(ghm_override == 'activate'))
+        return jsonify({
+            "tamor": reply_text,
+            "conversation_id": conv_id,
+            "detected_task": None,
+            "message_ids": {"user": user_mid, "assistant": assistant_mid},
+            "ghm": ghm_meta,
+        })
 
     # Phase 6.2: Agent Router - check if multi-agent pipeline should handle this
     try:
