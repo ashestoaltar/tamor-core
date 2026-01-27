@@ -92,6 +92,80 @@ Constraints:
 
 ---
 
+### 6b. Web Search Context Injection (Tavily)
+**Status:** 🔵 Investigating
+**Maps To:** Phase 6.3 – Plugin Framework / Phase 8.x – Context Intelligence
+**Created:** 2026-01-27
+
+**Purpose:** Allow Tamor to ground answers in current web sources for non-scripture, non-library questions. Opt-in per project.
+
+**Problem:**
+When a user asks something outside scripture and their uploaded docs, Tamor has nothing to reference except the LLM's training data. This is fine for Scripture Study projects (which have SWORD + Sefaria), but engineering, writing, and general research projects lack access to current information.
+
+**Proposed Solution:**
+Add web search as a context injection source, following the exact pattern used by scripture/library/project-files context. Per-project opt-in via a `web_search_enabled` column on the projects table.
+
+**API Choice: Tavily**
+- Returns AI-ready, pre-processed content with citations (no scraping needed)
+- Built for RAG pipelines (exactly Tamor's use case)
+- 1,000 free searches/month, ~$8/1K after that
+- Brave Search is cheaper ($3-5/1K) but returns raw SERPs requiring extraction
+- Tavily Python SDK: `pip install tavily-python`
+
+**Architecture:**
+Follows the existing context injection pattern in `chat_api.py`:
+1. Check project setting (`web_search_enabled`) → skip if false
+2. Check API key configured (`TAVILY_API_KEY`) → skip if missing
+3. Call Tavily search (3 results, 5s timeout)
+4. Format as `[Web Search Context]...[End Web Search Context]` block
+5. Append to system prompt (same as scripture/library)
+6. Wrap in try/except (never fail chat if search fails)
+
+**Implementation Scope:**
+
+| Component | File | Change |
+|-----------|------|--------|
+| Migration | `api/migrations/010_web_search_project_setting.sql` | `ALTER TABLE projects ADD COLUMN web_search_enabled BOOLEAN DEFAULT FALSE` |
+| Config | `api/core/config.py` | Add `TAVILY_API_KEY` env var |
+| Service | `api/services/web_search.py` | Thin Tavily wrapper with timeout + graceful degradation |
+| Context injection | `api/routes/chat_api.py` | `_get_web_search_context()` function, wired into both chat paths |
+| RequestContext | `api/services/agents/base.py` | Add `web_search_context: Optional[str]` field |
+| Agent injection | `api/services/agents/writer.py`, `researcher.py` | Append web search context to system prompt if present |
+| Projects API | `api/routes/projects_api.py` | Handle `web_search_enabled` in list/create/patch + template defaults |
+| UI | `ProjectsPanel.jsx` or project settings | Toggle for web search per project |
+
+**Template Defaults:**
+| Template | Web Search |
+|----------|-----------|
+| General | Off |
+| Scripture Study | Off |
+| Theological Research | Off |
+| Engineering | On |
+| Writing | Off |
+
+**Explicitly Out of Scope:**
+- No auto-search for unassigned conversations (project opt-in only)
+- No search result caching across conversations
+- No academic/scholar search (JSTOR, Google Scholar) — separate future proposal
+- No UI display of search sources in chat messages (future enhancement)
+- No search for scripture projects by default
+
+**Dependencies:**
+- `tavily-python` package in `api/venv/`
+- Tavily API key (free tier sufficient for personal use)
+- Existing context injection pattern (complete)
+- Project settings infrastructure (complete — Migration 009 pattern)
+
+**Cost Estimate:**
+Personal use at ~20-30 searches/day = ~600-900/month. Within free tier. Paid tier ($8/1K) would cost <$10/month at heavy usage.
+
+**Risks:**
+- External API dependency (mitigated: graceful degradation when key missing or API down)
+- Search quality varies (mitigated: LLM treats as context, not truth)
+- Cost creep if overused (mitigated: per-project opt-in, not global)
+
+---
+
 ### 7. Network-Based File Discovery
 **Status:** 🟢 Approved for Promotion
 **Maps To:** Phase 7.2 – Library Ingest Pipeline
