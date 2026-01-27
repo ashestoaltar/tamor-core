@@ -502,11 +502,13 @@ def get_ghm_prompt_addition(user_message: str, project_id: int) -> Optional[str]
     if not ghm_status['active']:
         return None
 
-    # Check for framework assumptions in the question
+    # Frame challenge is argument-space locking — full GHM only.
+    # Soft GHM discloses frameworks after the fact but does not challenge frames upfront.
     frame_challenge = None
-    needs_challenge, challenge_text = should_challenge_frame(user_message)
-    if needs_challenge:
-        frame_challenge = challenge_text
+    if ghm_status['mode'] == 'ghm':
+        needs_challenge, challenge_text = should_challenge_frame(user_message)
+        if needs_challenge:
+            frame_challenge = challenge_text
 
     return build_ghm_system_prompt(frame_challenge)
 
