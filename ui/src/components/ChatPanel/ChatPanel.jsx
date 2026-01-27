@@ -14,6 +14,7 @@ import TaskPill from "./TaskPill";
 import VoiceButton from "../VoiceButton/VoiceButton";
 import CitationCard from "../CitationCard/CitationCard";
 import EpistemicBadge from "../Chat/EpistemicBadge";
+import GHMBadge from "../GHMBadge/GHMBadge";
 
 /**
  * Strip markdown formatting from text for speech synthesis.
@@ -1033,6 +1034,7 @@ export default function ChatPanel({
               detected_task: data?.detected_task || null,
               meta: data?.meta || null,
               epistemic: data?.epistemic || null,
+              ghm: data?.ghm || null,
             };
             break;
           }
@@ -1266,6 +1268,23 @@ export default function ChatPanel({
                 {!isUser && msg.status !== "thinking" && msg.epistemic && (
                   <div className="epistemic-row">
                     <EpistemicBadge epistemic={msg.epistemic} />
+                  </div>
+                )}
+
+                {/* Phase 8.2.7: GHM framework disclosure */}
+                {!isUser && msg.ghm?.active && msg.ghm?.disclosure && (
+                  <div className="ghm-disclosure">
+                    <strong>Frameworks used (post-biblical):</strong>
+                    <ul>
+                      {msg.ghm.frameworks?.map((fw, i) => (
+                        <li key={i}>{fw.name} (origin: {fw.origin})</li>
+                      ))}
+                    </ul>
+                    {msg.ghm.warnings?.length > 0 && (
+                      <div className="ghm-warnings">
+                        {msg.ghm.warnings.map((w, i) => <div key={i}>{w}</div>)}
+                      </div>
+                    )}
                   </div>
                 )}
 

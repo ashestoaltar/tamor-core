@@ -1,0 +1,114 @@
+/* GHM Badge — Phase 8.2.7 */
+
+.ghm-badge-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ghm-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid;
+  cursor: default;
+  transition: opacity 0.15s;
+  line-height: 1.4;
+}
+
+.ghm-badge.full {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent-soft);
+}
+
+.ghm-badge.soft {
+  background: var(--bg-soft);
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+
+.ghm-badge:hover {
+  opacity: 0.85;
+}
+
+/* Tooltip */
+.ghm-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm, 4px);
+  padding: 10px 14px;
+  width: 260px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.ghm-tooltip strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-bright);
+}
+
+.ghm-tooltip p {
+  margin: 0 0 6px;
+  color: var(--text-soft);
+}
+
+.ghm-tooltip ul {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--text-soft);
+}
+
+.ghm-tooltip li {
+  margin-bottom: 2px;
+}
+
+.ghm-tooltip-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Framework disclosure in chat messages */
+.ghm-disclosure {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.ghm-disclosure strong {
+  color: var(--accent);
+}
+
+.ghm-disclosure ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.ghm-disclosure li {
+  margin-bottom: 2px;
+}
+
+.ghm-warnings {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--warning);
+  font-style: italic;
+}

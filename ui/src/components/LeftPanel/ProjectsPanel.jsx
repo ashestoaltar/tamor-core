@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { formatUtcTimestamp } from "../../utils/formatUtc";
+import GHMBadge from "../GHMBadge/GHMBadge";
 
 
 
@@ -486,6 +487,10 @@ export default function ProjectsPanel({
                     ) : (
                       <>
                         <span className="project-name">{p.name}</span>
+                        <GHMBadge
+                          active={!!p.hermeneutic_mode && p.hermeneutic_mode !== 'none'}
+                          mode={p.hermeneutic_mode === 'ghm' ? 'full' : 'soft_ghm'}
+                        />
                         <span className="project-count">
                           {projectConversationCounts[p.id] || 0} conversation
                           {(projectConversationCounts[p.id] || 0) === 1 ? "" : "s"}
