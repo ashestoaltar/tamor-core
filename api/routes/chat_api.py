@@ -23,6 +23,7 @@ from services.references.reference_parser import find_references as find_scriptu
 from services.references.reference_service import ReferenceService
 from services.library import LibraryContextService, LibrarySettingsService
 from services.epistemic import process_response as epistemic_process, EpistemicResult
+from services.ghm import detect_scripture_content, enforce_ghm
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 
@@ -377,6 +378,118 @@ def set_conversation_mode(conversation_id: int, mode: str):
     conn.close()
 
 
+def get_project_ghm_status(project_id: int) -> dict:
+    """Get GHM status for a project."""
+    if not project_id:
+        return {'active': False, 'mode': None, 'profile': None}
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT hermeneutic_mode, profile FROM projects WHERE id = ?",
+        (project_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return {'active': False, 'mode': None, 'profile': None}
+
+    mode = row['hermeneutic_mode']
+    return {
+        'active': mode == 'ghm',
+        'mode': mode,
+        'profile': row['profile'],
+    }
+
+
+def check_user_ghm_override(message: str) -> Optional[str]:
+    """Check if user is requesting GHM override."""
+    message_lower = message.lower()
+
+    activate_phrases = [
+        'use ghm',
+        'apply ghm',
+        'apply hermeneutic mode',
+        'use hermeneutic mode',
+        'be careful with the text',
+    ]
+
+    deactivate_phrases = [
+        'skip ghm',
+        'skip hermeneutic',
+        "don't use ghm",
+        'no ghm',
+        'disable ghm',
+    ]
+
+    for phrase in activate_phrases:
+        if phrase in message_lower:
+            return 'activate'
+
+    for phrase in deactivate_phrases:
+        if phrase in message_lower:
+            return 'deactivate'
+
+    return None
+
+
+def apply_ghm_pipeline(user_message: str, assistant_response: str, project_id: int) -> tuple:
+    """
+    Run GHM detection, override check, and enforcement.
+
+    Returns:
+        (processed_response, ghm_metadata_dict, ghm_is_active_bool)
+    """
+    # 1. Project-level GHM status (primary)
+    ghm_status = get_project_ghm_status(project_id)
+
+    # 2. Fallback detection for unassigned conversations
+    if not ghm_status['active'] and not project_id:
+        detection = detect_scripture_content(user_message)
+        if detection.suggested_action in ('soft_ghm', 'suggest_ghm'):
+            ghm_status = {
+                'active': detection.suggested_action,
+                'mode': detection.suggested_action,
+                'profile': None,
+            }
+
+    # 3. User override (always respected)
+    user_override = check_user_ghm_override(user_message)
+    if user_override == 'activate':
+        ghm_status = {'active': True, 'mode': 'ghm', 'profile': None}
+    elif user_override == 'deactivate':
+        ghm_status = {'active': False, 'mode': None, 'profile': None}
+
+    # 4. Enforce if active (full or soft)
+    ghm_result = None
+    ghm_is_active = ghm_status['active'] in (True, 'ghm', 'soft_ghm', 'suggest_ghm')
+
+    if ghm_is_active:
+        ghm_result = enforce_ghm(assistant_response, context={
+            'query': user_message,
+            'project_id': project_id,
+        })
+
+        # Append disclosure if required
+        if ghm_result.disclosure_required and ghm_result.disclosure_text:
+            assistant_response = assistant_response + "\n\n---\n" + ghm_result.disclosure_text
+
+    # 5. Build metadata
+    ghm_metadata = {
+        'active': ghm_is_active,
+        'mode': ghm_status.get('mode'),
+        'profile': ghm_status.get('profile'),
+        'frameworks_disclosed': [
+            {'name': fw.framework_name, 'origin': fw.origin}
+            for fw in (ghm_result.frameworks_used if ghm_result else [])
+        ],
+        'warnings': ghm_result.warnings if ghm_result else [],
+    }
+
+    return assistant_response, ghm_metadata, ghm_is_active
+
+
 def get_or_create_conversation(user_id, conversation_id=None, title="New chat", project_id=None):
     conn = get_db()
     cur = conn.cursor()
@@ -402,15 +515,15 @@ def get_or_create_conversation(user_id, conversation_id=None, title="New chat", 
     return cid
 
 
-def add_message(conversation_id, sender, role, content, epistemic_json=None):
+def add_message(conversation_id, sender, role, content, epistemic_json=None, ghm_active=False):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
         """
-        INSERT INTO messages (conversation_id, sender, role, content, epistemic_json, created_at)
-        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO messages (conversation_id, sender, role, content, epistemic_json, ghm_active, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """,
-        (conversation_id, sender, role, content, epistemic_json),
+        (conversation_id, sender, role, content, epistemic_json, ghm_active),
     )
     mid = cur.lastrowid
     cur.execute("UPDATE conversations SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (conversation_id,))
@@ -935,6 +1048,11 @@ def chat():
         if router_result.handled_by not in ("llm_single_passthrough", "error"):
             reply_text = router_result.content
 
+            # Phase 8.2.7: GHM enforcement
+            reply_text, ghm_metadata, ghm_is_active = apply_ghm_pipeline(
+                user_message, reply_text, project_id
+            )
+
             # Phase 8.2: Epistemic processing
             epistemic_context = _build_epistemic_context(
                 effective_mode=effective_mode,
@@ -948,7 +1066,8 @@ def chat():
 
             user_mid = add_message(conv_id, "user", "user", user_message)
             assistant_mid = add_message(
-                conv_id, "tamor", "assistant", processed_text, epistemic_json
+                conv_id, "tamor", "assistant", processed_text, epistemic_json,
+                ghm_active=ghm_is_active,
             )
 
             response_data = {
@@ -957,6 +1076,10 @@ def chat():
                 "detected_task": detected_task,
                 "message_ids": {"user": user_mid, "assistant": assistant_mid},
             }
+
+            # Include GHM metadata
+            if ghm_metadata.get('active'):
+                response_data["ghm"] = ghm_metadata
 
             # Include epistemic metadata if available
             if epistemic_metadata:
@@ -1101,6 +1224,11 @@ Capability note (Tamor app):
 
         reply_text = (reply_text or "") + line
 
+    # Phase 8.2.7: GHM enforcement
+    reply_text, ghm_metadata, ghm_is_active = apply_ghm_pipeline(
+        user_message, reply_text, project_id
+    )
+
     # Phase 8.2: Epistemic processing
     epistemic_context = _build_epistemic_context(
         effective_mode=effective_mode,
@@ -1111,7 +1239,10 @@ Capability note (Tamor app):
     epistemic_json = json.dumps(epistemic_metadata) if epistemic_metadata else None
 
     user_mid = add_message(conv_id, "user", "user", user_message)
-    assistant_mid = add_message(conv_id, "tamor", "assistant", processed_text, epistemic_json)
+    assistant_mid = add_message(
+        conv_id, "tamor", "assistant", processed_text, epistemic_json,
+        ghm_active=ghm_is_active,
+    )
 
     task_id = persist_detected_task(
         user_id=user_id,
@@ -1131,6 +1262,10 @@ Capability note (Tamor app):
         "detected_task": detected_task,
         "message_ids": {"user": user_mid, "assistant": assistant_mid},
     }
+
+    # Include GHM metadata
+    if ghm_metadata.get('active'):
+        response_data["ghm"] = ghm_metadata
 
     # Include epistemic metadata if available
     if epistemic_metadata:
