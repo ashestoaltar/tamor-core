@@ -6,6 +6,28 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Feature: Pronomian Trajectory Profile v0.2 — Discriminating Continuity
+
+Upgrade to smarter, not stronger profile. Reduces noise, increases discrimination.
+
+**New in v0.2:**
+- Context-sensitive triggers with `context_filters` and `skip_when` conditions
+- Repetition detector: classifies commands as reinforced, transformed, reinterpreted, or silent
+- Scope-of-audience flag: Israel-specific, universal pre-Sinai, Gentile-addressed, or both
+- Burden of proof weighting (0.65): abolition claims need stronger warrant than continuity
+- Discrimination rules: suppress continuity questions where discontinuity is explicit (Hebrews on sacrifices, Acts 15), strengthen where pre-Sinai or Decalogue
+- New guardrail: "Do not ask continuity questions where discontinuity is explicitly warranted"
+
+**Profile loader updated:**
+- Renders `context_filters`, `skip_when`, `categories` in system prompt
+- Renders `discrimination_rules` (suppress/strengthen) section
+
+**Files changed:**
+- `api/config/profiles/pronomian_trajectory.yml`
+- `api/services/ghm/profile_loader.py`
+
+---
+
 ### Feature: GHM Profile System — Pronomian Trajectory
 
 **Purpose:** Add a thin observational profile layer that operates WITHIN GHM. Profiles add questions and evidence weighting, never prescribe conclusions. Core rule: "Profiles may ask harder questions, never give harder answers."

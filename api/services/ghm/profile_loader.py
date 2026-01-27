@@ -114,9 +114,49 @@ def get_profile_prompt_addition(profile_id: str) -> Optional[str]:
         sections.append('When relevant, surface these questions (do not answer them for the user):')
         for p in prompts:
             trigger = p.get('trigger', '')
-            question = p.get('question', '')
+            question = p.get('question', '').strip()
             sections.append(f'- **{trigger}:** "{question}"')
+            # v0.2: context filters
+            for cf in p.get('context_filters', []):
+                sections.append(f'  - Context: {cf}')
+            # v0.2: skip conditions
+            for sw in p.get('skip_when', []):
+                sections.append(f'  - Skip when: {sw}')
+            # v0.2: categories (repetition detector, audience scope)
+            cats = p.get('categories', {})
+            if cats:
+                for cat_id, cat in cats.items():
+                    desc = cat.get('description', cat_id)
+                    signal = cat.get('signal', '')
+                    examples = ', '.join(cat.get('examples', []))
+                    line = f'  - *{cat_id}*: {desc}'
+                    if examples:
+                        line += f' (e.g., {examples})'
+                    if signal:
+                        line += f' — {signal}'
+                    sections.append(line)
         sections.append('')
+
+    # Discrimination rules (v0.2)
+    disc = data.get('discrimination_rules', {})
+    suppress = disc.get('suppress_continuity_questions_when', [])
+    strengthen = disc.get('strengthen_continuity_questions_when', [])
+    if suppress or strengthen:
+        sections.append('### Discrimination Rules')
+        if suppress:
+            sections.append('**Suppress continuity questions when:**')
+            for rule in suppress:
+                cond = rule.get('condition', '')
+                reason = rule.get('reason', '')
+                sections.append(f'- {cond} — {reason}')
+            sections.append('')
+        if strengthen:
+            sections.append('**Strengthen continuity questions when:**')
+            for rule in strengthen:
+                cond = rule.get('condition', '')
+                reason = rule.get('reason', '')
+                sections.append(f'- {cond} — {reason}')
+            sections.append('')
 
     # Plausibility notes
     notes = data.get('plausibility_notes', [])

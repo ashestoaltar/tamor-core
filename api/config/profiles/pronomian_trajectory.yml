@@ -1,12 +1,13 @@
-# Pronomian Trajectory Profile v0.1
-# A trajectory lens, not a doctrine
+# Pronomian Trajectory Profile v0.2 — Discriminating Continuity
 #
-# This profile weights evidence toward canonical continuity
-# without prescribing conclusions.
+# A trajectory lens, not a doctrine.
+# v0.2: Smarter, not stronger. Better-timed questions, not more questions.
+#
+# Core principle: Profiles may ask harder questions, never give harder answers.
 
 id: pronomian_trajectory
-version: "0.1"
-display_name: "Pronomian Trajectory (Observational)"
+version: "0.2"
+display_name: "Pronomian Trajectory (Discriminating Continuity)"
 category: "theology.hermeneutics.canonical_trajectory"
 
 # Profile operates WITHIN GHM, never overrides it
@@ -15,60 +16,184 @@ requires_ghm: true
 # Core principle
 principle: >
   Profiles may ask harder questions, never give harder answers.
-  This lens favors canonical continuity questions without asserting
-  Torah observance as the correct conclusion.
+  v0.2 reduces noise and increases discrimination — smarter, not stronger.
+  Questions are context-aware and better-timed, not more frequent.
 
 # =============================================================================
 # EVIDENCE WEIGHTING
 # =============================================================================
-# These bias how ambiguous evidence is interpreted, not outcomes
 
 weighting:
-  # When later text is ambiguous, weight toward continuity with earlier
+  # Chronological continuity (unchanged from v0.1)
   chronological_continuity:
     description: "Ambiguous later texts weighted toward continuity with Torah"
-    weight: 0.7  # Not absolute, just a bias
+    weight: 0.7
 
-  # Explicit statements over inferred systems
+  # Explicit over inferred (unchanged)
   explicit_over_inferred:
     description: "Direct textual claims weighted over systematic inferences"
     weight: 0.8
 
-  # Silence is not permission
+  # Silence as silence (unchanged)
   silence_as_silence:
     description: "Absence of prohibition != permission; absence of command != abolition"
     weight: 0.6
 
+  # NEW in v0.2: Burden of proof asymmetry
+  burden_of_proof:
+    description: "Claims of abolition require stronger textual warrant than claims of continuity"
+    weight: 0.65
+    rationale: >
+      Ending something requires explicit reason; continuing is default unless stated.
+      This is epistemic, not theological — it mirrors standard interpretive practice.
+
 # =============================================================================
-# QUESTION PROMPTS
+# QUESTION PROMPTS (v0.2 — Context-Sensitive)
 # =============================================================================
-# Additional questions the profile surfaces (not answers)
 
 question_prompts:
+  # UPGRADED: Context-sensitive discontinuity check
   - id: explicit_discontinuity
     trigger: "When cessation/abolition of Torah command is discussed"
-    question: "Where does the text explicitly state this command ended?"
+    context_filters:
+      - "Command is pre-Sinai (creation ordinance)"
+      - "Command is explicitly repeated by Jesus or apostles"
+      - "Cessation is assumed without direct citation"
+      - "Command is NOT explicitly reinterpreted (e.g., sacrifices -> Christ)"
+    question: >
+      Is there an explicit statement ending this command addressed to the
+      same audience to whom it was originally given?
+    skip_when:
+      - "Command is explicitly fulfilled by Christ's sacrifice (e.g., Levitical offerings)"
+      - "Text explicitly states transformation (e.g., Hebrews on priesthood)"
 
+  # UPGRADED: More precise warrant check
   - id: warrant_check
     trigger: "When 'fulfilled = ended' is assumed"
-    question: "What textual warrant establishes that fulfillment means termination rather than completion?"
+    context_filters:
+      - "No direct statement equating fulfillment with termination"
+      - "Matthew 5:17 contrast (fulfill vs abolish) is relevant"
+    question: >
+      What textual warrant establishes that fulfillment means termination
+      rather than completion or intensification?
 
+  # NEW in v0.2: Repetition detector
+  - id: repetition_detector
+    trigger: "When evaluating command's NT status"
+    categories:
+      reinforcement:
+        description: "Command explicitly restated without modification"
+        examples: ["idolatry prohibition", "murder", "sexual ethics"]
+        signal: "Strong continuity indicator"
+      transformation:
+        description: "Command restated with reorientation or deepening"
+        examples: ["Sabbath (made for man)", "food laws (heart purity)"]
+        signal: "Continuity with development"
+      reinterpretation:
+        description: "Command's function explicitly reassigned"
+        examples: ["sacrifices -> Christ's sacrifice", "priesthood -> Christ as high priest"]
+        signal: "Typological fulfillment — discontinuity of practice, continuity of meaning"
+      silence:
+        description: "Command not addressed in NT"
+        examples: ["many civil regulations", "agricultural laws"]
+        signal: "Ambiguous — silence is not abolition"
+    question: >
+      Is this command reinforced, transformed, reinterpreted, or simply
+      unaddressed in the apostolic writings?
+
+  # NEW in v0.2: Scope-of-audience flag
+  - id: audience_scope
+    trigger: "When evaluating command applicability"
+    categories:
+      israel_specific:
+        description: "Addressed explicitly to Israel in land/temple context"
+        examples: ["land inheritance", "temple service", "national governance"]
+      universal_pre_sinai:
+        description: "Established before Sinai, applies to all humanity"
+        examples: ["Sabbath (creation)", "marriage", "prohibition of bloodshed"]
+      gentile_addressed:
+        description: "Explicitly applied to or exempted for Gentile believers"
+        examples: ["Acts 15 requirements", "1 Cor 8-10 food discussions"]
+      both_addressed:
+        description: "Applied to both Israel and nations"
+        examples: ["moral commands restated universally", "eschatological Torah (Isaiah 2)"]
+    question: >
+      Is this instruction addressed to Israel specifically, to Gentiles,
+      to both, or to humanity universally (pre-Sinai)?
+    skip_when:
+      - "Audience is explicitly stated in text"
+
+  # RETAINED from v0.1: Nazarene practice (context-tightened)
   - id: nazarene_practice
     trigger: "When discussing early church practice"
-    question: "How did Second Temple Judaism and early Nazarene communities understand this?"
+    context_filters:
+      - "Question involves Torah observance by Jewish believers"
+      - "Acts 21:20 context is relevant"
+    question: >
+      How did Second Temple Judaism and early Nazarene communities
+      understand and practice this command?
 
+  # RETAINED from v0.1: Canonical trajectory (context-tightened)
   - id: canonical_trajectory
     trigger: "When evaluating Torah command relevance"
-    question: "Does the canonical trajectory (Torah -> Prophets -> Jesus -> Apostles -> Eschatology) suggest continuity or discontinuity?"
+    context_filters:
+      - "Command appears across multiple canonical sections"
+      - "Eschatological texts may be relevant"
+    question: >
+      Does the canonical trajectory (Torah -> Prophets -> Jesus -> Apostles -> Eschatology)
+      suggest continuity, transformation, or discontinuity?
 
+  # RETAINED from v0.1: Eschatological check (context-tightened)
   - id: eschatological_check
     trigger: "When command is claimed obsolete"
-    question: "Do eschatological texts (Isaiah, Zechariah, etc.) envision this practice in the age to come?"
+    context_filters:
+      - "Eschatological texts (Isaiah, Zechariah, Ezekiel) address this practice"
+    question: >
+      Do eschatological texts envision this practice in the age to come?
+      If so, how does that affect claims of present obsolescence?
+    skip_when:
+      - "Command is explicitly typological (e.g., animal sacrifice)"
 
 # =============================================================================
-# PLAUSIBILITY NOTES
+# DISCRIMINATION RULES (NEW in v0.2)
 # =============================================================================
-# Historical/contextual notes the profile may surface
+
+discrimination_rules:
+  # When NOT to ask continuity questions
+  suppress_continuity_questions_when:
+    - condition: "Explicit typological fulfillment stated"
+      examples: ["Hebrews on sacrifices", "Hebrews on Levitical priesthood"]
+      reason: "Text itself provides discontinuity warrant"
+
+    - condition: "Apostolic council explicitly addressed the issue"
+      examples: ["Acts 15 on circumcision for Gentiles"]
+      reason: "Canonical authority already ruled"
+
+    - condition: "Jesus explicitly reinterpreted the command"
+      examples: ["Mark 7 on food/purity (heart defilement)"]
+      reason: "Dominical authority provides warrant"
+
+  # When TO ask stronger continuity questions
+  strengthen_continuity_questions_when:
+    - condition: "Command is pre-Sinai (creation ordinance)"
+      examples: ["Sabbath", "marriage", "image of God"]
+      reason: "Pre-Mosaic scope suggests universal application"
+
+    - condition: "Command is in Decalogue"
+      examples: ["Ten Commandments"]
+      reason: "Covenant core — higher burden for abolition"
+
+    - condition: "Command is restated by Jesus without modification"
+      examples: ["Love God/neighbor", "murder/adultery prohibitions"]
+      reason: "Dominical reinforcement — continuity indicator"
+
+    - condition: "Eschatology envisions the practice"
+      examples: ["Nations learning Torah (Isaiah 2)", "Feast observance (Zechariah 14)"]
+      reason: "Future relevance questions present obsolescence claims"
+
+# =============================================================================
+# PLAUSIBILITY NOTES (unchanged from v0.1)
+# =============================================================================
 
 plausibility_notes:
   - id: second_temple_context
@@ -84,9 +209,8 @@ plausibility_notes:
     note: "Paul claims to 'uphold the law' (Romans 3:31) and calls it 'holy, righteous, good' (Romans 7:12)"
 
 # =============================================================================
-# GUARDRAILS
+# GUARDRAILS (unchanged — critical)
 # =============================================================================
-# What the profile must NOT do
 
 guardrails:
   - "Never assert Torah observance is the correct conclusion"
@@ -95,13 +219,16 @@ guardrails:
   - "Never claim certainty on contested matters"
   - "Never collapse all Torah commands into identical present application"
   - "Always acknowledge land/Temple context distinctions"
-  - "Always label profile-influenced observations as 'trajectory lens'"
+  - "Always label profile-influenced observations as trajectory lens"
+  - "NEW: Do not ask continuity questions where discontinuity is explicitly warranted"
 
 # =============================================================================
-# OUTPUT MARKERS
+# OUTPUT MARKERS (unchanged)
 # =============================================================================
-# How profile influence is disclosed
 
 output_markers:
   badge: "Trajectory Lens"
-  disclosure: "This response uses the Pronomian Trajectory lens, which weights evidence toward canonical continuity. This is an interpretive framework, not a doctrinal assertion."
+  disclosure: >
+    This response uses the Pronomian Trajectory lens (v0.2), which weights
+    evidence toward canonical continuity with context-sensitive discrimination.
+    This is an interpretive framework, not a doctrinal assertion.
