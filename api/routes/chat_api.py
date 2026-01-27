@@ -23,7 +23,7 @@ from services.references.reference_parser import find_references as find_scriptu
 from services.references.reference_service import ReferenceService
 from services.library import LibraryContextService, LibrarySettingsService
 from services.epistemic import process_response as epistemic_process, EpistemicResult
-from services.ghm import detect_scripture_content, enforce_ghm, should_challenge_frame
+from services.ghm import detect_scripture_content, enforce_ghm, should_challenge_frame, build_ghm_system_prompt
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api")
 
@@ -491,32 +491,24 @@ def apply_ghm_pipeline(user_message: str, assistant_response: str, project_id: i
     return assistant_response, ghm_metadata, ghm_is_active
 
 
-def get_ghm_frame_challenge(user_message: str, project_id: int) -> Optional[str]:
+def get_ghm_prompt_addition(user_message: str, project_id: int) -> Optional[str]:
     """
-    Pre-LLM check: if GHM is active and the question assumes a post-biblical
-    framework, return a prompt injection that tells the LLM to challenge the
-    frame before answering within it.
+    Pre-LLM check: if GHM is active, build full GHM system prompt instructions.
+    If the question also assumes a post-biblical framework, include the frame challenge.
 
-    Returns None if GHM is inactive or no frame assumption is detected.
+    Returns None if GHM is inactive.
     """
     ghm_status = get_project_ghm_status(project_id)
     if not ghm_status['active']:
         return None
 
+    # Check for framework assumptions in the question
+    frame_challenge = None
     needs_challenge, challenge_text = should_challenge_frame(user_message)
-    if not needs_challenge:
-        return None
+    if needs_challenge:
+        frame_challenge = challenge_text
 
-    return (
-        "\n\n[GHM — FRAME CHALLENGE REQUIRED]\n"
-        "The user's question assumes a post-biblical framework. "
-        "You MUST surface this assumption before answering. "
-        "Do NOT answer within the assumed framework as though it is the default biblical view.\n\n"
-        "Challenge to surface:\n"
-        f"{challenge_text}\n\n"
-        "After surfacing the assumption, proceed to examine what the biblical texts actually say. "
-        "You may then present the framework as ONE reading among others, with proper disclosure."
-    )
+    return build_ghm_system_prompt(frame_challenge)
 
 
 def get_or_create_conversation(user_id, conversation_id=None, title="New chat", project_id=None):
@@ -1079,7 +1071,7 @@ def chat():
         # Phase 8.2.7: GHM frame challenge (pre-LLM)
         ghm_challenge = None
         try:
-            ghm_challenge = get_ghm_frame_challenge(user_message, project_id)
+            ghm_challenge = get_ghm_prompt_addition(user_message, project_id)
         except Exception:
             pass
 
@@ -1219,7 +1211,7 @@ Capability note (Tamor app):
 
     # Phase 8.2.7: GHM frame challenge injection (pre-LLM)
     try:
-        ghm_challenge = get_ghm_frame_challenge(user_message, project_id)
+        ghm_challenge = get_ghm_prompt_addition(user_message, project_id)
         if ghm_challenge:
             system_prompt += ghm_challenge
     except Exception:

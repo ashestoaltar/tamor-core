@@ -32,6 +32,10 @@ from .frame_analyzer import (
     analyze_question_frames,
     should_challenge_frame,
 )
+from .prompt_builder import (
+    build_ghm_system_prompt,
+    build_ghm_user_prefix,
+)
 
 __all__ = [
     'load_ghm_rules',
@@ -54,4 +58,6 @@ __all__ = [
     'get_frame_analyzer',
     'analyze_question_frames',
     'should_challenge_frame',
+    'build_ghm_system_prompt',
+    'build_ghm_user_prefix',
 ]
