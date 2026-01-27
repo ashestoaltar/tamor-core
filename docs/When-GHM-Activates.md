@@ -236,9 +236,12 @@ When GHM is active, the UI shows:
 
 | Location | Indicator |
 |----------|-----------|
-| Project header | Small "GHM" badge (hover for explanation) |
-| Response footer | Epistemic badge if contested |
-| Expandable | Assumptions ledger, anchor chain |
+| Project header | `GHMBadge` — amber "GHM" (full) or outlined "GHM (soft)" badge with hover tooltip |
+| Response footer | Framework disclosure block listing post-biblical frameworks with origin attribution |
+| Response footer | Enforcement warnings (harmonization, softening) |
+| Epistemic row | Epistemic badge if contested |
+
+**Project creation** uses a template selector grid (5 cards). Scripture Study and Theological Research cards show a "GHM" indicator. The selected template is sent to the API, which applies GHM defaults.
 
 When GHM is dormant: no indicators.
 

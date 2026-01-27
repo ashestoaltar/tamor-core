@@ -39,6 +39,29 @@ Foundational implementation of GHM for Scripture-facing epistemic honesty.
 **GHM Services (`api/services/ghm/`):**
 - `config_loader.py` — cached YAML loader with typed accessors
 - `detector.py` — conservative Scripture-facing content detector for fallback activation; returns confidence score and suggested action (`none`/`soft_ghm`/`suggest_ghm`)
+- `enforcer.py` — post-response constraint checker; detects framework usage (6 types), premature harmonization, comfort-softening; builds disclosure text
+
+**Chat Pipeline Integration:**
+- `apply_ghm_pipeline()` orchestrates detection → user override → enforcement → disclosure
+- Integrated into both router (multi-agent) and fallback LLM response paths
+- `ghm_active` audit field written per message; `ghm` metadata returned in API response
+
+**UI — GHM Badge (`ui/src/components/GHMBadge/`):**
+- Badge component with full/soft mode variants (amber accent for full, outlined for soft)
+- Hover tooltip showing constraint summary
+- Integrated in ProjectsPanel next to project name
+
+**UI — Framework Disclosure (ChatPanel):**
+- Post-biblical framework disclosure block rendered after epistemic badge
+- Lists detected frameworks with origin attribution
+- Displays enforcement warnings (harmonization, softening)
+
+**UI — Project Template Selector (`ui/src/components/ProjectTemplates/`):**
+- 5-card grid: General, Scripture Study, Theological Research, Engineering, Writing
+- GHM indicator on Scripture Study and Theological Research cards
+- Integrated into ProjectsPanel new-project modal (replaced `window.prompt`)
+- Integrated into ChatPanel `ProjectRequiredModal`
+- Template value sent to `POST /api/projects` for server-side defaults
 
 **Files changed:**
 - `docs/GHM-Spec.md` (new)
@@ -50,7 +73,15 @@ Foundational implementation of GHM for Scripture-facing epistemic honesty.
 - `api/services/ghm/__init__.py` (new)
 - `api/services/ghm/config_loader.py` (new)
 - `api/services/ghm/detector.py` (new)
+- `api/services/ghm/enforcer.py` (new)
 - `api/routes/projects_api.py`
+- `api/routes/chat_api.py`
+- `ui/src/components/GHMBadge/GHMBadge.jsx` (new)
+- `ui/src/components/GHMBadge/GHMBadge.css` (new)
+- `ui/src/components/ProjectTemplates/ProjectTemplates.jsx` (new)
+- `ui/src/components/ProjectTemplates/ProjectTemplates.css` (new)
+- `ui/src/components/ChatPanel/ChatPanel.jsx`
+- `ui/src/components/LeftPanel/ProjectsPanel.jsx`
 
 ---
 

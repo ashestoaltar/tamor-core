@@ -942,13 +942,13 @@ GHM enforces textual-historical discipline when Tamor handles Scripture and Scri
 | Engineering | Off |
 
 **Deliverables:**
-⬜ `hermeneutic_mode` field in projects table
-⬜ `ghm_rules.yml` configuration file
-⬜ Pipeline integration (check project mode, apply constraints)
-⬜ Fallback detection for unassigned conversations
-⬜ User override handling
-⬜ Project template selector in UI
-⬜ GHM indicator badge
+✅ `hermeneutic_mode` field in projects table (Migration 009)
+✅ `ghm_rules.yml` configuration file
+✅ Pipeline integration (check project mode, apply constraints)
+✅ Fallback detection for unassigned conversations
+✅ User override handling
+✅ Project template selector in UI
+✅ GHM indicator badge
 
 **Documentation:**
 - `docs/GHM-Spec.md` — Full specification
@@ -1236,6 +1236,11 @@ Added Phase 8.2.7 Global Hermeneutic Mode (GHM):
 - Project-level activation with fallback detection
 - Five core hermeneutic constraints (GHM-1 through GHM-5)
 - Project templates (Scripture Study, Theological Research enable GHM)
+- GHM enforcer service (framework disclosure, harmonization/softening detection)
+- Chat pipeline integration (both router and fallback LLM paths)
+- GHM badge component (full/soft mode indicators with tooltip)
+- Project template selector in new-project flows (ProjectsPanel modal, ChatPanel modal)
+- Framework disclosure display in chat messages
 - Documentation: GHM-Spec.md, When-GHM-Activates.md
 
 Completed Phase 8.1 Tamor Principles & Boundaries Manifesto:
