@@ -63,6 +63,29 @@ If the text-faithful reading is uncomfortable or contradicts tradition, surface 
 5. **Offer synthesis only as optional** and clearly labeled
 '''
 
+    formatting_instruction = '''
+### Response Formatting (IMPORTANT)
+
+Your final output should read as polished prose, not study notes or outlines.
+
+**Formatting rules:**
+
+1. **Collapse headers into lead sentences** — Instead of a header on its own line,
+   write: "**Frame challenge** — Paul's critique is specific and covenantal..."
+
+2. **Prefer paragraphs over bullets** — Use flowing prose when explaining connected
+   ideas. Reserve bullets only for enumerating 3+ genuinely distinct items.
+
+3. **Maximum 3 structural sections** — Frame challenge, textual analysis, summary.
+   No sub-headers unless absolutely necessary.
+
+4. **Minimize vertical whitespace** — One blank line = one idea shift. No more.
+   Let ideas stack naturally without excessive spacing.
+
+5. **Write to be read, not scanned** — The reader wants understanding, not an outline
+   to fill in later. Deliver finished thought, not scaffolding.
+'''
+
     # Profile section (after base GHM, before frame challenge)
     profile_section = ''
     if profile_id:
@@ -80,9 +103,9 @@ The user's question assumes a post-biblical framework. You MUST challenge this f
 
 Do NOT answer within the assumed framework. First explain why the framework is not textually derived, then proceed with direct textual analysis.
 '''
-        return base_instructions + profile_section + frame_section
+        return base_instructions + formatting_instruction + profile_section + frame_section
 
-    return base_instructions + profile_section
+    return base_instructions + formatting_instruction + profile_section
 
 
 def build_ghm_user_prefix(frame_challenge: Optional[str] = None) -> str:

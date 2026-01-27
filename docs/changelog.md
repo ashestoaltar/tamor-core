@@ -6,6 +6,25 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Style: GHM response formatting — prose mode over outline mode
+
+**Problem:** GHM responses read as study notes — excessive headers, bullet lists, vertical whitespace. Responses should read as polished prose.
+
+**Fix:** Added formatting instructions to `build_ghm_system_prompt()`:
+1. Collapse headers into bold lead sentences
+2. Prefer paragraphs over bullets (bullets only for 3+ distinct items)
+3. Maximum 3 structural sections (frame challenge, textual analysis, summary)
+4. Minimize vertical whitespace (one blank line = one idea shift)
+5. Write to be read, not scanned
+
+**Profile integration note:** Profile observations integrate naturally into prose, not as separate bulleted sections.
+
+**Files changed:**
+- `api/services/ghm/prompt_builder.py`
+- `api/services/ghm/profile_loader.py`
+
+---
+
 ### Feature: Pronomian Trajectory Profile v0.2 — Discriminating Continuity
 
 Upgrade to smarter, not stronger profile. Reduces noise, increases discrimination.

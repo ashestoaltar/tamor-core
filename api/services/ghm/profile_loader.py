@@ -184,6 +184,12 @@ def get_profile_prompt_addition(profile_id: str) -> Optional[str]:
         sections.append(f'"{disclosure}"')
         sections.append('')
 
+    # Formatting integration note
+    sections.append('Note: Profile observations should integrate naturally into the prose response,')
+    sections.append('not appear as a separate bulleted section. The profile influences analysis')
+    sections.append('subtly, not loudly.')
+    sections.append('')
+
     return '\n'.join(sections)
 
 
