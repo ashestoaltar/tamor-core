@@ -37,6 +37,9 @@ class RequestContext:
     # Library context (populated by chat_api for relevant library content)
     library_context: Optional[str] = None
 
+    # Project files context (populated by chat_api for project documents)
+    project_files_context: Optional[str] = None
+
     # Previous agent outputs in the pipeline (for chaining)
     prior_outputs: List["AgentOutput"] = field(default_factory=list)
 

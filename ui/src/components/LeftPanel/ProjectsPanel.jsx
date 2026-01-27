@@ -264,18 +264,10 @@ export default function ProjectsPanel({
   const moveConversation = async (convId, newProjectId) => {
     const project_id = newProjectId === "" ? null : Number(newProjectId);
 
-    // Backend requires title on PATCH. Include current title/name.
-    const conv = convos.find((c) => c.id === convId);
-    const currentTitle = (conv?.title || conv?.name || "").trim();
-
     try {
-      const data = await apiFetch(`/conversations/${convId}`, {
+      const data = await apiFetch(`/conversations/${convId}/project`, {
         method: "PATCH",
-        body: {
-          project_id,
-          title: currentTitle,
-          name: currentTitle,
-        },
+        body: { project_id },
       });
 
       const updatedProjectId =

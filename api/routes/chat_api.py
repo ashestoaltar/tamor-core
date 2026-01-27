@@ -262,6 +262,99 @@ def _get_library_context_text(
         return None
 
 
+def _get_project_files_context(
+    project_id: Optional[int],
+    user_id: Optional[int],
+    max_chars: int = 8000,
+) -> Optional[str]:
+    """
+    Get project files content for chat context injection.
+
+    Unlike library context (semantic search), this includes ALL files
+    in the current project to give the LLM direct access to project documents.
+    """
+    if not project_id or not user_id:
+        return None
+
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        # Verify project ownership
+        cur.execute(
+            "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+            (project_id, user_id),
+        )
+        if not cur.fetchone():
+            conn.close()
+            return None
+
+        # Get project files with cached text
+        cur.execute(
+            """
+            SELECT pf.id, pf.filename, pf.mime_type, ftc.text, ftc.parser
+            FROM project_files pf
+            LEFT JOIN file_text_cache ftc ON pf.id = ftc.file_id
+            WHERE pf.project_id = ?
+            ORDER BY pf.filename
+            """,
+            (project_id,),
+        )
+        rows = cur.fetchall()
+        conn.close()
+
+        if not rows:
+            return None
+
+        # Build context with file contents
+        parts = []
+        total_chars = 0
+
+        for row in rows:
+            file_id = row[0] if isinstance(row, tuple) else row["id"]
+            filename = row[1] if isinstance(row, tuple) else row["filename"]
+            mime_type = row[2] if isinstance(row, tuple) else row["mime_type"]
+            text = row[3] if isinstance(row, tuple) else row["text"]
+            parser = row[4] if isinstance(row, tuple) else row["parser"]
+
+            if not text:
+                parts.append(f"[{filename}]: (no text extracted)")
+                continue
+
+            # Skip files with placeholder error messages
+            if text.startswith("This file is a PDF, but"):
+                parts.append(f"[{filename}]: (PDF text extraction unavailable)")
+                continue
+            if text.startswith("This PDF appears to have no extractable text"):
+                parts.append(f"[{filename}]: (scanned PDF - no text available)")
+                continue
+
+            # Truncate individual file if needed
+            available = max_chars - total_chars
+            if available <= 0:
+                parts.append(f"[{filename}]: (truncated - context limit reached)")
+                break
+
+            if len(text) > available:
+                text = text[:available] + "... [truncated]"
+
+            parts.append(f"[{filename}]:\n{text}")
+            total_chars += len(text)
+
+        if not parts:
+            return None
+
+        context_text = "\n\n---\n\n".join(parts)
+        return f"""## Project Files
+
+The following files are available in the current project. Use this content to answer questions about project documents.
+
+{context_text}"""
+
+    except Exception:
+        return None
+
+
 CHAT_HISTORY_LIMIT = 24
 
 
@@ -813,6 +906,13 @@ def chat():
         except Exception:
             pass
 
+        # Get project files context for direct access to project documents
+        project_files_ctx = None
+        try:
+            project_files_ctx = _get_project_files_context(project_id, user_id)
+        except Exception:
+            pass
+
         # Build router context
         history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
         router_ctx = RouterContext(
@@ -825,6 +925,7 @@ def chat():
             mode=effective_mode,
             scripture_context=scripture_ctx,
             library_context=library_ctx,
+            project_files_context=project_files_ctx,
         )
 
         # Route the request
@@ -926,6 +1027,14 @@ Capability note (Tamor app):
         )
     except Exception:
         pass  # Don't fail chat if library context fails
+
+    # Inject project files context
+    try:
+        project_files_ctx = _get_project_files_context(project_id, user_id)
+        if project_files_ctx:
+            system_prompt += f"\n\n{project_files_ctx}"
+    except Exception:
+        pass  # Don't fail chat if project files context fails
 
     history = fetch_chat_history(conv_id, limit=CHAT_HISTORY_LIMIT)
 

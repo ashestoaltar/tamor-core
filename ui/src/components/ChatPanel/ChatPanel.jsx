@@ -765,6 +765,14 @@ export default function ChatPanel({
       setCurrentProjectId(pendingAttachProjectId);
     }
 
+    // Move current conversation to the new project if one is active
+    if (activeConversationId) {
+      apiFetch(`/conversations/${activeConversationId}/project`, {
+        method: "PATCH",
+        body: { project_id: pendingAttachProjectId },
+      }).catch((err) => console.error("Failed to move conversation to project:", err));
+    }
+
     setShowProjectModal(false);
 
     setTimeout(() => {
