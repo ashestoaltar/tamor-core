@@ -6,6 +6,29 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Feature: GHM Frame Analyzer and Prompt Builder
+
+**Frame Analyzer (`api/services/ghm/frame_analyzer.py`):**
+- Detects when questions assume post-biblical frameworks (moral/ceremonial law, fulfilled=ended, law vs grace, old/new covenant replacement, works of the law, sabbath categorization)
+- Returns challenge text that instructs the LLM to surface the assumption before answering within it
+- Only fires under full GHM — frame challenge is argument-space locking, not just disclosure; soft GHM discloses after the fact per spec
+
+**Prompt Builder (`api/services/ghm/prompt_builder.py`):**
+- `build_ghm_system_prompt()` injects full GHM constraint set into LLM system prompt: canonical authority order, GHM-1 through GHM-5, response sequence
+- Optionally includes frame challenge when a framework assumption is detected
+- Wired into both fallback LLM path (system prompt append) and router path (via `ctx.ghm_frame_challenge` on researcher/writer agents)
+
+**Files changed:**
+- `api/services/ghm/frame_analyzer.py` (new)
+- `api/services/ghm/prompt_builder.py` (new)
+- `api/services/ghm/__init__.py`
+- `api/services/agents/base.py` (added `ghm_frame_challenge` field to `RequestContext`)
+- `api/services/agents/writer.py` (injects GHM prompt into system prompt)
+- `api/services/agents/researcher.py` (injects GHM prompt into system prompt)
+- `api/routes/chat_api.py` (added `get_ghm_prompt_addition()`, wired into both chat paths)
+
+---
+
 ### Fix: GHM override short-circuits before LLM
 
 **Symptom:** User says "skip GHM for this" and Tamor detects the override, but still sends the message to the LLM, which doesn't know what GHM is and responds with confusion.
