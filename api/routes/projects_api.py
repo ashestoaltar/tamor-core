@@ -50,6 +50,23 @@ projects_bp = Blueprint("projects_api", __name__, url_prefix="/api")
 
 
 # ---------------------------------------------------------------------------
+# Project template defaults
+# ---------------------------------------------------------------------------
+
+
+def _get_template_defaults(template: str) -> dict:
+    """Get default settings for a project template."""
+    templates = {
+        "general": {"hermeneutic_mode": None, "profile": None},
+        "scripture_study": {"hermeneutic_mode": "ghm", "profile": None},
+        "theological_research": {"hermeneutic_mode": "ghm", "profile": None},
+        "engineering": {"hermeneutic_mode": None, "profile": None},
+        "writing": {"hermeneutic_mode": None, "profile": None},
+    }
+    return templates.get(template, {})
+
+
+# ---------------------------------------------------------------------------
 # Projects CRUD
 # ---------------------------------------------------------------------------
 
@@ -83,6 +100,8 @@ def list_projects():
             {
                 "id": d["id"],
                 "name": name,
+                "hermeneutic_mode": d.get("hermeneutic_mode"),
+                "profile": d.get("profile"),
                 "created_at": d.get("created_at"),
                 "updated_at": d.get("updated_at"),
             }
@@ -103,42 +122,21 @@ def create_project():
     if not raw_name:
         return jsonify({"error": "name_required"}), 400
 
-    conn = get_db()
-    cur = conn.cursor()
+    hermeneutic_mode = data.get("hermeneutic_mode")
+    profile = data.get("profile")
+    template = data.get("template")
 
-    try:
-        cur.execute(
-            "INSERT INTO projects (user_id, name) VALUES (?, ?)",
-            (user_id, raw_name),
-        )
-    except Exception:
-        try:
-            cur.execute(
-                "INSERT INTO projects (user_id, title) VALUES (?, ?)",
-                (user_id, raw_name),
-            )
-        except Exception as e2:
-            conn.close()
-            return jsonify({"error": str(e2)}), 500
+    # Apply template defaults if specified
+    if template:
+        defaults = _get_template_defaults(template)
+        if hermeneutic_mode is None:
+            hermeneutic_mode = defaults.get("hermeneutic_mode")
+        if profile is None:
+            profile = defaults.get("profile")
 
-    conn.commit()
-    project_id = cur.lastrowid
-    conn.close()
-
-    return jsonify({"id": project_id, "name": raw_name})
-
-
-@projects_bp.patch("/projects/<int:project_id>")
-def rename_project(project_id):
-    """Rename a project belonging to the current user."""
-    user_id, err = ensure_user()
-    if err:
-        return err
-
-    data = request.json or {}
-    raw_name = (data.get("name") or "").strip()
-    if not raw_name:
-        return jsonify({"error": "name_required"}), 400
+    # Validate hermeneutic_mode
+    if hermeneutic_mode and hermeneutic_mode not in ("ghm", "none"):
+        return jsonify({"error": "invalid hermeneutic_mode"}), 400
 
     conn = get_db()
     cur = conn.cursor()
@@ -146,34 +144,97 @@ def rename_project(project_id):
     try:
         cur.execute(
             """
-            UPDATE projects
-            SET name = ?
-            WHERE id = ? AND user_id = ?
+            INSERT INTO projects (user_id, name, hermeneutic_mode, profile)
+            VALUES (?, ?, ?, ?)
             """,
-            (raw_name, project_id, user_id),
+            (user_id, raw_name, hermeneutic_mode, profile),
         )
-    except Exception:
-        try:
-            cur.execute(
-                """
-                UPDATE projects
-                SET title = ?
-                WHERE id = ? AND user_id = ?
-                """,
-                (raw_name, project_id, user_id),
-            )
-        except Exception as e2:
-            conn.close()
-            return jsonify({"error": str(e2)}), 500
+    except Exception as e:
+        conn.close()
+        return jsonify({"error": str(e)}), 500
+
+    conn.commit()
+    project_id = cur.lastrowid
+    conn.close()
+
+    return jsonify({
+        "id": project_id,
+        "name": raw_name,
+        "hermeneutic_mode": hermeneutic_mode,
+        "profile": profile,
+    })
+
+
+@projects_bp.patch("/projects/<int:project_id>")
+def update_project(project_id):
+    """Update a project belonging to the current user."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+
+    updates = []
+    params = []
+
+    if "name" in data:
+        name = (data["name"] or "").strip()
+        if not name:
+            return jsonify({"error": "name_required"}), 400
+        updates.append("name = ?")
+        params.append(name)
+
+    if "description" in data:
+        updates.append("description = ?")
+        params.append(data["description"])
+
+    if "hermeneutic_mode" in data:
+        mode = data["hermeneutic_mode"]
+        if mode and mode not in ("ghm", "none"):
+            return jsonify({"error": "invalid hermeneutic_mode"}), 400
+        updates.append("hermeneutic_mode = ?")
+        params.append(mode)
+
+    if "profile" in data:
+        updates.append("profile = ?")
+        params.append(data["profile"])
+
+    if not updates:
+        return jsonify({"error": "no_fields_to_update"}), 400
+
+    params.extend([project_id, user_id])
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        f"""
+        UPDATE projects
+        SET {', '.join(updates)}
+        WHERE id = ? AND user_id = ?
+        """,
+        params,
+    )
 
     if cur.rowcount == 0:
         conn.close()
         return jsonify({"error": "not_found"}), 404
 
     conn.commit()
+
+    # Return updated project
+    cur.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
+    row = cur.fetchone()
     conn.close()
 
-    return jsonify({"id": project_id, "name": raw_name})
+    d = dict(row)
+    return jsonify({
+        "id": d["id"],
+        "name": d.get("name"),
+        "hermeneutic_mode": d.get("hermeneutic_mode"),
+        "profile": d.get("profile"),
+        "created_at": d.get("created_at"),
+    })
 
 
 @projects_bp.delete("/projects/<int:project_id>")
@@ -218,6 +279,44 @@ def delete_project(project_id):
     conn.close()
 
     return jsonify({"ok": True, "id": project_id})
+
+
+@projects_bp.get("/projects/templates")
+def get_project_templates():
+    """Get available project templates."""
+    templates = [
+        {
+            "id": "general",
+            "name": "General",
+            "description": "Standard project with no special constraints",
+            "ghm_enabled": False,
+        },
+        {
+            "id": "scripture_study",
+            "name": "Scripture Study",
+            "description": "Bible study with Global Hermeneutic Mode enabled",
+            "ghm_enabled": True,
+        },
+        {
+            "id": "theological_research",
+            "name": "Theological Research",
+            "description": "In-depth theological work with GHM and optional profiles",
+            "ghm_enabled": True,
+        },
+        {
+            "id": "engineering",
+            "name": "Engineering",
+            "description": "Technical projects - code, systems, design",
+            "ghm_enabled": False,
+        },
+        {
+            "id": "writing",
+            "name": "Writing Project",
+            "description": "General writing and content creation",
+            "ghm_enabled": False,
+        },
+    ]
+    return jsonify(templates)
 
 
 @projects_bp.get("/projects/<int:project_id>/conversations")
