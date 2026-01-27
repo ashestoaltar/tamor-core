@@ -17,6 +17,14 @@ from .detector import (
     get_detector,
     detect_scripture_content,
 )
+from .enforcer import (
+    FrameworkUsage,
+    GHMViolation,
+    EnforcementResult,
+    GHMEnforcer,
+    get_enforcer,
+    enforce_ghm,
+)
 
 __all__ = [
     'load_ghm_rules',
@@ -28,4 +36,10 @@ __all__ = [
     'GHMDetector',
     'get_detector',
     'detect_scripture_content',
+    'FrameworkUsage',
+    'GHMViolation',
+    'EnforcementResult',
+    'GHMEnforcer',
+    'get_enforcer',
+    'enforce_ghm',
 ]
