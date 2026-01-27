@@ -262,34 +262,6 @@ function App() {
           )}
         </div>
 
-        {/* Mode selector - hidden on mobile (too cramped) */}
-        {!isMobile && (
-          <div className="app-header-mode">
-            <span>Mode:</span>
-            <select
-              value={activeMode}
-              onChange={(e) => setActiveMode(e.target.value)}
-            >
-              <option value="Auto">Auto</option>
-              <option value="Forge">Forge</option>
-              <option value="Scholar">Scholar</option>
-              <option value="System">System</option>
-              <option value="Anchor">Anchor</option>
-              <option value="Path">Path</option>
-              <option value="Creative">Creative</option>
-            </select>
-          </div>
-        )}
-
-        {/* Focus Mode toggle */}
-        <button
-          className="focus-mode-toggle"
-          onClick={toggleFocusMode}
-          title="Enter Focus Mode"
-        >
-          ◉
-        </button>
-
         <div className="app-header-user">
           {!isMobile && (
             <span className="user-greeting-label">{greeting},</span>
@@ -328,6 +300,16 @@ function App() {
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 16v-4M12 8h.01" />
               </svg>
+            </button>
+          )}
+
+          {!isMobile && (
+            <button
+              className="focus-mode-toggle"
+              onClick={toggleFocusMode}
+              title="Focus Mode"
+            >
+              ◉
             </button>
           )}
 
@@ -404,7 +386,7 @@ function App() {
               title={rightDrawerContent === "settings" ? "Settings" : "Tools"}
             >
               {rightDrawerContent === "settings" ? (
-                <Settings />
+                <Settings activeMode={activeMode} setActiveMode={setActiveMode} />
               ) : (
                 <RightPanel {...rightPanelProps} />
               )}

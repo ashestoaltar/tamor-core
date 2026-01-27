@@ -10,7 +10,7 @@ import "./Settings.css";
  * Settings panel for app configuration.
  * Used in mobile drawer and potentially desktop settings modal.
  */
-export default function Settings() {
+export default function Settings({ activeMode, setActiveMode }) {
   const { user, logout } = useAuth();
   const { devMode, toggleDevMode } = useDevMode();
   const { focusSettings, updateFocusSettings, enterFocusMode } = useFocusMode();
@@ -408,6 +408,34 @@ export default function Settings() {
               </button>
             </div>
           </div>
+
+          {/* Assistant Mode Override — only visible in dev mode */}
+          {devMode && (
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <div className="settings-row-label">Assistant Mode Override</div>
+                <div className="settings-row-description">
+                  Auto mode routes to the best agent based on your message
+                </div>
+              </div>
+              <div className="settings-row-control settings-row-control-wide">
+                <select
+                  className="settings-select"
+                  value={activeMode || "Auto"}
+                  onChange={(e) => setActiveMode(e.target.value)}
+                  aria-label="Assistant Mode Override"
+                >
+                  <option value="Auto">Auto</option>
+                  <option value="Forge">Forge</option>
+                  <option value="Scholar">Scholar</option>
+                  <option value="System">System</option>
+                  <option value="Anchor">Anchor</option>
+                  <option value="Path">Path</option>
+                  <option value="Creative">Creative</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

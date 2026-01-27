@@ -4,6 +4,26 @@ Running log of issues, root causes, and fixes.
 
 ---
 
+## 2026-01-27
+
+### Fix: Header & Chat UI cleanup
+
+**Changes:**
+
+1. **Chat input overflow** — Added `box-sizing: border-box` and `max-width: 100%` to `.input-area` and `.chat-input` so the input container no longer overruns its parent on the right side.
+
+2. **Focus Mode button relocated** — Moved the ◉ toggle from its orphaned center-header position into the right-side control group (next to status indicator and logout), with `title="Focus Mode"` tooltip.
+
+3. **Mode dropdown removed from header** — The Mode selector is no longer in the header. It now lives in Settings → Advanced → Developer Mode as "Assistant Mode Override", visible only when Developer Mode is enabled. Auto mode routes to the best agent automatically (Phase 6.2 multi-agent routing).
+
+**Files changed:**
+- `ui/src/App.jsx`
+- `ui/src/components/ChatPanel/ChatPanel.css`
+- `ui/src/components/Settings/Settings.jsx`
+- `ui/src/styles/dark.css`
+
+---
+
 ## 2026-01-26
 
 ### Fix: PDF parsing fails with "pypdf not installed"

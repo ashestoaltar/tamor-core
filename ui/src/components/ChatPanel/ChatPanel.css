@@ -467,6 +467,8 @@
   flex-direction: column;
   gap: 0.5rem;
   background: var(--bg-elevated);
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .chat-input {
@@ -479,6 +481,7 @@
   color: var(--text-bright);
   font-size: 0.95rem;
   line-height: 1.4;
+  box-sizing: border-box;
 }
 
 .chat-input:focus {
