@@ -6,6 +6,32 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Fix: GHM override short-circuits before LLM
+
+**Symptom:** User says "skip GHM for this" and Tamor detects the override, but still sends the message to the LLM, which doesn't know what GHM is and responds with confusion.
+
+**Root cause:** `check_user_ghm_override()` ran inside `apply_ghm_pipeline()`, which executes *after* the LLM response. The override was detected too late.
+
+**Fix:** Moved override detection into the main `chat()` handler, before the router/LLM call. When a GHM override phrase is detected, the handler returns immediately with an acknowledgment ("Got it — GHM is now active/deactivated for this conversation.") and never sends the meta-command to the LLM.
+
+**Files changed:**
+- `api/routes/chat_api.py`
+
+---
+
+### Fix: Excessive vertical spacing in chat message list items
+
+**Symptom:** Bullet-point responses had a visible gap between the bullet marker and the content text (e.g., above "Moral law:" and "Ceremonial law:").
+
+**Root cause:** ReactMarkdown wraps list item content in `<p>` tags, which carry default margins. No list-specific CSS existed in `ChatPanel.css`.
+
+**Fix:** Added rules to `.chat-bubble` for `ul`/`ol` margin, `li` spacing, and `li > p { margin: 0 }` with `li > p:first-child { display: inline }` to keep content flush with the bullet.
+
+**Files changed:**
+- `ui/src/components/ChatPanel/ChatPanel.css`
+
+---
+
 ### Feature: Global Hermeneutic Mode (GHM) — Phase 8.2.7
 
 Foundational implementation of GHM for Scripture-facing epistemic honesty.
