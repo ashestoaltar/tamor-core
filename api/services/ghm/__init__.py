@@ -11,6 +11,12 @@ from .config_loader import (
     get_frameworks_requiring_disclosure,
     get_scripture_detection_patterns,
 )
+from .detector import (
+    DetectionResult,
+    GHMDetector,
+    get_detector,
+    detect_scripture_content,
+)
 
 __all__ = [
     'load_ghm_rules',
@@ -18,4 +24,8 @@ __all__ = [
     'get_canonical_order',
     'get_frameworks_requiring_disclosure',
     'get_scripture_detection_patterns',
+    'DetectionResult',
+    'GHMDetector',
+    'get_detector',
+    'detect_scripture_content',
 ]
