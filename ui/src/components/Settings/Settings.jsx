@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDevMode } from "../../context/DevModeContext";
 import { useVoiceSettings } from "../../context/VoiceSettingsContext";
-import { useFocusMode } from "../../contexts/FocusModeContext";
+import { useFocusMode } from "../../context/FocusModeContext";
 import AboutTamor from "../AboutTamor/AboutTamor";
 import "./Settings.css";
 

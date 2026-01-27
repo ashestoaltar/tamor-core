@@ -3,7 +3,7 @@ import "./styles/dark.css";
 import { useMemo, useState } from "react";
 import { useAuth } from "./context/AuthContext";
 import { useBreakpoint } from "./hooks/useBreakpoint";
-import { useFocusMode } from "./contexts/FocusModeContext";
+import { useFocusMode } from "./context/FocusModeContext";
 import { useDevMode } from "./context/DevModeContext";
 
 import LeftPanel from "./components/LeftPanel/LeftPanel";

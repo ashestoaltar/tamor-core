@@ -6,6 +6,22 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Chore: Consolidate context imports, remove unused axios dependency
+
+- Moved `FocusModeContext.jsx` from `contexts/` into `context/` to match all other context files. Removed empty `contexts/` directory.
+- Updated imports in `main.jsx`, `App.jsx`, `Settings.jsx`, and `FocusMode.jsx`.
+- Removed `axios` from `package.json` — nothing imports it; all API calls use the custom `apiFetch` wrapper.
+
+**Files changed:**
+- `ui/src/context/FocusModeContext.jsx` (moved from `ui/src/contexts/`)
+- `ui/src/main.jsx`
+- `ui/src/App.jsx`
+- `ui/src/components/Settings/Settings.jsx`
+- `ui/src/components/FocusMode/FocusMode.jsx`
+- `ui/package.json`
+
+---
+
 ### Fix: Header & Chat UI cleanup
 
 **Changes:**

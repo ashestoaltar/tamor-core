@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useFocusMode } from '../../contexts/FocusModeContext';
+import { useFocusMode } from '../../context/FocusModeContext';
 import { useVoiceInput } from '../../hooks/useVoiceInput';
 import { useVoiceOutput } from '../../hooks/useVoiceOutput';
 import { apiFetch } from '../../api/client';
