@@ -15,6 +15,7 @@ import VoiceButton from "../VoiceButton/VoiceButton";
 import CitationCard from "../CitationCard/CitationCard";
 import EpistemicBadge from "../Chat/EpistemicBadge";
 import GHMBadge from "../GHMBadge/GHMBadge";
+import ProjectTemplates from "../ProjectTemplates/ProjectTemplates";
 
 /**
  * Strip markdown formatting from text for speech synthesis.
@@ -367,6 +368,8 @@ function ProjectRequiredModal({
   setSelectedProjectId,
   newProjectName,
   setNewProjectName,
+  newProjectTemplate,
+  setNewProjectTemplate,
   onCreateProject,
   onConfirm,
   onClose,
@@ -457,6 +460,15 @@ function ProjectRequiredModal({
             )}
           </div>
 
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Create new project</div>
+
+          {setNewProjectTemplate && (
+            <ProjectTemplates
+              selected={newProjectTemplate}
+              onSelect={setNewProjectTemplate}
+            />
+          )}
+
           <div
             style={{
               display: "grid",
@@ -466,7 +478,6 @@ function ProjectRequiredModal({
             }}
           >
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Create new project</div>
               <input
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}
@@ -701,6 +712,7 @@ export default function ChatPanel({
   const [projectChoices, setProjectChoices] = useState([]);
   const [pendingAttachProjectId, setPendingAttachProjectId] = useState(null);
   const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectTemplate, setNewProjectTemplate] = useState("general");
   const [attachTargetProjectId, setAttachTargetProjectId] = useState(null);
 
   const loadProjectsForModal = async () => {
@@ -740,7 +752,7 @@ export default function ChatPanel({
     setProjectModalLoading(true);
     setProjectModalError("");
     try {
-      const created = await apiFetch(`/projects`, { method: "POST", body: { name } });
+      const created = await apiFetch(`/projects`, { method: "POST", body: { name, template: newProjectTemplate } });
       const projId = created?.id;
 
       const projects = await loadProjectsForModal();
@@ -748,6 +760,7 @@ export default function ChatPanel({
       else setPendingAttachProjectId(projects?.[0]?.id ?? null);
 
       setNewProjectName("");
+      setNewProjectTemplate("general");
       window.dispatchEvent(new Event("tamor:projects-updated"));
     } catch (err) {
       setProjectModalError(err?.message || "Failed to create project.");
@@ -1205,6 +1218,8 @@ export default function ChatPanel({
         setSelectedProjectId={setPendingAttachProjectId}
         newProjectName={newProjectName}
         setNewProjectName={setNewProjectName}
+        newProjectTemplate={newProjectTemplate}
+        setNewProjectTemplate={setNewProjectTemplate}
         onCreateProject={createProjectFromModal}
         onConfirm={confirmProjectForAttach}
         onClose={() => setShowProjectModal(false)}

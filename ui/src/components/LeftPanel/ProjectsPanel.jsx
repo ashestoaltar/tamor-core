@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { formatUtcTimestamp } from "../../utils/formatUtc";
 import GHMBadge from "../GHMBadge/GHMBadge";
+import ProjectTemplates from "../ProjectTemplates/ProjectTemplates";
 
 
 
@@ -42,6 +43,10 @@ export default function ProjectsPanel({
   const [editingProjectName, setEditingProjectName] = useState("");
   const [savingProject, setSavingProject] = useState(false);
   const [deletingProjectId, setDeletingProjectId] = useState(null);
+
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectTemplate, setNewProjectTemplate] = useState("general");
 
   const [openConvMenuId, setOpenConvMenuId] = useState(null);
   const [openProjectMenuId, setOpenProjectMenuId] = useState(null);
@@ -156,18 +161,30 @@ export default function ProjectsPanel({
   // ----------------------------
   // Project actions
   // ----------------------------
-  const handleNewProject = async () => {
-    const name = window.prompt("Project name?");
+  const handleNewProject = () => {
+    setNewProjectName("");
+    setNewProjectTemplate("general");
+    setShowNewProjectModal(true);
+  };
+
+  const submitNewProject = async () => {
+    const name = newProjectName.trim();
     if (!name) return;
 
     try {
       setSavingProject(true);
-      const data = await apiFetch("/projects", { method: "POST", body: { name } });
+      const data = await apiFetch("/projects", {
+        method: "POST",
+        body: { name, template: newProjectTemplate },
+      });
       const created = data?.project || data;
 
       setProjects((prev) => [...prev, created]);
       setCurrentProjectId?.(created.id);
       closeMenus();
+      setShowNewProjectModal(false);
+      setNewProjectName("");
+      setNewProjectTemplate("general");
     } catch (err) {
       console.error("ProjectsPanel: failed to create project:", err);
       alert(`Create project failed: ${err?.message || err}`);
@@ -573,6 +590,99 @@ export default function ProjectsPanel({
             )}
           </div>
         </>
+      )}
+
+      {showNewProjectModal && (
+        <div
+          className="modal-backdrop"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: 16,
+          }}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowNewProjectModal(false);
+          }}
+        >
+          <div
+            style={{
+              width: "min(520px, 100%)",
+              borderRadius: 14,
+              background: "rgba(18,18,18,0.97)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
+              padding: 20,
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>New Project</div>
+
+            <ProjectTemplates
+              selected={newProjectTemplate}
+              onSelect={setNewProjectTemplate}
+            />
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6, color: "var(--text)" }}>
+                Project Name
+              </label>
+              <input
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="My Project"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newProjectName.trim()) submitNewProject();
+                }}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "#fff",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setShowNewProjectModal(false)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  background: "transparent",
+                  color: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitNewProject}
+                disabled={!newProjectName.trim() || savingProject}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  background: !newProjectName.trim() ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.10)",
+                  color: "#fff",
+                  cursor: !newProjectName.trim() ? "not-allowed" : "pointer",
+                }}
+              >
+                {savingProject ? "Creating…" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
