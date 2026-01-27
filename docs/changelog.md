@@ -6,6 +6,54 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Feature: Global Hermeneutic Mode (GHM) — Phase 8.2.7
+
+Foundational implementation of GHM for Scripture-facing epistemic honesty.
+
+**Documentation:**
+- Added `docs/GHM-Spec.md` — five core hermeneutic constraints, canonical authority order, failure conditions
+- Added `docs/When-GHM-Activates.md` — activation hierarchy, project templates, domain examples
+- Updated `docs/INDEX.md` with GHM section and status entries
+- Updated `Roadmap/Roadmap.md` with Phase 8.2.7 section and v1.29 changelog
+
+**Database (Migration 009):**
+- `projects.hermeneutic_mode` — `TEXT DEFAULT NULL` (`'ghm'`, `'none'`, or `NULL`)
+- `projects.profile` — `TEXT DEFAULT NULL` (e.g., `'pronomian_trajectory'`)
+- `messages.ghm_active` — `BOOLEAN DEFAULT FALSE` (audit trail per message)
+- Index on `projects.hermeneutic_mode`
+
+**API — Projects endpoints:**
+- `GET /api/projects` — now includes `hermeneutic_mode` and `profile` fields
+- `POST /api/projects` — accepts `template`, `hermeneutic_mode`, `profile`; template defaults apply GHM for Scripture Study and Theological Research
+- `PATCH /api/projects/:id` — supports updating `hermeneutic_mode`, `profile`, `name`, `description`
+- `GET /api/projects/templates` — returns 5 project templates with GHM status
+
+**GHM Rules Configuration (`api/config/ghm_rules.yml`):**
+- Canonical authority order (Torah → Prophets → Jesus → Apostolic → Post-biblical)
+- 5 constraints (GHM-1 through GHM-5), all strict enforcement
+- 6 post-biblical frameworks requiring disclosure
+- Scripture detection patterns: 57 book names, 8 keywords, verse reference regex, 9 theological markers
+- Output requirements for full and soft GHM
+- Failure conditions
+
+**GHM Services (`api/services/ghm/`):**
+- `config_loader.py` — cached YAML loader with typed accessors
+- `detector.py` — conservative Scripture-facing content detector for fallback activation; returns confidence score and suggested action (`none`/`soft_ghm`/`suggest_ghm`)
+
+**Files changed:**
+- `docs/GHM-Spec.md` (new)
+- `docs/When-GHM-Activates.md` (new)
+- `docs/INDEX.md`
+- `Roadmap/Roadmap.md`
+- `api/migrations/009_ghm_project_fields.sql` (new)
+- `api/config/ghm_rules.yml` (new)
+- `api/services/ghm/__init__.py` (new)
+- `api/services/ghm/config_loader.py` (new)
+- `api/services/ghm/detector.py` (new)
+- `api/routes/projects_api.py`
+
+---
+
 ### Chore: Consolidate context imports, remove unused axios dependency
 
 - Moved `FocusModeContext.jsx` from `contexts/` into `context/` to match all other context files. Removed empty `contexts/` directory.
