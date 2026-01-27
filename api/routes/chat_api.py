@@ -475,11 +475,18 @@ def apply_ghm_pipeline(user_message: str, assistant_response: str, project_id: i
         if ghm_result.disclosure_required and ghm_result.disclosure_text:
             assistant_response = assistant_response + "\n\n---\n" + ghm_result.disclosure_text
 
-    # 5. Build metadata
+    # 5. Acknowledgment for user override
+    if user_override == 'deactivate':
+        assistant_response = "**GHM deactivated for this conversation.**\n\n" + assistant_response
+    elif user_override == 'activate':
+        assistant_response = "**GHM activated for this conversation.**\n\n" + assistant_response
+
+    # 6. Build metadata
     ghm_metadata = {
         'active': ghm_is_active,
         'mode': ghm_status.get('mode'),
         'profile': ghm_status.get('profile'),
+        'override': user_override,
         'frameworks_disclosed': [
             {'name': fw.framework_name, 'origin': fw.origin}
             for fw in (ghm_result.frameworks_used if ghm_result else [])
