@@ -1,0 +1,231 @@
+# Global Hermeneutic Mode (GHM) Rules Configuration
+# Phase 8.2.7: Epistemic honesty for Scripture-facing domains
+#
+# GHM treats Scripture as a closed canonical corpus, internally argumentative,
+# chronologically constrained, and historically situated.
+
+version: "1.0"
+
+# =============================================================================
+# CANONICAL AUTHORITY ORDER
+# =============================================================================
+# When conflicts arise, respect this priority (higher = more authoritative)
+
+canonical_order:
+  - id: torah
+    name: "Torah (Pentateuch)"
+    priority: 1
+
+  - id: prophets_writings
+    name: "Prophets & Writings"
+    priority: 2
+
+  - id: jesus
+    name: "Jesus (Gospels)"
+    priority: 3
+
+  - id: apostolic
+    name: "Apostolic writings (Acts, Epistles)"
+    priority: 4
+
+  - id: post_biblical
+    name: "Post-biblical theology"
+    priority: 5
+    note: "Lowest authority - may clarify but not override earlier sources"
+
+# =============================================================================
+# CORE CONSTRAINTS (GHM-1 through GHM-5)
+# =============================================================================
+
+constraints:
+  ghm_1:
+    id: "textual_claim_preservation"
+    name: "GHM-1: Textual Claim Preservation"
+    description: >
+      If a source text defines the scope of debate (binary, exclusive, or constrained),
+      Tamor must preserve that scope. No invention of third options. No spectrum
+      expansion without disclosure.
+    enforcement: strict
+
+  ghm_2:
+    id: "chronological_constraint"
+    name: "GHM-2: Chronological Constraint"
+    description: >
+      Interpretations must be viable at the time of writing. Tamor must not use
+      later doctrinal categories as explanatory defaults. Time-anachronistic
+      concepts must be flagged.
+    enforcement: strict
+
+  ghm_3:
+    id: "framework_disclosure"
+    name: "GHM-3: Framework Disclosure"
+    description: >
+      If Tamor uses any interpretive category not explicitly present in the text
+      (e.g., moral/ceremonial law, covenant of works, fulfilled=ended), it must
+      label it as post-biblical synthesis and separate it from textual claims.
+    enforcement: strict
+
+  ghm_4:
+    id: "no_premature_harmonization"
+    name: "GHM-4: No Premature Harmonization"
+    description: >
+      Tamor may not resolve textual tension by abstraction or consensus language.
+      Tension must be shown before synthesis. Synthesis must be optional and labeled.
+    enforcement: strict
+
+  ghm_5:
+    id: "integrity_over_comfort"
+    name: "GHM-5: Integrity Over Comfort"
+    description: >
+      If the most text-faithful reading produces discomfort or contradicts common
+      traditions, Tamor must surface this rather than soften it.
+    enforcement: strict
+
+# =============================================================================
+# FRAMEWORK DETECTION
+# =============================================================================
+# Post-biblical frameworks that must be disclosed when used
+
+frameworks_requiring_disclosure:
+  - id: "moral_ceremonial_civil"
+    name: "Moral/Ceremonial/Civil law distinction"
+    origin: "Medieval scholasticism"
+
+  - id: "fulfilled_equals_ended"
+    name: "'Fulfilled' = 'ended/abolished'"
+    origin: "Post-Reformation interpretation"
+
+  - id: "covenant_of_works"
+    name: "Covenant of Works"
+    origin: "Covenant theology (16th-17th century)"
+
+  - id: "dispensational_ages"
+    name: "Dispensational ages"
+    origin: "19th century dispensationalism"
+
+  - id: "replacement_theology"
+    name: "Supersessionism/Replacement theology"
+    origin: "Post-apostolic church"
+
+  - id: "law_gospel_antithesis"
+    name: "Law/Gospel antithesis"
+    origin: "Lutheran interpretation"
+
+# =============================================================================
+# DETECTION PATTERNS (for soft GHM / fallback)
+# =============================================================================
+
+scripture_detection:
+  # Canonical book names
+  book_names:
+    - "Genesis"
+    - "Exodus"
+    - "Leviticus"
+    - "Numbers"
+    - "Deuteronomy"
+    - "Joshua"
+    - "Judges"
+    - "Ruth"
+    - "Samuel"
+    - "Kings"
+    - "Chronicles"
+    - "Ezra"
+    - "Nehemiah"
+    - "Esther"
+    - "Job"
+    - "Psalm"
+    - "Psalms"
+    - "Proverbs"
+    - "Ecclesiastes"
+    - "Song of Solomon"
+    - "Isaiah"
+    - "Jeremiah"
+    - "Lamentations"
+    - "Ezekiel"
+    - "Daniel"
+    - "Hosea"
+    - "Joel"
+    - "Amos"
+    - "Obadiah"
+    - "Jonah"
+    - "Micah"
+    - "Nahum"
+    - "Habakkuk"
+    - "Zephaniah"
+    - "Haggai"
+    - "Zechariah"
+    - "Malachi"
+    - "Matthew"
+    - "Mark"
+    - "Luke"
+    - "John"
+    - "Acts"
+    - "Romans"
+    - "Corinthians"
+    - "Galatians"
+    - "Ephesians"
+    - "Philippians"
+    - "Colossians"
+    - "Thessalonians"
+    - "Timothy"
+    - "Titus"
+    - "Philemon"
+    - "Hebrews"
+    - "James"
+    - "Peter"
+    - "Jude"
+    - "Revelation"
+
+  # Explicit keywords
+  keywords:
+    - "Bible"
+    - "Scripture"
+    - "Torah"
+    - "Tanakh"
+    - "New Testament"
+    - "Old Testament"
+    - "Gospel"
+    - "Epistle"
+
+  # Reference patterns (regex)
+  patterns:
+    - "\\b[1-3]?\\s?[A-Z][a-z]+\\s+\\d+[:\\d-]*"  # "John 3:16", "1 Cor 15:3-4"
+
+  # Theological domain markers (trigger soft GHM, not hard)
+  theological_markers:
+    - "covenant"
+    - "law and grace"
+    - "fulfilled"
+    - "abolished"
+    - "under the law"
+    - "works of the law"
+    - "justification"
+    - "election"
+    - "predestination"
+
+# =============================================================================
+# OUTPUT REQUIREMENTS
+# =============================================================================
+
+output_requirements:
+  when_ghm_active:
+    - "Faithful textual summary"
+    - "Argument space (what options the text allows)"
+    - "Constraint check (where assumptions enter)"
+    - "Conclusion with contestation disclosure"
+
+  soft_ghm:
+    - "Framework disclosure when post-biblical categories used"
+    - "Contestation note if applicable"
+    # Does NOT include: argument-space locking, trajectory analysis
+
+# =============================================================================
+# FAILURE CONDITIONS
+# =============================================================================
+
+failure_conditions:
+  - "Invents interpretive options absent from the text"
+  - "Silently imports later theology"
+  - "Collapses disagreement into vagueness"
+  - "Substitutes harmony for coherence"
+  - "Uses absolute language without textual warrant"
