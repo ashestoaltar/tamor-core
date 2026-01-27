@@ -6,6 +6,51 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Feature: GHM Profile System — Pronomian Trajectory
+
+**Purpose:** Add a thin observational profile layer that operates WITHIN GHM. Profiles add questions and evidence weighting, never prescribe conclusions. Core rule: "Profiles may ask harder questions, never give harder answers."
+
+**Profile Loader (`api/services/ghm/profile_loader.py`):**
+- `load_profile()` — loads YAML profile definitions from `api/config/profiles/`, cached with `@lru_cache`
+- `get_available_profiles()` — scans directory, returns metadata list
+- `get_profile_prompt_addition()` — builds system prompt section from profile config (weighting, questions, plausibility notes, guardrails, disclosure)
+- `is_valid_profile()` — existence check
+
+**Profile Config (`api/config/profiles/pronomian_trajectory.yml`):**
+- Evidence weighting: chronological continuity (0.7), explicit over inferred (0.8), silence as silence (0.6)
+- 5 question prompts (explicit discontinuity, warrant check, Nazarene practice, canonical trajectory, eschatological check)
+- 4 plausibility notes (Second Temple context, Nazarene practice, Jesus affirmation, Paul upholds)
+- 7 guardrails (never assert, never prescribe, never override GHM, etc.)
+- Output markers: "Trajectory Lens" badge, disclosure text
+
+**Prompt Builder Update:**
+- `build_ghm_system_prompt()` now accepts `profile_id` parameter
+- Profile section injected after GHM base instructions, before frame challenge
+
+**Chat API Wiring:**
+- `get_ghm_prompt_addition()` passes `ghm_status.get('profile')` to prompt builder
+
+**Projects API:**
+- Profile validation on create/update: must exist as YAML file, must have GHM active if `requires_ghm: true`
+- `GET /api/projects/profiles` — new endpoint returning available profiles
+
+**UI:**
+- GHMBadge accepts `profile` prop, shows "Trajectory Lens" secondary badge when active
+- Profile badge with tooltip showing disclosure text
+
+**Files changed:**
+- `api/config/profiles/pronomian_trajectory.yml` (new)
+- `api/services/ghm/profile_loader.py` (new)
+- `api/services/ghm/prompt_builder.py`
+- `api/services/ghm/__init__.py`
+- `api/routes/chat_api.py`
+- `api/routes/projects_api.py`
+- `ui/src/components/GHMBadge/GHMBadge.jsx`
+- `ui/src/components/GHMBadge/GHMBadge.css`
+- `ui/src/components/LeftPanel/ProjectsPanel.jsx`
+
+---
+
 ### Feature: GHM Frame Analyzer and Prompt Builder
 
 **Frame Analyzer (`api/services/ghm/frame_analyzer.py`):**

@@ -36,6 +36,12 @@ from .prompt_builder import (
     build_ghm_system_prompt,
     build_ghm_user_prefix,
 )
+from .profile_loader import (
+    load_profile,
+    get_available_profiles,
+    get_profile_prompt_addition,
+    is_valid_profile,
+)
 
 __all__ = [
     'load_ghm_rules',
@@ -60,4 +66,8 @@ __all__ = [
     'should_challenge_frame',
     'build_ghm_system_prompt',
     'build_ghm_user_prefix',
+    'load_profile',
+    'get_available_profiles',
+    'get_profile_prompt_addition',
+    'is_valid_profile',
 ]

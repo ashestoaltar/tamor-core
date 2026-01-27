@@ -954,8 +954,17 @@ GHM enforces textual-historical discipline when Tamor handles Scripture and Scri
 - `docs/GHM-Spec.md` — Full specification
 - `docs/When-GHM-Activates.md` — Activation rules and examples
 
+**Profile System (Implemented):**
+✅ Profile loader (`profile_loader.py`) with YAML config, caching, validation
+✅ Pronomian Trajectory profile (evidence weighting, question prompts, guardrails)
+✅ Profile injection into GHM system prompt
+✅ Profile validation on project create/update (requires GHM check)
+✅ `GET /api/projects/profiles` endpoint
+✅ Profile badge in GHM badge UI
+
 **Future (Post-GHM):**
-- Profile/Lens system (e.g., Pronomian Trajectory)
+- Additional profiles (e.g., dispensational, covenantal)
+- UI profile selector in project settings
 - PromptPacks for tone/style variants
 - Test harness for regression validation
 
@@ -1166,6 +1175,16 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.36 – 2026-01-27
+
+GHM Profile System:
+- ✅ Profile loader with YAML config and LRU caching
+- ✅ Pronomian Trajectory profile (evidence weighting, 5 question prompts, 4 plausibility notes, 7 guardrails)
+- ✅ Profile injection into GHM system prompt via prompt builder
+- ✅ Profile validation on project create/update
+- ✅ GET /api/projects/profiles endpoint
+- ✅ Profile badge in GHM badge UI
+
 v1.35 – 2026-01-25
 
 PWA refinement:

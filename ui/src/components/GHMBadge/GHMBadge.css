@@ -81,6 +81,20 @@
   font-style: italic;
 }
 
+/* Profile badge */
+.ghm-profile-badge {
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  margin-left: 4px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-soft, var(--border-strong));
+  cursor: default;
+  white-space: nowrap;
+}
+
 /* Framework disclosure in chat messages */
 .ghm-disclosure {
   margin-top: 8px;

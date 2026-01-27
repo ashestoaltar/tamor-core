@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './GHMBadge.css';
 
-function GHMBadge({ active, mode, onClick }) {
+function GHMBadge({ active, mode, profile, onClick }) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   if (!active) {
@@ -27,6 +27,12 @@ function GHMBadge({ active, mode, onClick }) {
         {label}
       </button>
 
+      {profile && (
+        <span className="ghm-profile-badge" title="Trajectory Lens: weights evidence toward canonical continuity">
+          Trajectory Lens
+        </span>
+      )}
+
       {showTooltip && (
         <div className="ghm-tooltip">
           <strong>{label}</strong>
@@ -36,6 +42,12 @@ function GHMBadge({ active, mode, onClick }) {
             <li>Framework disclosure required</li>
             <li>No premature harmonization</li>
           </ul>
+          {profile && (
+            <>
+              <strong style={{ marginTop: 8 }}>Profile: Trajectory Lens</strong>
+              <p>Weights evidence toward canonical continuity. Interpretive framework, not doctrinal assertion.</p>
+            </>
+          )}
           {onClick && (
             <span className="ghm-tooltip-hint">Click to view details</span>
           )}

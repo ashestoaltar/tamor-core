@@ -507,6 +507,7 @@ export default function ProjectsPanel({
                         <GHMBadge
                           active={!!p.hermeneutic_mode && p.hermeneutic_mode !== 'none'}
                           mode={p.hermeneutic_mode === 'ghm' ? 'full' : 'soft_ghm'}
+                          profile={p.profile}
                         />
                         <span className="project-count">
                           {projectConversationCounts[p.id] || 0} conversation

@@ -6,13 +6,19 @@ Builds system prompt additions for GHM-active conversations.
 
 from typing import Optional
 
+from .profile_loader import get_profile_prompt_addition
 
-def build_ghm_system_prompt(frame_challenge: Optional[str] = None) -> str:
+
+def build_ghm_system_prompt(
+    frame_challenge: Optional[str] = None,
+    profile_id: Optional[str] = None,
+) -> str:
     """
     Build GHM system prompt instructions.
 
     Args:
         frame_challenge: Pre-built frame challenge text if question assumes frameworks
+        profile_id: Optional profile to layer on top of GHM
 
     Returns:
         System prompt addition for GHM behavior
@@ -57,6 +63,13 @@ If the text-faithful reading is uncomfortable or contradicts tradition, surface 
 5. **Offer synthesis only as optional** and clearly labeled
 '''
 
+    # Profile section (after base GHM, before frame challenge)
+    profile_section = ''
+    if profile_id:
+        profile_text = get_profile_prompt_addition(profile_id)
+        if profile_text:
+            profile_section = f'\n{profile_text}\n'
+
     if frame_challenge:
         frame_section = f'''
 ### Frame Challenge Required
@@ -67,9 +80,9 @@ The user's question assumes a post-biblical framework. You MUST challenge this f
 
 Do NOT answer within the assumed framework. First explain why the framework is not textually derived, then proceed with direct textual analysis.
 '''
-        return base_instructions + frame_section
+        return base_instructions + profile_section + frame_section
 
-    return base_instructions
+    return base_instructions + profile_section
 
 
 def build_ghm_user_prefix(frame_challenge: Optional[str] = None) -> str:

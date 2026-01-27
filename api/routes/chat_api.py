@@ -510,7 +510,7 @@ def get_ghm_prompt_addition(user_message: str, project_id: int) -> Optional[str]
         if needs_challenge:
             frame_challenge = challenge_text
 
-    return build_ghm_system_prompt(frame_challenge)
+    return build_ghm_system_prompt(frame_challenge, profile_id=ghm_status.get('profile'))
 
 
 def get_or_create_conversation(user_id, conversation_id=None, title="New chat", project_id=None):

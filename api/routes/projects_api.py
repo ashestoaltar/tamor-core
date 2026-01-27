@@ -19,6 +19,7 @@ from services.insights_service import (
     aggregate_project_insights,
     invalidate_project_insights,
 )
+from services.ghm.profile_loader import get_available_profiles, is_valid_profile
 from services.reasoning_service import (
     analyze_file_relationships,
     detect_cross_file_contradictions,
@@ -138,6 +139,16 @@ def create_project():
     if hermeneutic_mode and hermeneutic_mode not in ("ghm", "none"):
         return jsonify({"error": "invalid hermeneutic_mode"}), 400
 
+    # Validate profile
+    if profile:
+        if not is_valid_profile(profile):
+            return jsonify({"error": "invalid profile", "detail": f"Profile '{profile}' not found"}), 400
+        # Check if profile requires GHM
+        from services.ghm.profile_loader import load_profile
+        profile_data = load_profile(profile)
+        if profile_data and profile_data.get('requires_ghm') and hermeneutic_mode != 'ghm':
+            return jsonify({"error": "profile_requires_ghm", "detail": f"Profile '{profile}' requires GHM to be active"}), 400
+
     conn = get_db()
     cur = conn.cursor()
 
@@ -196,8 +207,11 @@ def update_project(project_id):
         params.append(mode)
 
     if "profile" in data:
+        prof = data["profile"]
+        if prof and not is_valid_profile(prof):
+            return jsonify({"error": "invalid profile", "detail": f"Profile '{prof}' not found"}), 400
         updates.append("profile = ?")
-        params.append(data["profile"])
+        params.append(prof)
 
     if not updates:
         return jsonify({"error": "no_fields_to_update"}), 400
@@ -317,6 +331,12 @@ def get_project_templates():
         },
     ]
     return jsonify(templates)
+
+
+@projects_bp.get("/projects/profiles")
+def get_profiles():
+    """Get available GHM profiles."""
+    return jsonify(get_available_profiles())
 
 
 @projects_bp.get("/projects/<int:project_id>/conversations")
