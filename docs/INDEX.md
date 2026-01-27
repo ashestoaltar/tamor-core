@@ -46,6 +46,11 @@ Welcome to Tamor's documentation. This index provides access to all documentatio
 - **Contested Topics** — How disagreement is surfaced
 - **Confidence Rules** — Configured in `config/epistemic_rules.yml`
 
+### Global Hermeneutic Mode
+
+- **[GHM Specification](GHM-Spec.md)** — Core rules for Scripture-facing interpretation
+- **[When GHM Activates](When-GHM-Activates.md)** — Activation hierarchy, templates, examples
+
 ---
 
 ## Operations & Maintenance
@@ -92,6 +97,8 @@ Welcome to Tamor's documentation. This index provides access to all documentatio
 | architecture.md | ✅ Complete | v1.33 (Phase 8.6) |
 | system-config.md | ✅ Complete | Phase 7 |
 | maintenance-runbook.md | ✅ Complete | Phase 7 |
+| GHM-Spec.md | ✅ Complete | v1.29 (Phase 8.2.7) |
+| When-GHM-Activates.md | ✅ Complete | v1.29 (Phase 8.2.7) |
 | INDEX.md | ✅ Complete | v1.33 (Phase 8.6) |
 
 ---

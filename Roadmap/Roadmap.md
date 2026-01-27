@@ -915,6 +915,50 @@ Faithful readers may agree on the text while differing on application.
 
 **The badge doesn't weaken authority — it earns it.**
 
+#### 8.2.7 Global Hermeneutic Mode (GHM)
+
+**Purpose:** Extend epistemic honesty to Scripture-facing domains with specific interpretive constraints.
+
+GHM enforces textual-historical discipline when Tamor handles Scripture and Scripture-derived arguments. It prevents interpretive shortcuts from post-biblical abstraction, premature harmonization, or silent framework importation.
+
+**Activation Model:**
+- Primary: Project-level declaration (`hermeneutic_mode: ghm`)
+- Secondary: Fallback detection for unassigned conversations (conservative, suggestive)
+- Override: User can always activate/deactivate mid-conversation
+
+**Core Constraints (GHM-1 through GHM-5):**
+- GHM-1: Preserve textual claim scope
+- GHM-2: Respect chronological constraint (earlier → later)
+- GHM-3: Disclose frameworks not in the text
+- GHM-4: Show tension before synthesis
+- GHM-5: Surface discomfort rather than soften
+
+**Project Templates:**
+| Template | GHM Status |
+|----------|------------|
+| General | Off |
+| Scripture Study | On |
+| Theological Research | On |
+| Engineering | Off |
+
+**Deliverables:**
+⬜ `hermeneutic_mode` field in projects table
+⬜ `ghm_rules.yml` configuration file
+⬜ Pipeline integration (check project mode, apply constraints)
+⬜ Fallback detection for unassigned conversations
+⬜ User override handling
+⬜ Project template selector in UI
+⬜ GHM indicator badge
+
+**Documentation:**
+- `docs/GHM-Spec.md` — Full specification
+- `docs/When-GHM-Activates.md` — Activation rules and examples
+
+**Future (Post-GHM):**
+- Profile/Lens system (e.g., Pronomian Trajectory)
+- PromptPacks for tone/style variants
+- Test harness for regression validation
+
 ---
 
 ### 8.3 Focus Mode Completion ✅
@@ -1186,6 +1230,13 @@ Completed Phase 8.3 Focus Mode:
 - ✅ Escape key exit via context
 
 v1.29 – 2026-01-26
+
+Added Phase 8.2.7 Global Hermeneutic Mode (GHM):
+- Epistemic honesty extension for Scripture-facing domains
+- Project-level activation with fallback detection
+- Five core hermeneutic constraints (GHM-1 through GHM-5)
+- Project templates (Scripture Study, Theological Research enable GHM)
+- Documentation: GHM-Spec.md, When-GHM-Activates.md
 
 Completed Phase 8.1 Tamor Principles & Boundaries Manifesto:
 - ✅ Created `docs/BOUNDARIES.md` defining Tamor's philosophical limits
