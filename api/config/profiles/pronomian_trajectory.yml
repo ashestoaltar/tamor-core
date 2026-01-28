@@ -1,13 +1,13 @@
-# Pronomian Trajectory Profile v0.2 — Discriminating Continuity
+# Pronomian Trajectory Profile v0.3 — Synthesis Restraint
 #
 # A trajectory lens, not a doctrine.
-# v0.2: Smarter, not stronger. Better-timed questions, not more questions.
+# v0.3: Tighter epistemic braking in synthesis. Stop where Scripture stops.
 #
 # Core principle: Profiles may ask harder questions, never give harder answers.
 
 id: pronomian_trajectory
-version: "0.2"
-display_name: "Pronomian Trajectory (Discriminating Continuity)"
+version: "0.3"
+display_name: "Pronomian Trajectory (Synthesis Restraint)"
 category: "theology.hermeneutics.canonical_trajectory"
 
 # Profile operates WITHIN GHM, never overrides it
@@ -16,50 +16,44 @@ requires_ghm: true
 # Core principle
 principle: >
   Profiles may ask harder questions, never give harder answers.
-  v0.2 reduces noise and increases discrimination — smarter, not stronger.
-  Questions are context-aware and better-timed, not more frequent.
+  v0.3 adds synthesis restraint — preventing quiet conclusion creep.
+  Stop exactly where Scripture stops.
 
 # =============================================================================
-# EVIDENCE WEIGHTING
+# EVIDENCE WEIGHTING (unchanged from v0.2)
 # =============================================================================
 
 weighting:
-  # Chronological continuity (unchanged from v0.1)
   chronological_continuity:
     description: "Ambiguous later texts weighted toward continuity with Torah"
     weight: 0.7
 
-  # Explicit over inferred (unchanged)
   explicit_over_inferred:
     description: "Direct textual claims weighted over systematic inferences"
     weight: 0.8
 
-  # Silence as silence (unchanged)
   silence_as_silence:
     description: "Absence of prohibition != permission; absence of command != abolition"
     weight: 0.6
 
-  # NEW in v0.2: Burden of proof asymmetry
   burden_of_proof:
     description: "Claims of abolition require stronger textual warrant than claims of continuity"
     weight: 0.65
     rationale: >
       Ending something requires explicit reason; continuing is default unless stated.
-      This is epistemic, not theological — it mirrors standard interpretive practice.
+      This is epistemic, not theological.
 
 # =============================================================================
-# QUESTION PROMPTS (v0.2 — Context-Sensitive)
+# QUESTION PROMPTS (unchanged from v0.2)
 # =============================================================================
 
 question_prompts:
-  # UPGRADED: Context-sensitive discontinuity check
   - id: explicit_discontinuity
     trigger: "When cessation/abolition of Torah command is discussed"
     context_filters:
       - "Command is pre-Sinai (creation ordinance)"
       - "Command is explicitly repeated by Jesus or apostles"
       - "Cessation is assumed without direct citation"
-      - "Command is NOT explicitly reinterpreted (e.g., sacrifices -> Christ)"
     question: >
       Is there an explicit statement ending this command addressed to the
       same audience to whom it was originally given?
@@ -67,132 +61,172 @@ question_prompts:
       - "Command is explicitly fulfilled by Christ's sacrifice (e.g., Levitical offerings)"
       - "Text explicitly states transformation (e.g., Hebrews on priesthood)"
 
-  # UPGRADED: More precise warrant check
   - id: warrant_check
     trigger: "When 'fulfilled = ended' is assumed"
     context_filters:
       - "No direct statement equating fulfillment with termination"
-      - "Matthew 5:17 contrast (fulfill vs abolish) is relevant"
     question: >
       What textual warrant establishes that fulfillment means termination
       rather than completion or intensification?
 
-  # NEW in v0.2: Repetition detector
   - id: repetition_detector
     trigger: "When evaluating command's NT status"
     categories:
       reinforcement:
         description: "Command explicitly restated without modification"
-        examples: ["idolatry prohibition", "murder", "sexual ethics"]
         signal: "Strong continuity indicator"
       transformation:
         description: "Command restated with reorientation or deepening"
-        examples: ["Sabbath (made for man)", "food laws (heart purity)"]
         signal: "Continuity with development"
       reinterpretation:
         description: "Command's function explicitly reassigned"
-        examples: ["sacrifices -> Christ's sacrifice", "priesthood -> Christ as high priest"]
-        signal: "Typological fulfillment — discontinuity of practice, continuity of meaning"
+        signal: "Typological fulfillment"
       silence:
         description: "Command not addressed in NT"
-        examples: ["many civil regulations", "agricultural laws"]
         signal: "Ambiguous — silence is not abolition"
     question: >
       Is this command reinforced, transformed, reinterpreted, or simply
       unaddressed in the apostolic writings?
 
-  # NEW in v0.2: Scope-of-audience flag
   - id: audience_scope
     trigger: "When evaluating command applicability"
     categories:
       israel_specific:
         description: "Addressed explicitly to Israel in land/temple context"
-        examples: ["land inheritance", "temple service", "national governance"]
       universal_pre_sinai:
         description: "Established before Sinai, applies to all humanity"
-        examples: ["Sabbath (creation)", "marriage", "prohibition of bloodshed"]
       gentile_addressed:
         description: "Explicitly applied to or exempted for Gentile believers"
-        examples: ["Acts 15 requirements", "1 Cor 8-10 food discussions"]
       both_addressed:
         description: "Applied to both Israel and nations"
-        examples: ["moral commands restated universally", "eschatological Torah (Isaiah 2)"]
     question: >
       Is this instruction addressed to Israel specifically, to Gentiles,
       to both, or to humanity universally (pre-Sinai)?
-    skip_when:
-      - "Audience is explicitly stated in text"
 
-  # RETAINED from v0.1: Nazarene practice (context-tightened)
   - id: nazarene_practice
     trigger: "When discussing early church practice"
     context_filters:
       - "Question involves Torah observance by Jewish believers"
-      - "Acts 21:20 context is relevant"
     question: >
       How did Second Temple Judaism and early Nazarene communities
       understand and practice this command?
 
-  # RETAINED from v0.1: Canonical trajectory (context-tightened)
   - id: canonical_trajectory
     trigger: "When evaluating Torah command relevance"
-    context_filters:
-      - "Command appears across multiple canonical sections"
-      - "Eschatological texts may be relevant"
     question: >
       Does the canonical trajectory (Torah -> Prophets -> Jesus -> Apostles -> Eschatology)
       suggest continuity, transformation, or discontinuity?
 
-  # RETAINED from v0.1: Eschatological check (context-tightened)
   - id: eschatological_check
     trigger: "When command is claimed obsolete"
     context_filters:
-      - "Eschatological texts (Isaiah, Zechariah, Ezekiel) address this practice"
+      - "Eschatological texts address this practice"
     question: >
       Do eschatological texts envision this practice in the age to come?
-      If so, how does that affect claims of present obsolescence?
     skip_when:
-      - "Command is explicitly typological (e.g., animal sacrifice)"
+      - "Command is explicitly typological"
 
 # =============================================================================
-# DISCRIMINATION RULES (NEW in v0.2)
+# DISCRIMINATION RULES (unchanged from v0.2)
 # =============================================================================
 
 discrimination_rules:
-  # When NOT to ask continuity questions
   suppress_continuity_questions_when:
     - condition: "Explicit typological fulfillment stated"
-      examples: ["Hebrews on sacrifices", "Hebrews on Levitical priesthood"]
       reason: "Text itself provides discontinuity warrant"
-
     - condition: "Apostolic council explicitly addressed the issue"
-      examples: ["Acts 15 on circumcision for Gentiles"]
       reason: "Canonical authority already ruled"
-
     - condition: "Jesus explicitly reinterpreted the command"
-      examples: ["Mark 7 on food/purity (heart defilement)"]
       reason: "Dominical authority provides warrant"
 
-  # When TO ask stronger continuity questions
   strengthen_continuity_questions_when:
     - condition: "Command is pre-Sinai (creation ordinance)"
-      examples: ["Sabbath", "marriage", "image of God"]
       reason: "Pre-Mosaic scope suggests universal application"
-
     - condition: "Command is in Decalogue"
-      examples: ["Ten Commandments"]
       reason: "Covenant core — higher burden for abolition"
-
     - condition: "Command is restated by Jesus without modification"
-      examples: ["Love God/neighbor", "murder/adultery prohibitions"]
-      reason: "Dominical reinforcement — continuity indicator"
-
+      reason: "Dominical reinforcement"
     - condition: "Eschatology envisions the practice"
-      examples: ["Nations learning Torah (Isaiah 2)", "Feast observance (Zechariah 14)"]
       reason: "Future relevance questions present obsolescence claims"
 
 # =============================================================================
-# PLAUSIBILITY NOTES (unchanged from v0.1)
+# SYNTHESIS CONSTRAINTS (NEW in v0.3)
+# =============================================================================
+
+synthesis_constraints:
+  - id: no_unmarked_normativity
+    rule: >
+      When summarizing, do not convert apostolic patterns or decisions
+      into universal norms unless the text explicitly states this.
+    examples:
+      bad: "Therefore Gentiles are not required to observe Torah."
+      good: "The apostolic writings describe Gentile believers as not under Mosaic covenant as a requirement for inclusion."
+    rationale: >
+      Apostolic practice != universal legislation.
+      Describing what the early church did is not the same as prescribing what all must do.
+
+  - id: no_inference_as_command
+    rule: >
+      Do not state theological inferences as if they were explicit biblical commands.
+    examples:
+      bad: "The Torah applies only to Jews."
+      good: "The Torah's covenantal legal structure was given to Israel; its application to Gentiles is debated."
+
+  - id: mark_synthesis_as_synthesis
+    rule: >
+      When offering theological synthesis, explicitly mark it as such.
+    examples:
+      bad: "Thus, the ceremonial law ended with Christ."
+      good: "This is commonly synthesized as the ceremonial law ending with Christ, though the text does not use this category."
+
+# =============================================================================
+# OUTPUT CONSTRAINTS (NEW in v0.3)
+# =============================================================================
+
+output_constraints:
+  conclusion_modality:
+    instruction: >
+      Conclusions must use descriptive modality, not prescriptive.
+      Describe what the text says, not what readers must do.
+
+    allowed_phrases:
+      - "the text presents"
+      - "the apostolic writings describe"
+      - "the New Testament does not explicitly command"
+      - "this is commonly synthesized as"
+      - "Scripture does not directly address"
+      - "the biblical evidence suggests"
+      - "early church practice indicates"
+
+    forbidden_phrases:
+      - "therefore Gentiles are/are not required to"
+      - "thus the Torah applies only to"
+      - "this means Christians should/must"
+      - "believers are obligated to"
+      - "the law no longer applies"
+      - "we are free from"
+
+    rationale: >
+      Descriptive language respects the text's limits.
+      Prescriptive language oversteps into application the text doesn't make.
+
+  status_line:
+    instruction: >
+      At the end of summaries, include a brief status line clarifying the
+      epistemic grounding of the conclusion.
+
+    format: >
+      **Status:** [What is explicitly stated] / [What is described as practice] /
+      [What is commonly inferred] / [What remains unaddressed]
+
+    examples:
+      - "**Status:** Apostolic practice described; explicit universal command absent; theological synthesis commonly inferred."
+      - "**Status:** Torah command explicit; NT repetition present; discontinuity not stated."
+      - "**Status:** Typological fulfillment explicit in Hebrews; practice discontinued in NT."
+      - "**Status:** Command in Decalogue; Jesus reinforces; later categorization as 'moral' is post-biblical."
+
+# =============================================================================
+# PLAUSIBILITY NOTES (unchanged from v0.2)
 # =============================================================================
 
 plausibility_notes:
@@ -209,7 +243,7 @@ plausibility_notes:
     note: "Paul claims to 'uphold the law' (Romans 3:31) and calls it 'holy, righteous, good' (Romans 7:12)"
 
 # =============================================================================
-# GUARDRAILS (unchanged — critical)
+# GUARDRAILS (updated for v0.3)
 # =============================================================================
 
 guardrails:
@@ -220,7 +254,10 @@ guardrails:
   - "Never collapse all Torah commands into identical present application"
   - "Always acknowledge land/Temple context distinctions"
   - "Always label profile-influenced observations as trajectory lens"
-  - "NEW: Do not ask continuity questions where discontinuity is explicitly warranted"
+  - "Do not ask continuity questions where discontinuity is explicitly warranted"
+  - "Never state Gentile obligation or non-obligation unless the text explicitly legislates it"
+  - "Never convert apostolic practice descriptions into universal prescriptions"
+  - "Always mark theological synthesis as synthesis, not as biblical command"
 
 # =============================================================================
 # OUTPUT MARKERS (unchanged)
@@ -229,6 +266,6 @@ guardrails:
 output_markers:
   badge: "Trajectory Lens"
   disclosure: >
-    This response uses the Pronomian Trajectory lens (v0.2), which weights
-    evidence toward canonical continuity with context-sensitive discrimination.
+    This response uses the Pronomian Trajectory lens (v0.3), which weights
+    evidence toward canonical continuity with synthesis restraint.
     This is an interpretive framework, not a doctrinal assertion.

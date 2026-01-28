@@ -158,6 +158,47 @@ def get_profile_prompt_addition(profile_id: str) -> Optional[str]:
                 sections.append(f'- {cond} — {reason}')
             sections.append('')
 
+    # Synthesis constraints (v0.3)
+    synth = data.get('synthesis_constraints', [])
+    if synth:
+        sections.append('### Synthesis Constraints (STRICT)')
+        for s in synth:
+            rule = s.get('rule', '').strip()
+            sections.append(f'- {rule}')
+            examples = s.get('examples', {})
+            if examples.get('bad'):
+                sections.append(f'  - BAD: "{examples["bad"]}"')
+            if examples.get('good'):
+                sections.append(f'  - GOOD: "{examples["good"]}"')
+        sections.append('')
+
+    # Output constraints (v0.3)
+    output = data.get('output_constraints', {})
+    modality = output.get('conclusion_modality', {})
+    if modality:
+        instruction = modality.get('instruction', '').strip()
+        sections.append('### Conclusion Modality')
+        sections.append(instruction)
+        allowed = modality.get('allowed_phrases', [])
+        if allowed:
+            sections.append('Allowed: ' + '; '.join(f'"{p}"' for p in allowed))
+        forbidden = modality.get('forbidden_phrases', [])
+        if forbidden:
+            sections.append('Forbidden: ' + '; '.join(f'"{p}"' for p in forbidden))
+        sections.append('')
+
+    status_line = output.get('status_line', {})
+    if status_line:
+        instruction = status_line.get('instruction', '').strip()
+        fmt = status_line.get('format', '').strip()
+        sections.append('### Status Line')
+        sections.append(instruction)
+        if fmt:
+            sections.append(f'Format: {fmt}')
+        for ex in status_line.get('examples', []):
+            sections.append(f'- Example: {ex}')
+        sections.append('')
+
     # Plausibility notes
     notes = data.get('plausibility_notes', [])
     if notes:

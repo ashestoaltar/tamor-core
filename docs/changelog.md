@@ -6,6 +6,26 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Feature: Pronomian Trajectory Profile v0.3 — Synthesis Restraint
+
+**Problem:** Even with GHM + v0.2, responses slide from observation to synthesis too smoothly, converting apostolic practice into normative conclusions without marking them as synthesis.
+
+**New in v0.3:**
+- Synthesis constraints: no unmarked normativity, no inference-as-command, mark synthesis as synthesis
+- Conclusion modality: descriptive language only ("the text presents..."), forbidden prescriptive phrases ("therefore Gentiles must...")
+- Status line: epistemic grounding summary at end of responses (explicit / described / inferred / unaddressed)
+- 3 new guardrails: no Gentile obligation statements without explicit warrant, no apostolic-to-universal conversion, always mark synthesis
+
+**Profile loader updated:**
+- Renders `synthesis_constraints` with bad/good examples
+- Renders `output_constraints` (conclusion modality with allowed/forbidden phrases, status line format with examples)
+
+**Files changed:**
+- `api/config/profiles/pronomian_trajectory.yml`
+- `api/services/ghm/profile_loader.py`
+
+---
+
 ### Style: GHM response formatting — prose mode over outline mode
 
 **Problem:** GHM responses read as study notes — excessive headers, bullet lists, vertical whitespace. Responses should read as polished prose.
