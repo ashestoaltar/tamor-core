@@ -125,7 +125,7 @@ function PipelinePanel({ currentProjectId }) {
   }
 
   // No active pipeline - show template selector
-  if (!pipeline || pipeline.error) {
+  if (!pipeline || pipeline.error || pipeline.current_step == null) {
     return (
       <div className="rp-section">
         <div className="rp-section-header">

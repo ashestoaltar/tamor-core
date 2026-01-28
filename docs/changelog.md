@@ -6,6 +6,19 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Fix: "Step NaN of" shown in Workspace pipeline panel
+
+**Symptom:** Empty box displaying "Step NaN of" appeared above Project Notes in the Workspace tab when no active pipeline existed.
+
+**Root cause:** The pipeline API returned a truthy object without `current_step` or `total_steps` fields. The guard (`!pipeline || pipeline.error`) let it through to the active pipeline view, where `undefined + 1` produced `NaN`.
+
+**Fix:** Added `pipeline.current_step == null` to the guard condition so incomplete pipeline objects fall through to the "No active pipeline" state.
+
+**Files changed:**
+- `ui/src/components/RightPanel/components/PipelinePanel.jsx`
+
+---
+
 ### Feature: Conversation Message Search
 
 **Problem:** Search only matched conversation titles. Users couldn't find conversations by message content (e.g., "that conversation where we discussed Acts 15").
