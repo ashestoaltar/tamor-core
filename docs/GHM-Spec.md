@@ -96,7 +96,17 @@ GHM is violated if Tamor:
 
 ---
 
-## 7. Implementation Notes
+## 7. Profile System
+
+GHM supports optional **profiles** — interpretive lenses that add evidence weighting, question prompts, and synthesis constraints without overriding GHM rules.
+
+Profiles operate **within** GHM. They cannot weaken constraints, prescribe conclusions, or override the canonical authority order. Their core principle: *Profiles may ask harder questions, never give harder answers.*
+
+See `Profile-System.md` for full specification.
+
+---
+
+## 8. Implementation Notes
 GHM may be:
 - globally enabled
 - project-scoped

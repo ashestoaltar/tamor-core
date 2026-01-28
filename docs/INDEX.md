@@ -50,6 +50,7 @@ Welcome to Tamor's documentation. This index provides access to all documentatio
 
 - **[GHM Specification](GHM-Spec.md)** — Core rules for Scripture-facing interpretation
 - **[When GHM Activates](When-GHM-Activates.md)** — Activation hierarchy, templates, examples
+- **[Profile System](Profile-System.md)** — Interpretive lenses within GHM (architecture, design rationale, version history)
 
 ---
 
@@ -99,6 +100,7 @@ Welcome to Tamor's documentation. This index provides access to all documentatio
 | maintenance-runbook.md | ✅ Complete | Phase 7 |
 | GHM-Spec.md | ✅ Complete | v1.29 (Phase 8.2.7) |
 | When-GHM-Activates.md | ✅ Complete | v1.29 (Phase 8.2.7) |
+| Profile-System.md | ✅ Complete | v1.36 (Phase 8.2.7) |
 | INDEX.md | ✅ Complete | v1.33 (Phase 8.6) |
 
 ---
