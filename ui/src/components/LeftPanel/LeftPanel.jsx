@@ -157,6 +157,9 @@ export default function LeftPanel({
                     }}
                   >
                     <div className="search-result-title">{c.title || `Conversation ${c.id}`}</div>
+                    {c.match_snippet && (
+                      <div className="search-result-snippet">{c.match_snippet}</div>
+                    )}
                     <div className="search-result-meta">
                       {formatUtcTimestamp(c.updated_at || c.created_at)}
                     </div>

@@ -48,6 +48,49 @@ def global_search():
         (user_id, like),
     )
     conversations = [dict(r) for r in cur.fetchall()]
+    title_matched_ids = {c["id"] for c in conversations}
+    for c in conversations:
+        c["match_source"] = "title"
+
+    # --- Message content search (exclude title-matched conversations) ---
+    placeholders = ""
+    params = [user_id, like]
+    if title_matched_ids:
+        placeholders = " AND c.id NOT IN ({})".format(
+            ",".join("?" for _ in title_matched_ids)
+        )
+        params.extend(title_matched_ids)
+
+    cur.execute(
+        f"""
+        SELECT c.id, c.title, c.project_id, c.mode, c.created_at, c.updated_at,
+               m.content AS _match_content
+        FROM messages m
+        JOIN conversations c ON c.id = m.conversation_id
+        WHERE c.user_id = ?
+          AND m.content LIKE ?
+          {placeholders}
+        GROUP BY c.id
+        ORDER BY c.updated_at DESC
+        LIMIT 20
+        """,
+        params,
+    )
+    for r in cur.fetchall():
+        row = dict(r)
+        content = row.pop("_match_content", "")
+        # Build a truncated snippet (~150 chars) around the match
+        lower_content = content.lower()
+        idx = lower_content.find(query.lower())
+        if idx >= 0:
+            start = max(0, idx - 40)
+            end = min(len(content), idx + 110)
+            snippet = ("…" if start > 0 else "") + content[start:end].strip() + ("…" if end < len(content) else "")
+        else:
+            snippet = content[:150].strip() + ("…" if len(content) > 150 else "")
+        row["match_source"] = "message"
+        row["match_snippet"] = snippet
+        conversations.append(row)
 
     # --- Project search (name + description) ---
     cur.execute(

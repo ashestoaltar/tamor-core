@@ -1192,6 +1192,33 @@ export default function ChatPanel({
       {/* Mobile header with Tools button */}
       {isMobile && onOpenRightPanel && (
         <div className="chat-mobile-header">
+          {activeConversationId && messages.length > 0 && (
+            <button
+              type="button"
+              className="chat-export-btn"
+              onClick={async () => {
+                try {
+                  const data = await apiFetch(`/conversations/${activeConversationId}/export?format=markdown`);
+                  const blob = new Blob([data.markdown], { type: "text/markdown" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = data.filename || "conversation.md";
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch (err) {
+                  console.error("Export failed:", err);
+                }
+              }}
+              title="Export conversation"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             className="chat-mobile-tools-btn"
@@ -1205,6 +1232,37 @@ export default function ChatPanel({
               <rect x="3" y="14" width="7" height="7" />
             </svg>
             <span>Tools</span>
+          </button>
+        </div>
+      )}
+
+      {/* Desktop export button */}
+      {!isMobile && activeConversationId && messages.length > 0 && (
+        <div className="chat-desktop-header">
+          <button
+            type="button"
+            className="chat-export-btn"
+            onClick={async () => {
+              try {
+                const data = await apiFetch(`/conversations/${activeConversationId}/export?format=markdown`);
+                const blob = new Blob([data.markdown], { type: "text/markdown" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = data.filename || "conversation.md";
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (err) {
+                console.error("Export failed:", err);
+              }
+            }}
+            title="Export conversation"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
           </button>
         </div>
       )}

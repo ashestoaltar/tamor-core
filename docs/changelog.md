@@ -6,6 +6,36 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Feature: Conversation Message Search
+
+**Problem:** Search only matched conversation titles. Users couldn't find conversations by message content (e.g., "that conversation where we discussed Acts 15").
+
+**Fix:** Extended `global_search()` to also search `messages.content` via SQL LIKE. Message-matched results appear after title matches, with a truncated snippet showing the matching text. Frontend renders snippets below conversation titles in search results.
+
+**Files changed:**
+- `api/routes/search_api.py`
+- `ui/src/components/LeftPanel/LeftPanel.jsx`
+- `ui/src/components/LeftPanel/LeftPanel.css`
+
+---
+
+### Feature: Conversation Export
+
+**Purpose:** Export any conversation as a downloadable markdown file.
+
+**Implementation:**
+- New endpoint: `GET /api/conversations/:id/export?format=markdown`
+- Returns formatted markdown with title, export date, project name, and all messages with role labels
+- Frontend adds a download button (arrow icon) in the chat header area
+- Button visible on both mobile and desktop when a conversation has messages
+
+**Files changed:**
+- `api/routes/conversations_api.py`
+- `ui/src/components/ChatPanel/ChatPanel.jsx`
+- `ui/src/components/ChatPanel/ChatPanel.css`
+
+---
+
 ### Feature: Pronomian Trajectory Profile v0.3 — Synthesis Restraint
 
 **Problem:** Even with GHM + v0.2, responses slide from observation to synthesis too smoothly, converting apostolic practice into normative conclusions without marking them as synthesis.

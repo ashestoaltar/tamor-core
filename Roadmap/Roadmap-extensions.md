@@ -354,6 +354,49 @@ The Writer Agent (Phase 6.2) already extracts style preferences from memories ta
 
 ---
 
+## I. UX & Interaction
+
+### 16. Conversation Bookmarking
+**Status:** 🟡 Idea
+**Maps To:** Phase 3.2 – UI Refactor
+
+- Mark significant points in a conversation for later reference
+- Quick-jump to bookmarked messages
+- Bookmarks visible in conversation list or sidebar
+
+---
+
+### 17. Keyboard Shortcuts
+**Status:** 🟡 Idea
+**Maps To:** Phase 3.2 – UI Refactor
+
+- New conversation (Ctrl+N / Cmd+N)
+- Switch project (Ctrl+P / Cmd+P)
+- Focus mode toggle (Ctrl+Shift+F)
+- Navigate conversation list (arrow keys)
+
+---
+
+### 18. Response Regeneration
+**Status:** 🟡 Idea
+**Maps To:** Phase 3.2 – UI Refactor
+
+- Re-run a question with current GHM/profile settings
+- Useful after changing project profile or hermeneutic mode
+- Show previous and regenerated responses side-by-side or as replacement
+
+---
+
+### 19. UI Profile Selector
+**Status:** 🟡 Idea
+**Maps To:** Phase 3.2 – UI Refactor
+
+- Project settings modal with profile dropdown
+- Preview profile description and constraints before applying
+- Quick-switch profiles without navigating to project settings
+
+---
+
 ## Promotion Checklist
 
 An item may be promoted to the authoritative roadmap only when:

@@ -110,6 +110,15 @@
   text-overflow: ellipsis;
 }
 
+.search-result-snippet {
+  font-size: 0.72rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
 .search-result-meta {
   font-size: 0.7rem;
   color: var(--text-muted);

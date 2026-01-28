@@ -192,6 +192,78 @@ def update_conversation_project(conv_id):
     return jsonify({"id": conv_id, "project_id": project_id})
 
 
+@conversations_bp.get("/conversations/<int:conv_id>/export")
+def export_conversation(conv_id):
+    """Export a conversation as markdown."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT c.id, c.title, c.project_id, c.created_at,
+               p.name AS project_name
+        FROM conversations c
+        LEFT JOIN projects p ON p.id = c.project_id
+        WHERE c.id = ? AND c.user_id = ?
+        """,
+        (conv_id, user_id),
+    )
+    conv = cur.fetchone()
+    if not conv:
+        conn.close()
+        return jsonify({"error": "not_found"}), 404
+
+    conv = dict(conv)
+
+    cur.execute(
+        """
+        SELECT role, content, created_at
+        FROM messages
+        WHERE conversation_id = ?
+        ORDER BY created_at ASC
+        """,
+        (conv_id,),
+    )
+    messages = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    title = conv.get("title") or f"Conversation {conv_id}"
+    project_name = conv.get("project_name") or "Unassigned"
+    export_date = __import__("datetime").date.today().isoformat()
+
+    lines = [
+        f"# {title}",
+        "",
+        f"**Exported:** {export_date}",
+        f"**Project:** {project_name}",
+        "",
+        "---",
+    ]
+
+    for msg in messages:
+        role_label = "User" if msg["role"] == "user" else "Tamor"
+        lines.append("")
+        lines.append(f"**{role_label}**")
+        lines.append("")
+        lines.append(msg.get("content") or "")
+        lines.append("")
+        lines.append("---")
+
+    markdown = "\n".join(lines) + "\n"
+
+    # Build a safe filename
+    safe_title = "".join(
+        c if c.isalnum() or c in " -_" else "" for c in title
+    ).strip().replace(" ", "-")[:60] or "conversation"
+    filename = f"{safe_title}.md"
+
+    return jsonify({"markdown": markdown, "filename": filename})
+
+
 @conversations_bp.get("/conversations/search")
 def search_conversations():
     """
