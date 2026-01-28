@@ -6,6 +6,19 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-01-27
 
+### Fix: Blank screen when clicking "Start Pipeline"
+
+**Symptom:** Clicking "Start Pipeline" in the Workspace tab caused a blank screen requiring a page refresh.
+
+**Root cause:** The `/api/pipelines` endpoint returns `{ pipelines: [...] }` but `PipelinePanel.jsx` read `data.templates`, which was `undefined`. The fallback `data.templates || data || []` resolved to `data` (the entire response object, not an array), causing `.map()` to crash React.
+
+**Fix:** Changed fallback to `data.templates || data.pipelines || []`.
+
+**Files changed:**
+- `ui/src/components/RightPanel/components/PipelinePanel.jsx`
+
+---
+
 ### Fix: "Step NaN of" shown in Workspace pipeline panel
 
 **Symptom:** Empty box displaying "Step NaN of" appeared above Project Notes in the Workspace tab when no active pipeline existed.

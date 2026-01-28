@@ -39,7 +39,7 @@ function PipelinePanel({ currentProjectId }) {
   const loadTemplates = async () => {
     try {
       const data = await apiFetch("/pipelines");
-      setTemplates(data.templates || data || []);
+      setTemplates(data.templates || data.pipelines || []);
     } catch (err) {
       console.error("Failed to load templates", err);
     }
