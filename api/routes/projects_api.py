@@ -19,7 +19,7 @@ from services.insights_service import (
     aggregate_project_insights,
     invalidate_project_insights,
 )
-from services.ghm.profile_loader import get_available_profiles, is_valid_profile
+from services.ghm.profile_loader import get_available_profiles, is_valid_profile, load_profile
 from services.reasoning_service import (
     analyze_file_relationships,
     detect_cross_file_contradictions,
@@ -144,7 +144,6 @@ def create_project():
         if not is_valid_profile(profile):
             return jsonify({"error": "invalid profile", "detail": f"Profile '{profile}' not found"}), 400
         # Check if profile requires GHM
-        from services.ghm.profile_loader import load_profile
         profile_data = load_profile(profile)
         if profile_data and profile_data.get('requires_ghm') and hermeneutic_mode != 'ghm':
             return jsonify({"error": "profile_requires_ghm", "detail": f"Profile '{profile}' requires GHM to be active"}), 400
@@ -337,6 +336,16 @@ def get_project_templates():
 def get_profiles():
     """Get available GHM profiles."""
     return jsonify(get_available_profiles())
+
+
+@projects_bp.post("/projects/profiles/clear-cache")
+def clear_profile_cache():
+    """Clear the profile loader LRU cache (for hot-reloading YAML changes)."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+    load_profile.cache_clear()
+    return jsonify({"ok": True, "message": "Profile cache cleared"})
 
 
 @projects_bp.get("/projects/<int:project_id>/conversations")

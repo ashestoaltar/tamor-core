@@ -2,7 +2,7 @@
 
 **Document Type:** Internal Specification  
 **Status:** Authoritative  
-**Last Updated:** 2026-01-26
+**Last Updated:** 2026-01-27
 
 ---
 
