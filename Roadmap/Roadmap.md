@@ -471,21 +471,21 @@ Phase 6 – Advanced Assistant Evolution
 
 ✅ UI with tabbed Importers/Exporters/References sections
 
-### Phase 6.4 — Plugin Framework Expansion
+### Phase 6.4 — Plugin Framework Expansion (Complete)
 
-**Status:** Planned (after Phase 8 stabilization)
+**Status:** Complete
 
 **Purpose:** Extend Tamor's capabilities through exporters, integrations, and external content management.
 
 #### Prioritized Items
 
-| Priority | Item | Description | Dependencies |
-|----------|------|-------------|--------------|
-| 1 | **Markdown export** | Export project conversations and notes as formatted .md files | None |
-| 2 | **PDF export** | Generate polished PDF reports from projects | Markdown export |
-| 3 | **Zotero integration** | Import references, PDFs, and citations from Zotero library | Library system (Phase 7) |
-| 4 | **Plugin config persistence** | Store per-project plugin settings | Plugin architecture |
-| 5 | **Reference caching/versioning** | Cache external content with version tracking | Library system |
+| Priority | Item | Status | Description |
+|----------|------|--------|-------------|
+| 1 | **Markdown export** | ✅ | Export project conversations and notes as formatted .md files |
+| 2 | **PDF export** | ✅ | Generate polished PDF reports from projects (WeasyPrint) |
+| 3 | **Zotero integration** | ✅ | Read from local Zotero SQLite database |
+| 4 | **Plugin config persistence** | ✅ | Store per-project plugin settings in database |
+| 5 | **Reference caching/versioning** | ✅ | Cache external content with version tracking |
 
 #### Implementation Notes
 
@@ -531,12 +531,12 @@ These items may be promoted based on user need:
 
 #### Success Criteria
 
-- [ ] Can export any project as clean markdown
-- [ ] Can generate PDF report from project
-- [ ] Can search Zotero library from Tamor
-- [ ] Can cite Zotero references in writing
-- [ ] Plugin settings persist per project
-- [ ] External references cached with versions
+- [x] Can export any project as clean markdown
+- [x] Can generate PDF report from project
+- [x] Can search Zotero library from Tamor (API ready, UI when needed)
+- [x] Can cite Zotero references in writing (API ready)
+- [x] Plugin settings persist per project
+- [x] External references cached with versions
 
 ## Phase 7 – Global Library System
 
@@ -1220,6 +1220,17 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.38 – 2026-01-29
+
+Completed Phase 6.4 Plugin Framework Expansion:
+- ✅ Markdown export (plugin + API + UI menu item)
+- ✅ PDF export with WeasyPrint (styled output, Tamor branding)
+- ✅ Plugin config persistence (per-project settings in database)
+- ✅ Reference caching with version tracking (content hash, TTL, cleanup)
+- ✅ Zotero integration (read local SQLite, collections, items, citations)
+
+Backend-first approach: API endpoints ready, UI to be added when friction demands it.
+
 v1.37 – 2026-01-29
 
 Updated Phase 6.4 Plugin Framework Expansion:
