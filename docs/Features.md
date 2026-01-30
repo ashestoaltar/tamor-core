@@ -11,12 +11,14 @@ This document provides a reference for Tamor's major features, their APIs, and u
 3. [Multi-Agent System](#multi-agent-system)
 4. [Memory System](#memory-system)
 5. [Plugin Framework](#plugin-framework)
-6. [Project Pipelines](#project-pipelines)
-7. [Auto-Insights & Reasoning](#auto-insights--reasoning)
-8. [Media & Transcription](#media--transcription)
-9. [Epistemic Honesty System](#epistemic-honesty-system)
-10. [Focus Mode](#focus-mode)
-11. [Progressive Web App (PWA)](#progressive-web-app-pwa)
+6. [Zotero Integration](#zotero-integration)
+7. [Reference Cache](#reference-cache)
+8. [Project Pipelines](#project-pipelines)
+9. [Auto-Insights & Reasoning](#auto-insights--reasoning)
+10. [Media & Transcription](#media--transcription)
+11. [Epistemic Honesty System](#epistemic-honesty-system)
+12. [Focus Mode](#focus-mode)
+13. [Progressive Web App (PWA)](#progressive-web-app-pwa)
 
 ---
 
@@ -282,7 +284,7 @@ Extensible system for importers, exporters, and reference backends.
    - Local Folder, Audio Transcript, Bulk PDF
 
 2. **Exporters**: Export project data
-   - ZIP Download, JSON Export
+   - ZIP Download, JSON Export, Markdown Export, PDF Export
 
 3. **References**: External content sources
    - Local Docs, Web Fetch
@@ -298,6 +300,112 @@ Extensible system for importers, exporters, and reference backends.
 | `/api/plugins/references` | GET | List reference plugins |
 | `/api/plugins/references/<id>/list` | POST | List available items |
 | `/api/plugins/references/<id>/fetch` | POST | Fetch item content |
+
+### Project Export Endpoints
+
+Direct export endpoints for common formats:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/projects/<id>/export/markdown` | GET | Export as Markdown file |
+| `/api/projects/<id>/export/pdf` | GET | Export as styled PDF |
+
+**Query Parameters:**
+- `include_system=true` — Include system messages (default: false)
+- `include_metadata=true` — Include timestamps and counts (default: true)
+- `include_notes=true` — Include project notes (default: true)
+
+### Plugin Configuration
+
+Per-project plugin settings stored in database:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/projects/<id>/plugins` | GET | Get all plugin configs |
+| `/api/projects/<id>/plugins/<plugin_id>` | GET | Get specific plugin config |
+| `/api/projects/<id>/plugins/<plugin_id>` | PATCH | Update plugin config |
+| `/api/projects/<id>/plugins/<plugin_id>` | DELETE | Remove plugin config |
+
+### Example: Markdown Export
+
+```bash
+curl http://localhost:5055/api/projects/13/export/markdown \
+  -o project_export.md
+```
+
+### Example: PDF Export
+
+```bash
+curl http://localhost:5055/api/projects/13/export/pdf \
+  -o project_export.pdf
+```
+
+---
+
+## Zotero Integration
+
+Import references, PDFs, and citations from local Zotero library.
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/integrations/zotero/status` | GET | Check if Zotero available |
+| `/api/integrations/zotero/collections` | GET | List Zotero collections |
+| `/api/integrations/zotero/items` | GET | List items (filterable) |
+| `/api/integrations/zotero/items/<key>` | GET | Get item details |
+| `/api/integrations/zotero/items/<key>/citation` | GET | Get formatted citation |
+| `/api/integrations/zotero/search?q=` | GET | Search items |
+
+**Query Parameters for `/items`:**
+- `collection_id` — Filter by collection
+- `type` — Filter by item type (book, article, etc.)
+- `limit` — Max items to return (default: 100)
+
+### Example: Check Zotero Status
+
+```bash
+curl http://localhost:5055/api/integrations/zotero/status
+# Returns: {"available": true, "db_path": "...", "storage_path": "..."}
+```
+
+### Example: Search Zotero
+
+```bash
+curl "http://localhost:5055/api/integrations/zotero/search?q=epistemology&limit=10"
+```
+
+### Setup Notes
+
+Zotero data directory is auto-detected from:
+- Linux: `~/.zotero/zotero/`
+- macOS: `~/Library/Application Support/Zotero/`
+- Custom: `~/Zotero/`
+
+For NAS setup, point Zotero's data directory to NAS path.
+
+---
+
+## Reference Cache
+
+Cache external content (web, Sefaria, etc.) with version tracking.
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/cache/stats` | GET | Cache statistics |
+| `/api/cache/references` | GET | List cached URLs |
+| `/api/cache/references/<url>` | GET | Get cache info for URL |
+| `/api/cache/references/<url>/versions` | GET | Get version history |
+| `/api/cache/cleanup` | POST | Remove expired entries |
+
+### Features
+
+- Content deduplication via SHA256 hash
+- Automatic version increment when content changes
+- TTL support with expiration tracking
+- Version history for any URL
 
 ### Example: ZIP Export
 
@@ -1146,4 +1254,4 @@ iOS requires additional meta tags in `index.html`:
 
 ---
 
-*Last updated: 2026-01-25 (v1.34)*
+*Last updated: 2026-01-29 (v1.38 - Phase 6.4 complete)*

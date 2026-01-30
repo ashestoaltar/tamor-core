@@ -77,7 +77,17 @@ Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in A
 
 ## Session Notes
 
-### 2026-01-29
+### 2026-01-29 (Phase 6.4 Complete)
+- **Phase 6.4 Plugin Framework Expansion** — all 5 items complete:
+  - Markdown export (plugin + API + UI menu)
+  - PDF export (WeasyPrint, styled output)
+  - Plugin config persistence (per-project settings in DB)
+  - Reference caching with version tracking
+  - Zotero integration (reads local SQLite, API ready)
+- Backend-first approach: APIs ready, UI when friction demands it
+- Zotero will be set up alongside NAS library system
+
+### 2026-01-29 (Earlier)
 - Created CLAUDE.md for session context
 - Cleaned up roadmap inconsistencies (Focus Mode, completed extensions)
 - Prioritized Phase 6.4 plugin items (Markdown/PDF export, Zotero, etc.)
