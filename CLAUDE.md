@@ -63,6 +63,24 @@ make ui         # UI only
 
 Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in API responses.
 
+## Next Steps
+
+- [ ] **Install Ollama + local LLM** — Add as fallback/offline provider
+  ```bash
+  # Install Ollama
+  curl -fsSL https://ollama.com/install.sh | sh
+
+  # Pull recommended model
+  ollama pull llama3.1:8b
+  ```
+  Then wire into `api/services/llm_service.py` as secondary provider.
+
 ## Session Notes
 
-<!-- Add notes from sessions here -->
+### 2026-01-29
+- Created CLAUDE.md for session context
+- Cleaned up roadmap inconsistencies (Focus Mode, completed extensions)
+- Prioritized Phase 6.4 plugin items (Markdown/PDF export, Zotero, etc.)
+- System maintenance: disabled ethernet (wifi only), removed Cardano (freed 316GB)
+- Installed all SWORD modules (KJV, ASV, YLT, OSHB, LXX, SBLGNT, TR)
+- Downloaded Whisper models (base, small, large-v2)

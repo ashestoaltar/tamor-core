@@ -1,6 +1,6 @@
 # Tamor System Configuration
 
-Last updated: 2026-01-25
+Last updated: 2026-01-29
 
 ## Hardware
 
@@ -192,6 +192,35 @@ make health-hw   # Hardware health check
 ---
 
 ## Changelog
+
+### 2026-01-29 - Cleanup & Model Expansion
+
+**Disk Cleanup**
+- Removed Cardano node installation (`/opt/cardano`) — freed 316GB
+- Removed Cardano systemd services (cnode, cnode-logmonitor, etc.)
+- Disk usage: 41% → 5%
+
+**Network**
+- Disabled ethernet (wired) connection, using wifi only
+- Resolved intermittent connectivity caused by dual-interface routing
+
+**SWORD Bible Modules**
+- Installed all available modules:
+  - KJV, ASV, YLT (English)
+  - OSHB (Hebrew OT with morphology)
+  - LXX (Septuagint Greek OT)
+  - SBLGNT, TR (Greek NT)
+- Location: `/home/tamor/data/references/sword/`
+
+**Whisper Transcription Models**
+- Downloaded additional models for faster-whisper:
+  - `base` (default, ~150MB)
+  - `small` (better accuracy, ~500MB)
+  - `large-v2` (highest accuracy, ~3GB)
+- Location: `~/.cache/huggingface/hub/`
+
+**Next Step (documented)**
+- Install Ollama + llama3.1:8b for local LLM fallback
 
 ### 2026-01-25 - Maintenance & Security Audit
 
