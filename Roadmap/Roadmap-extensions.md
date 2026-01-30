@@ -49,34 +49,40 @@ Constraints:
 ---
 
 ### 3. Auto-Insights Expansion
-**Status:** 🟡 Idea
-**Maps To:** Phase 4.1 – Auto-Insights Engine
+**Status:** 🟢 Completed
+**Maps To:** Phase 4.1 – Auto-Insights Engine / Phase 4.2 – Multi-File Reasoning
 
-- Detect contradictions across documents
-- Identify missing specs or assumptions
-- Highlight inconsistencies early
+- ✅ Detect contradictions across documents (Phase 4.2)
+- ✅ Identify missing specs or assumptions (Phase 4.1)
+- ✅ Highlight inconsistencies early (Phase 4.2 logic flow)
+
+> Implemented in Phase 4.1 (file insights) and Phase 4.2 (cross-document reasoning).
 
 ---
 
 ## B. Input, Media, and Accessibility
 
 ### 4. Voice-to-Text Input (Android-First)
-**Status:** 🔵 Investigating
-**Maps To:** Phase 3.2 – UI Refactor
+**Status:** 🟢 Completed
+**Maps To:** Phase 3.4.3 – Voice Input/Output
 
-- Browser-native speech-to-text
-- Append-to-chat behavior
-- Mobile-first UX
+- ✅ Browser-native speech-to-text (Web Speech API)
+- ✅ Append-to-chat behavior
+- ✅ Mobile-first UX
+
+> Implemented in Phase 3.4.3 with useVoiceInput hook and VoiceButton component.
 
 ---
 
 ### 5. Audio Reading Mode (Read Aloud)
-**Status:** 🟡 Idea
-**Maps To:** Phase 5.3 – Media & Transcript Integration
+**Status:** 🟢 Completed
+**Maps To:** Phase 3.4.3 – Voice Input/Output
 
-- Read articles, summaries, and structured content aloud
-- Simple TTS pipeline
-- Explicitly non-authoritative delivery
+- ✅ Read articles, summaries, and structured content aloud
+- ✅ Simple TTS pipeline (Web Speech API)
+- ✅ Auto-read responses option
+
+> Implemented in Phase 3.4.3 with useVoiceOutput hook and read-aloud button on messages.
 
 ---
 

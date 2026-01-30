@@ -203,15 +203,17 @@ Align the UI with Tamor's core philosophy (Wholeness • Light • Insight). Sim
 
 ✅ Auto-read responses option
 
-3.4.4 Focus Mode (Optional)
+3.4.4 Focus Mode (Complete)
 
-⬜ Single-screen chat, no panels
+✅ Single-screen chat, no panels
 
-⬜ Large central mic button
+✅ Large central mic button
 
-⬜ Minimal chrome (project indicator + settings access only)
+✅ Minimal chrome (project indicator + settings access only)
 
-⬜ Easy toggle in/out of Focus Mode
+✅ Easy toggle in/out of Focus Mode
+
+> Note: Completed in Phase 8.3
 
 **Success Criteria:**
 - ✅ New user sees clean, simple chat interface by default
@@ -469,29 +471,72 @@ Phase 6 – Advanced Assistant Evolution
 
 ✅ UI with tabbed Importers/Exporters/References sections
 
-6.4 Plugin Framework Expansion (Future)
+### Phase 6.4 — Plugin Framework Expansion
 
-Additional exporters:
+**Status:** Planned (after Phase 8 stabilization)
 
-⬜ Markdown export (formatted project documentation)
+**Purpose:** Extend Tamor's capabilities through exporters, integrations, and external content management.
 
-⬜ PDF export (polished report generation)
+#### Prioritized Items
 
-Additional reference backends:
+| Priority | Item | Description | Dependencies |
+|----------|------|-------------|--------------|
+| 1 | **Markdown export** | Export project conversations and notes as formatted .md files | None |
+| 2 | **PDF export** | Generate polished PDF reports from projects | Markdown export |
+| 3 | **Zotero integration** | Import references, PDFs, and citations from Zotero library | Library system (Phase 7) |
+| 4 | **Plugin config persistence** | Store per-project plugin settings | Plugin architecture |
+| 5 | **Reference caching/versioning** | Cache external content with version tracking | Library system |
 
-⬜ Zotero integration (academic reference management)
+#### Implementation Notes
 
-⬜ Notion import (external knowledge base sync)
+**Markdown Export**
+- Export conversation history as clean markdown
+- Export project notes and summaries
+- Include metadata (timestamps, project name)
+- Option to include/exclude system messages
 
-⬜ RSS/Atom feeds (content monitoring)
+**PDF Export**
+- Build on markdown export
+- Apply consistent styling/branding
+- Support for academic formatting (citations, bibliography)
+- Use weasyprint or similar for generation
 
-Plugin enhancements:
+**Zotero Integration**
+- Read from local Zotero SQLite database (simplest)
+- Or import BibTeX/CSL-JSON exports (manual but portable)
+- Extract PDF text and index in library
+- Make citations available for writing projects
+- Future: Zotero API for cloud sync
 
-⬜ Plugin configuration persistence per project
+**Plugin Config Persistence**
+- Store plugin settings per project in database
+- API: GET/PATCH /api/projects/{id}/plugins
+- UI: Plugin settings section in project settings
 
-⬜ Scheduled/automated imports
+**Reference Caching/Versioning**
+- Cache external web content (Sefaria, articles)
+- Store fetch timestamp and content hash
+- Support for version comparison
+- Graceful degradation when source unavailable
 
-⬜ Reference content caching and versioning
+#### Future Consideration (Unpromoted)
+
+These items may be promoted based on user need:
+
+| Item | Notes |
+|------|-------|
+| Notion import | External knowledge base sync — if workflow demands |
+| RSS/Atom feeds | Content monitoring — news, blog tracking |
+| Scheduled imports | Automated ingestion — automation polish |
+
+#### Success Criteria
+
+- [ ] Can export any project as clean markdown
+- [ ] Can generate PDF report from project
+- [ ] Can search Zotero library from Tamor
+- [ ] Can cite Zotero references in writing
+- [ ] Plugin settings persist per project
+- [ ] External references cached with versions
 
 ## Phase 7 – Global Library System
 
@@ -1175,6 +1220,13 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.37 – 2026-01-29
+
+Updated Phase 6.4 Plugin Framework Expansion:
+- Prioritized 5 items: Markdown export, PDF export, Zotero integration, Plugin config persistence, Reference caching
+- Moved 3 items to "Future Consideration": Notion import, RSS/Atom feeds, Scheduled imports
+- Added implementation notes and success criteria
+
 v1.36 – 2026-01-27
 
 GHM Profile System:
