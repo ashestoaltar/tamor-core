@@ -1452,6 +1452,103 @@ def export_project_pdf(project_id: int):
 
 
 # ---------------------------------------------------------------------------
+# Plugin Config (Phase 6.4)
+# ---------------------------------------------------------------------------
+
+
+@projects_bp.get("/projects/<int:project_id>/plugins")
+def get_project_plugins(project_id: int):
+    """Get all plugin configs for a project."""
+    from services.plugins.config_manager import PluginConfigManager
+
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Verify project ownership
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    manager = PluginConfigManager(project_id, conn)
+    return jsonify(manager.get_all_config())
+
+
+@projects_bp.get("/projects/<int:project_id>/plugins/<plugin_id>")
+def get_project_plugin(project_id: int, plugin_id: str):
+    """Get config for a specific plugin."""
+    from services.plugins.config_manager import PluginConfigManager
+
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    manager = PluginConfigManager(project_id, conn)
+    return jsonify(manager.get_plugin_config(plugin_id))
+
+
+@projects_bp.patch("/projects/<int:project_id>/plugins/<plugin_id>")
+def update_project_plugin(project_id: int, plugin_id: str):
+    """Update plugin config."""
+    from services.plugins.config_manager import PluginConfigManager
+
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json() or {}
+    manager = PluginConfigManager(project_id, conn)
+    manager.update_plugin_config(plugin_id, data)
+    return jsonify(manager.get_plugin_config(plugin_id))
+
+
+@projects_bp.delete("/projects/<int:project_id>/plugins/<plugin_id>")
+def delete_project_plugin(project_id: int, plugin_id: str):
+    """Remove plugin config."""
+    from services.plugins.config_manager import PluginConfigManager
+
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+        (project_id, user_id),
+    )
+    if not cur.fetchone():
+        return jsonify({"error": "not_found"}), 404
+
+    manager = PluginConfigManager(project_id, conn)
+    manager.delete_plugin_config(plugin_id)
+    return jsonify({"status": "deleted"})
+
+
+# ---------------------------------------------------------------------------
 # Playlist endpoints (multi-playlist + TMDb enrichment)
 # ---------------------------------------------------------------------------
 
