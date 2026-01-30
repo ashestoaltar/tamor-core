@@ -242,6 +242,32 @@ export default function ProjectsPanel({
     }
   };
 
+  const exportProjectMarkdown = async (project) => {
+    try {
+      const response = await fetch(`/api/projects/${project.id}/export/markdown`);
+      if (!response.ok) {
+        throw new Error(`Export failed: ${response.status}`);
+      }
+      const blob = await response.blob();
+
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = (project.name || "project").replace(/[^a-zA-Z0-9-_ ]/g, "_");
+      a.download = `${safeName}_export.md`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("ProjectsPanel: export failed:", err);
+      alert(`Export failed: ${err?.message || err}`);
+    } finally {
+      closeMenus();
+    }
+  };
+
   // ----------------------------
   // Conversation actions
   // ----------------------------
@@ -530,6 +556,11 @@ export default function ProjectsPanel({
                             <button className="row-menu-item" type="button" onClick={() => startEditProject(p)}>
                               <span className="row-menu-icon">✏️</span>
                               <span>Rename</span>
+                            </button>
+
+                            <button className="row-menu-item" type="button" onClick={() => exportProjectMarkdown(p)}>
+                              <span className="row-menu-icon">📄</span>
+                              <span>Export Markdown</span>
                             </button>
 
                             <div className="row-menu-divider" />
