@@ -1331,6 +1331,65 @@ def export_project_transcript(project_id: int, transcript_id: int):
 
 
 # ---------------------------------------------------------------------------
+# Project Export (Phase 6.4)
+# ---------------------------------------------------------------------------
+
+
+@projects_bp.get("/projects/<int:project_id>/export/markdown")
+def export_project_markdown(project_id: int):
+    """
+    Export project conversations and notes as a Markdown file.
+
+    Query params:
+        include_system=true - Include system messages (default: false)
+        include_metadata=true - Include timestamps and counts (default: true)
+        include_notes=true - Include project notes section (default: true)
+    """
+    from flask import Response
+    from plugins.exporters.markdown_export import MarkdownExporter
+    import os
+
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Build config from query params
+    config = {
+        "include_system_messages": request.args.get("include_system", "false").lower() == "true",
+        "include_metadata": request.args.get("include_metadata", "true").lower() != "false",
+        "include_notes": request.args.get("include_notes", "true").lower() != "false",
+    }
+
+    exporter = MarkdownExporter()
+    result = exporter.export_project(project_id, user_id, config)
+
+    if not result.success:
+        return jsonify({"error": result.error or "Export failed"}), 404
+
+    # Read the exported file
+    try:
+        with open(result.export_path, "r", encoding="utf-8") as f:
+            markdown_content = f.read()
+
+        # Clean up temp file
+        os.remove(result.export_path)
+        # Try to remove the temp directory if empty
+        export_dir = os.path.dirname(result.export_path)
+        if os.path.isdir(export_dir) and not os.listdir(export_dir):
+            os.rmdir(export_dir)
+
+        return Response(
+            markdown_content,
+            mimetype="text/markdown",
+            headers={
+                "Content-Disposition": f'attachment; filename="{result.filename}"'
+            },
+        )
+    except Exception as e:
+        return jsonify({"error": f"Failed to read export: {e}"}), 500
+
+
+# ---------------------------------------------------------------------------
 # Playlist endpoints (multi-playlist + TMDb enrichment)
 # ---------------------------------------------------------------------------
 
