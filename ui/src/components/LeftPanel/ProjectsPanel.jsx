@@ -268,6 +268,32 @@ export default function ProjectsPanel({
     }
   };
 
+  const exportProjectPDF = async (project) => {
+    try {
+      const response = await fetch(`/api/projects/${project.id}/export/pdf`);
+      if (!response.ok) {
+        throw new Error(`PDF export failed: ${response.status}`);
+      }
+      const blob = await response.blob();
+
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = (project.name || "project").replace(/[^a-zA-Z0-9-_ ]/g, "_");
+      a.download = `${safeName}_export.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("ProjectsPanel: PDF export failed:", err);
+      alert(`PDF export failed: ${err?.message || err}`);
+    } finally {
+      closeMenus();
+    }
+  };
+
   // ----------------------------
   // Conversation actions
   // ----------------------------
@@ -561,6 +587,11 @@ export default function ProjectsPanel({
                             <button className="row-menu-item" type="button" onClick={() => exportProjectMarkdown(p)}>
                               <span className="row-menu-icon">📄</span>
                               <span>Export Markdown</span>
+                            </button>
+
+                            <button className="row-menu-item" type="button" onClick={() => exportProjectPDF(p)}>
+                              <span className="row-menu-icon">📕</span>
+                              <span>Export PDF</span>
                             </button>
 
                             <div className="row-menu-divider" />

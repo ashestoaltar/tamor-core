@@ -1389,6 +1389,68 @@ def export_project_markdown(project_id: int):
         return jsonify({"error": f"Failed to read export: {e}"}), 500
 
 
+@projects_bp.get("/projects/<int:project_id>/export/pdf")
+def export_project_pdf(project_id: int):
+    """
+    Export project conversations and notes as a styled PDF file.
+
+    Query params:
+        include_system=true - Include system messages (default: false)
+        include_metadata=true - Include timestamps and counts (default: true)
+        include_notes=true - Include project notes section (default: true)
+    """
+    from flask import Response
+    from plugins.exporters.markdown_export import MarkdownExporter
+    from services.export.pdf_exporter import PDFExporter
+    import os
+
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Build config from query params
+    config = {
+        "include_system_messages": request.args.get("include_system", "false").lower() == "true",
+        "include_metadata": request.args.get("include_metadata", "true").lower() != "false",
+        "include_notes": request.args.get("include_notes", "true").lower() != "false",
+    }
+
+    # First export to markdown
+    md_exporter = MarkdownExporter()
+    result = md_exporter.export_project(project_id, user_id, config)
+
+    if not result.success:
+        return jsonify({"error": result.error or "Export failed"}), 404
+
+    try:
+        # Read markdown content
+        with open(result.export_path, "r", encoding="utf-8") as f:
+            markdown_content = f.read()
+
+        # Clean up temp markdown file
+        os.remove(result.export_path)
+        export_dir = os.path.dirname(result.export_path)
+        if os.path.isdir(export_dir) and not os.listdir(export_dir):
+            os.rmdir(export_dir)
+
+        # Convert to PDF
+        pdf_exporter = PDFExporter()
+        pdf_bytes = pdf_exporter.export_to_pdf(markdown_content)
+
+        # Generate PDF filename
+        pdf_filename = result.filename.replace(".md", ".pdf")
+
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{pdf_filename}"'
+            },
+        )
+    except Exception as e:
+        return jsonify({"error": f"Failed to generate PDF: {e}"}), 500
+
+
 # ---------------------------------------------------------------------------
 # Playlist endpoints (multi-playlist + TMDb enrichment)
 # ---------------------------------------------------------------------------
