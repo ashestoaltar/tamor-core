@@ -195,3 +195,90 @@ def system_status():
     """
     return jsonify(get_status_dict())
 
+
+# ---------------------------------------------------------------------------
+# Reference Cache (Phase 6.4)
+# ---------------------------------------------------------------------------
+
+
+@system_bp.get("/cache/stats")
+def cache_stats():
+    """Get reference cache statistics."""
+    from services.cache.reference_cache import get_reference_cache
+
+    cache = get_reference_cache(get_db())
+    return jsonify(cache.get_stats())
+
+
+@system_bp.get("/cache/references")
+def list_cached_references():
+    """List all cached URLs with version counts."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT url, COUNT(*) as versions, MAX(version) as latest_version,
+                  MAX(fetched_at) as last_fetched, SUM(LENGTH(content)) as total_bytes
+           FROM reference_cache
+           GROUP BY url
+           ORDER BY last_fetched DESC
+           LIMIT 100"""
+    )
+    rows = cur.fetchall()
+
+    return jsonify([
+        {
+            "url": r[0],
+            "versions": r[1],
+            "latest_version": r[2],
+            "last_fetched": r[3],
+            "total_bytes": r[4],
+        }
+        for r in rows
+    ])
+
+
+@system_bp.get("/cache/references/<path:url>")
+def get_cached_reference(url: str):
+    """Get cached content info for URL (without full content)."""
+    from services.cache.reference_cache import get_reference_cache
+
+    cache = get_reference_cache(get_db())
+    result = cache.get(url)
+
+    if not result:
+        return jsonify({"error": "Not cached"}), 404
+
+    return jsonify({
+        "url": result["url"],
+        "version": result["version"],
+        "fetched_at": result["fetched_at"],
+        "content_hash": result["content_hash"],
+        "content_type": result["content_type"],
+        "content_length": len(result["content"]),
+        "metadata": result.get("metadata", {}),
+    })
+
+
+@system_bp.get("/cache/references/<path:url>/versions")
+def get_reference_versions(url: str):
+    """Get all versions for URL."""
+    from services.cache.reference_cache import get_reference_cache
+
+    cache = get_reference_cache(get_db())
+    return jsonify(cache.get_versions(url))
+
+
+@system_bp.post("/cache/cleanup")
+def cleanup_cache():
+    """Clean up expired cache entries and old versions."""
+    from services.cache.reference_cache import get_reference_cache
+
+    cache = get_reference_cache(get_db())
+
+    expired = cache.cleanup_expired()
+
+    return jsonify({
+        "expired_removed": expired,
+        "stats": cache.get_stats(),
+    })
+
