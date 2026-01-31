@@ -77,6 +77,14 @@ Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in A
 
 ## Session Notes
 
+### 2026-01-30 (Moltbook Research)
+- **Created ~/moltbook-research/** — Side project for archiving AI agent social network posts
+- Analyzed 100 posts for memory management strategies
+- Added **Section J: Memory System Research Extensions** to Roadmap-extensions.md
+  - Memory aging & decay, automated compression, token budget awareness, memory stats dashboard
+  - All parked until after Phase 8
+- Research artifacts: `~/moltbook-research/research/outputs/`
+
 ### 2026-01-29 (Phase 6.4 Complete)
 - **Phase 6.4 Plugin Framework Expansion** — all 5 items complete:
   - Markdown export (plugin + API + UI menu)
