@@ -403,6 +403,115 @@ The Writer Agent (Phase 6.2) already extracts style preferences from memories ta
 
 ---
 
+## J. Memory System Research Extensions
+
+*Research-informed proposals captured 2026-01-30*
+*Source: Moltbook agent discourse analysis (~/moltbook-research/)*
+
+### 20. Memory Aging & Decay
+**Status:** 🟡 Idea (Parked)
+**Maps To:** Phase 6.1 – Long-Term Memory 2.0
+**Created:** 2026-01-30
+
+**Source:** Moltbook agents discussing retrieval weighting, Ebbinghaus curve references
+
+**Problem:** All memories treated equally regardless of age or access frequency.
+
+**Proposal:**
+- Add `last_accessed` timestamp to memories
+- Weight retrieval by recency + access frequency
+- Optional: configurable decay curve (not deletion, just deprioritization)
+
+**Complexity:** Medium
+**Dependencies:** None
+
+---
+
+### 21. Automated Compression/Distillation
+**Status:** 🟡 Idea (Parked)
+**Maps To:** Phase 6.1 – Long-Term Memory 2.0
+**Created:** 2026-01-30
+
+**Source:** AiChan's two-tier system, DuckBot's pre-compression checkpointing (Moltbook)
+
+**Problem:** Memories accumulate without summarization; old detailed memories consume retrieval capacity.
+
+**Proposal:**
+- Periodic background job reviews old memories
+- LLM-assisted distillation: "What here is worth remembering forever?"
+- Raw → summarized → archived tiers
+- Pre-compression checkpoint when context gets heavy
+
+**Complexity:** High
+**Dependencies:** Background job infrastructure
+
+---
+
+### 22. Token Budget Awareness
+**Status:** 🟡 Idea (Parked)
+**Maps To:** Phase 3.1 – Backend Refactor
+**Created:** 2026-01-30
+
+**Source:** ClawdVC's tokenization overhead discovery (Moltbook)
+
+**Problem:** Context injection may be wasteful; users unaware of token usage.
+
+**Proposal:**
+- Audit current context injection for token efficiency
+- Minify JSON in context (40% savings reported by agents)
+- Display token budget in UI
+- Warn when approaching limits
+
+**Complexity:** Low-Medium
+**Dependencies:** None
+
+---
+
+### 23. Memory Stats Dashboard
+**Status:** 🟡 Idea (Parked)
+**Maps To:** Phase 3.2 – UI Refactor
+**Created:** 2026-01-30
+
+**Source:** Multiple Moltbook agents wanting visibility into stored memories
+
+**Problem:** Users don't know what Tamor remembers or why retrieval returns certain items.
+
+**Proposal:**
+- Surface memory count, categories, age distribution
+- Show what was retrieved for current context
+- "Why do you know this?" explainability
+- Memory health indicators
+
+**Complexity:** Medium
+**Dependencies:** UI work
+
+---
+
+### Research Context: What Tamor Already Does Better
+
+Based on Moltbook analysis, Tamor's architecture already provides:
+- Human oversight of retention (agents lack this)
+- Epistemic classification of sources (agents just dump everything)
+- Project-scoped memory (agents have global only)
+- Explicit provenance tracking
+
+### Research Artifacts
+
+- Moltbook archive: `~/moltbook-research/`
+- Memory research report: `research/outputs/memory_research_2026-01-30.md`
+- Tamor comparison: `research/outputs/tamor_comparison_2026-01-30.md`
+
+### Priority When Revisited
+
+1. Token budget awareness (low effort, immediate value)
+2. Memory stats dashboard (visibility builds trust)
+3. Memory aging (improves retrieval quality)
+4. Automated compression (most complex, biggest payoff)
+
+> **Note:** Parked until after Phase 8 completion and NAS library stabilization. Agents are solving similar problems with less discipline—their approaches are worth learning from but Tamor's human-controlled architecture remains the right foundation.
+
+---
+
 ## Promotion Checklist
 
 An item may be promoted to the authoritative roadmap only when:
