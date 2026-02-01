@@ -426,36 +426,47 @@ UI exposure for backend services from Phases 4-5:
 
 ✅ Step notes, advance, reset, abandon controls
 
-5.5 Integrated Reader (Planned)
+5.5 Integrated Reader (Complete)
 
 A unified reading interface for long-form content from the NAS library, project files, and transcripts. Combines visual reading with local text-to-speech.
 
 **Visual Reader:**
-- ⬜ Distraction-free reading view (full-screen or overlay)
-- ⬜ Clean typography with adjustable font size and line spacing
-- ⬜ Pagination or continuous scroll modes
-- ⬜ Bookmarking and progress tracking
-- ⬜ Support for: PDFs (text extraction), transcripts, DOCX, HTML, plain text
+- ✅ Distraction-free reading view (expandable right panel mode)
+- ✅ Clean typography with adjustable font size and line spacing
+- ✅ Continuous scroll with progress tracking
+- ✅ Bookmarking with visual markers on progress bar
+- ✅ Support for: PDFs (text extraction), transcripts, library files, project files
 
 **Audio Reader (Piper TTS):**
-- ⬜ Local text-to-speech via Piper (MIT licensed, fully offline)
-- ⬜ Playback controls: speed, pause/resume, skip
-- ⬜ Sentence-level text highlighting synced with audio
-- ⬜ Queue multiple documents for continuous listening
-- ⬜ "Read this to me" command from chat or file actions
+- ✅ Local text-to-speech via Piper (MIT licensed, fully offline)
+- ✅ Playback controls: speed (0.5x-2x), pause/resume, skip forward/back
+- ✅ Chunk-based audio synthesis with preloading
+- ✅ Sentence-aware text chunking for natural TTS
+- ✅ Audio caching with SHA-256 cache keys
 
 **Progress Tracking:**
-- ⬜ `reading_sessions` table: file_id, position, duration, last_accessed
-- ⬜ Resume where you left off (visual and audio)
+- ✅ `reading_sessions` table: content_type, content_id, position, progress, mode, bookmarks
+- ✅ Resume where you left off (visual and audio positions)
+- ✅ Per-session bookmarks stored in JSON
 
 **Integration:**
-- ⬜ "Open in Reader" file action (Phase 5.1 pattern)
-- ⬜ Chat commands: "Read me [document]", "Continue reading"
-- ⬜ Library and transcript content support
+- ✅ "Read" button on Library files (opens reader in panel)
+- ✅ "Read" button on Project files (opens reader in panel)
+- ✅ Expandable right panel mode (55% width, chat stays visible)
+- ✅ ReaderContext for global state management
+
+**Backend Services:**
+- ✅ `tts_service.py`: Piper TTS wrapper with chunking and caching
+- ✅ `reader_service.py`: Content retrieval, session management, bookmarks
+- ✅ `reader_api.py`: 18 API endpoints for reader functionality
+
+**Setup:**
+- ✅ `scripts/setup_piper.py`: CLI for installing Piper and voice models
+- ✅ 13 voices available (en_US, en_GB, de_DE, es_ES, fr_FR)
 
 **Constraints:**
 - Fully offline (no cloud TTS)
-- English TTS only in v1
+- English TTS primary (other languages available)
 - PDF via text extraction (not full rendering)
 
 Phase 6 – Advanced Assistant Evolution
@@ -1252,6 +1263,19 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.40 – 2026-02-01
+
+Completed Phase 5.5 Integrated Reader:
+- ✅ TTS Service wrapping Piper for local text-to-speech
+- ✅ Reader Service for content retrieval and session management
+- ✅ 18 API endpoints under /api/reader Blueprint
+- ✅ ReaderView and ReaderControls React components
+- ✅ Expandable right panel mode (reader takes 55%, chat stays visible)
+- ✅ Bookmarking with progress bar markers
+- ✅ Audio playback with speed control, skip, chunk preloading
+- ✅ setup_piper.py CLI for voice model installation
+- ✅ "Read" buttons in Library and Files tabs
+
 v1.39 – 2026-02-01
 
 Internet Archive Harvester Integration:

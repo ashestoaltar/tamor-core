@@ -27,6 +27,9 @@ archive/api/tamor_backup_before_phase7.db
 api/uploads/
 api/embeddings/
 
+# --- Runtime data & cache ---
+api/data/
+
 # --- Logs ---
 logs/
 *.log

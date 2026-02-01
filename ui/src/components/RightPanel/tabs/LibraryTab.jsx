@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLibrary } from '../../../hooks/useLibrary';
+import { useReaderContext } from '../../../context/ReaderContext';
 import LibrarySettings from './LibrarySettings';
 import TranscriptionQueue from './TranscriptionQueue';
 import CollectionModal from './CollectionModal';
@@ -44,6 +45,8 @@ function LibraryTab({ projectId }) {
     addToCollection,
     removeFromCollection
   } = useLibrary();
+
+  const { openReader } = useReaderContext();
 
   const [view, setView] = useState('browse'); // browse | search | manage | settings | collections
   const [showTranscription, setShowTranscription] = useState(false);
@@ -275,6 +278,19 @@ function LibraryTab({ projectId }) {
                 )}
               </div>
               <div className="file-actions">
+                <button
+                  className="btn-small btn-read"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openReader('library', fileId, 'both', file.filename);
+                  }}
+                  title="Read"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+                    <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+                  </svg>
+                </button>
                 {showCollectionActions && !inCollection && (
                   <button
                     className="btn-small btn-collection"

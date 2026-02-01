@@ -472,6 +472,18 @@
 }
 
 /* Button styles */
+.btn-read {
+  background: var(--bg-input);
+  color: var(--text);
+  border-color: var(--border-subtle);
+}
+
+.btn-read:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+  border-color: var(--accent-soft);
+}
+
 .btn-collection {
   background: var(--bg-input);
   color: var(--text);

@@ -77,6 +77,23 @@ Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in A
 
 ## Session Notes
 
+### 2026-02-01 (Phase 5.5 Integrated Reader)
+- **Integrated Reader Complete** — Unified reading interface with local TTS
+  - TTS Service (`api/services/tts_service.py`): Piper wrapper with chunking and caching
+  - Reader Service (`api/services/reader_service.py`): Content retrieval, sessions, bookmarks
+  - 18 API endpoints under `/api/reader` Blueprint
+  - ReaderView and ReaderControls React components
+  - Expandable right panel mode (55% width, chat stays visible)
+  - "Read" buttons added to Library and Files tabs
+- **Piper TTS Setup Script** (`scripts/setup_piper.py`)
+  - CLI for installing Piper and downloading voice models
+  - 13 voices available (American, British, German, Spanish, French)
+  - Voices stored at `/mnt/library/piper_voices/`
+- **UI Integration**
+  - ReaderContext for global reader state management
+  - CSS :has() selector for parent-based panel expansion
+  - Reader.css updated for panel context (height: 100% vs 100vh)
+
 ### 2026-02-01 (WildBranch Ministries Ingest + Transcription)
 - **Bulk Ingest Workflow** — Added 629 files to NAS library
   - Created `/mnt/library/religious/wildbranch ministries/` with subfolders

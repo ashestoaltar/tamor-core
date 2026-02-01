@@ -1,6 +1,7 @@
 // src/components/RightPanel/components/FileList.jsx
 import React, { useState } from "react";
 import { API_BASE } from "../../../api/client";
+import { useReaderContext } from "../../../context/ReaderContext";
 
 function FileList({
   files,
@@ -19,6 +20,7 @@ function FileList({
   fileActionLoading,
   fileActionResults,
 }) {
+  const { openReader } = useReaderContext();
   const [expandedActionsFileId, setExpandedActionsFileId] = useState(null);
   const [selectedRewriteMode, setSelectedRewriteMode] = useState("improve");
 
@@ -92,6 +94,14 @@ function FileList({
                 </div>
               </div>
               <div className="rp-file-actions">
+                <button
+                  className="rp-button subtle"
+                  type="button"
+                  onClick={() => openReader('file', f.id, 'both', f.filename)}
+                  title="Read this file"
+                >
+                  Read
+                </button>
                 <button
                   className="rp-button subtle"
                   type="button"

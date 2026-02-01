@@ -5,6 +5,7 @@ import { AuthProvider } from "./context/AuthContext.jsx"
 import { DevModeProvider } from "./context/DevModeContext.jsx"
 import { VoiceSettingsProvider } from "./context/VoiceSettingsContext.jsx"
 import { FocusModeProvider } from "./context/FocusModeContext.jsx"
+import { ReaderProvider } from "./context/ReaderContext.jsx"
 import { registerServiceWorker } from './pwa/registerSW'
 
 // Register service worker for PWA
@@ -16,7 +17,9 @@ createRoot(document.getElementById('root')).render(
       <DevModeProvider>
         <VoiceSettingsProvider>
           <FocusModeProvider>
-            <App />
+            <ReaderProvider>
+              <App />
+            </ReaderProvider>
           </FocusModeProvider>
         </VoiceSettingsProvider>
       </DevModeProvider>

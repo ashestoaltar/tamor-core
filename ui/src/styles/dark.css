@@ -406,6 +406,41 @@ body {
   overflow-y: auto;
 }
 
+/* ===========================
+   READER MODE (Phase 5.5)
+   Expanded right panel for reading
+   =========================== */
+
+/* When reader is open, expand the right panel */
+.panel-row:has(.right-panel-reader-mode) > .right-panel {
+  width: 55%;
+  min-width: 500px;
+  max-width: 800px;
+  transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
+}
+
+/* Shrink chat panel when reader is open */
+.panel-row:has(.right-panel-reader-mode) > .chat-panel-wrapper {
+  flex: 1;
+  min-width: 320px;
+  transition: flex 0.3s ease, min-width 0.3s ease;
+}
+
+/* Reader mode panel styling */
+.right-panel-reader-mode {
+  padding: 0;
+  background: var(--bg);
+}
+
+/* Fallback for browsers without :has() support */
+@supports not selector(:has(*)) {
+  .right-panel-reader-mode {
+    width: 55%;
+    min-width: 500px;
+    max-width: 800px;
+  }
+}
+
 /* Basic card style in right panel */
 .insights-card {
   background: var(--bg-elevated);

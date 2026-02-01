@@ -20,6 +20,7 @@ This document provides a reference for Tamor's major features, their APIs, and u
 12. [Epistemic Honesty System](#epistemic-honesty-system)
 13. [Focus Mode](#focus-mode)
 14. [Progressive Web App (PWA)](#progressive-web-app-pwa)
+15. [Integrated Reader](#integrated-reader)
 
 ---
 
@@ -1378,4 +1379,166 @@ iOS requires additional meta tags in `index.html`:
 
 ---
 
-*Last updated: 2026-02-01 (v1.40 - Transcription Queue & Bulk Workflow)*
+## Integrated Reader
+
+The Integrated Reader provides a unified reading interface for long-form content with local text-to-speech capabilities. It integrates as an expandable right panel mode, allowing you to read while still having access to chat with Tamor.
+
+### Core Features
+
+- **Visual Reading**: Clean typography with adjustable font size and line spacing
+- **Audio Reading**: Local TTS via Piper (fully offline, no cloud services)
+- **Progress Tracking**: Resume where you left off (visual and audio)
+- **Bookmarking**: Mark positions with visual indicators on progress bar
+- **Dual Mode**: Read visually, listen via audio, or both simultaneously
+
+### Opening the Reader
+
+Click the "Read" button (book icon) on any file in:
+- **Library Tab**: Opens library files in the reader
+- **Files Tab**: Opens project files in the reader
+
+When opened, the right panel expands to ~55% width while chat remains visible at ~45%.
+
+### API Endpoints
+
+#### Content & Sessions
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/reader/content/<type>/<id>` | GET | Get content for reading |
+| `/api/reader/session` | POST | Get or create reading session |
+| `/api/reader/session/<id>/progress` | POST | Update session progress |
+| `/api/reader/session/<id>/complete` | POST | Mark session complete |
+| `/api/reader/sessions` | GET | List user's reading sessions |
+
+#### Bookmarks
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/reader/session/<id>/bookmarks` | GET | Get session bookmarks |
+| `/api/reader/session/<id>/bookmarks` | POST | Add bookmark |
+| `/api/reader/session/<id>/bookmarks/<bookmark_id>` | DELETE | Remove bookmark |
+
+#### Audio (TTS)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/reader/tts/synthesize` | POST | Synthesize text to audio |
+| `/api/reader/tts/chunk` | POST | Synthesize single chunk |
+| `/api/reader/tts/status` | GET | Get Piper TTS status |
+| `/api/reader/tts/voices` | GET | List available voices |
+| `/api/reader/audio/<filename>` | GET | Serve cached audio file |
+
+#### Reading Stats
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/reader/stats` | GET | Get user's reading statistics |
+
+### Piper TTS Setup
+
+Install Piper and download voice models using the setup script:
+
+```bash
+# Install default voice (en_US-lessac-medium)
+python scripts/setup_piper.py
+
+# List available voices
+python scripts/setup_piper.py --list-voices
+
+# Install specific voices
+python scripts/setup_piper.py --voices en_US-amy-medium,en_GB-alba-medium
+
+# Install all voices
+python scripts/setup_piper.py --voices all
+
+# Validate installation
+python scripts/setup_piper.py --validate-only
+```
+
+### Available Voices
+
+| Voice | Language | Gender | Quality |
+|-------|----------|--------|---------|
+| en_US-lessac-medium | American English | Neutral | Medium (default) |
+| en_US-lessac-high | American English | Neutral | High |
+| en_US-amy-medium | American English | Female | Medium |
+| en_US-amy-low | American English | Female | Low |
+| en_US-ryan-medium | American English | Male | Medium |
+| en_US-ryan-high | American English | Male | High |
+| en_US-joe-medium | American English | Male | Medium |
+| en_GB-alba-medium | British English | Female | Medium |
+| en_GB-aru-medium | British English | Male | Medium |
+| en_GB-cori-medium | British English | Female | Medium |
+| de_DE-thorsten-medium | German | Male | Medium |
+| es_ES-davefx-medium | Spanish | Male | Medium |
+| fr_FR-siwis-medium | French | Female | Medium |
+
+### Keyboard Shortcuts (in Reader)
+
+| Key | Action |
+|-----|--------|
+| `Space` | Play/pause audio |
+| `Escape` | Close reader |
+| `Ctrl+B` | Add bookmark at current position |
+| `Ctrl+F` | Toggle fullscreen |
+| `Ctrl++` / `Ctrl+-` | Increase/decrease font size |
+
+### UI Integration
+
+The reader uses an expandable right panel design:
+- Normal mode: Standard right panel tabs
+- Reader mode: Panel expands to 55% width
+- Chat panel shrinks but remains visible and usable
+- Allows asking Tamor questions about what you're reading
+
+### Content Support
+
+| Type | Source | Support |
+|------|--------|---------|
+| `library` | Library files | Full text extraction |
+| `file` | Project files | Full text extraction |
+| `transcript` | Transcriptions | Timestamped segments |
+
+### Example: Read a Library File
+
+```javascript
+import { useReaderContext } from '../context/ReaderContext';
+
+function MyComponent() {
+  const { openReader } = useReaderContext();
+
+  const handleRead = (fileId, filename) => {
+    // Opens reader with library file, both visual and audio modes
+    openReader('library', fileId, 'both', filename);
+  };
+
+  return <button onClick={() => handleRead(42, 'document.pdf')}>Read</button>;
+}
+```
+
+### Architecture
+
+```
+Backend Services:
+├── api/services/tts_service.py      # Piper TTS wrapper
+├── api/services/reader_service.py   # Content & session management
+└── api/routes/reader_api.py         # 18 REST endpoints
+
+Frontend:
+├── ui/src/components/Reader/
+│   ├── ReaderView.jsx               # Main reader component
+│   ├── ReaderControls.jsx           # Audio playback controls
+│   ├── Reader.css                   # Reader styles
+│   └── index.js                     # Exports
+├── ui/src/context/ReaderContext.jsx # Global reader state
+└── ui/src/hooks/useReader.js        # Reader state & audio logic
+
+Storage:
+├── /mnt/library/piper_voices/       # Voice model files (.onnx)
+└── api/data/tts/cache/              # Cached audio chunks
+```
+
+---
+
+*Last updated: 2026-02-01 (v1.41 - Integrated Reader)*

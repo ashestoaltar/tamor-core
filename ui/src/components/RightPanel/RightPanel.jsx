@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import "./RightPanel.css";
 import { apiFetch } from "../../api/client";
 import { useBreakpoint } from "../../hooks/useBreakpoint";
+import { useReaderContext } from "../../context/ReaderContext";
+import { ReaderView } from "../Reader";
 
 import WorkspaceTab from "./tabs/WorkspaceTab.jsx";
 import FilesTab from "./tabs/FilesTab.jsx";
@@ -74,6 +76,9 @@ function RightPanel({
 }) {
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
   const isMobileOrTablet = isMobile || isTablet;
+
+  // Reader mode
+  const { isReaderOpen, readerContent, closeReader } = useReaderContext();
 
   const [activeTab, setActiveTab] = useState("workspace");
   const [expandedGroup, setExpandedGroup] = useState(null); // "research" | "tools" | null
@@ -210,6 +215,20 @@ function RightPanel({
       </button>
     );
   };
+
+  // When reader is open, render reader mode
+  if (isReaderOpen && readerContent.contentType && readerContent.contentId) {
+    return (
+      <div className="right-panel right-panel-reader-mode">
+        <ReaderView
+          contentType={readerContent.contentType}
+          contentId={readerContent.contentId}
+          initialMode={readerContent.mode}
+          onClose={closeReader}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="right-panel">

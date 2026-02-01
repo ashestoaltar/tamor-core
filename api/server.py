@@ -49,6 +49,7 @@ from routes.references_api import references_bp
 from routes.library_api import library_bp
 from routes.system_api import system_bp
 from routes.integrations_api import integrations_bp
+from routes.reader_api import reader_bp
 
 
 
@@ -68,6 +69,7 @@ app.register_blueprint(references_bp)
 app.register_blueprint(library_bp)
 app.register_blueprint(system_bp)
 app.register_blueprint(integrations_bp)
+app.register_blueprint(reader_bp)
 
 
 
