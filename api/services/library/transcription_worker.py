@@ -178,11 +178,14 @@ class TranscriptionWorker:
         result: Dict[str, Any],
         queue_item: Dict[str, Any]
     ) -> str:
-        """Save transcript to a JSON file in the library."""
-        # Determine save path
-        mount_path = self.storage.get_mount_path()
-        transcripts_dir = mount_path / 'transcripts'
-        transcripts_dir.mkdir(exist_ok=True)
+        """Save transcript to a JSON file alongside the source audio/video file."""
+        # Get source file's directory to save transcript alongside it
+        source_stored_path = queue_item['stored_path']
+        source_full_path = self.storage.resolve_path(source_stored_path)
+        transcript_dir = source_full_path.parent
+
+        # Ensure directory exists
+        transcript_dir.mkdir(parents=True, exist_ok=True)
 
         # Create transcript document
         doc = {
@@ -200,8 +203,8 @@ class TranscriptionWorker:
             'segments': result['segments']
         }
 
-        # Save
-        file_path = transcripts_dir / filename
+        # Save alongside source file
+        file_path = transcript_dir / filename
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(doc, f, indent=2, ensure_ascii=False)
 
