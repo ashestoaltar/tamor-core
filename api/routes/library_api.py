@@ -26,6 +26,7 @@ from services.library import (
     TranscriptionWorker,
     WHISPER_MODELS,
     TRANSCRIBABLE_TYPES,
+    IAImportService,
 )
 from utils.auth import ensure_user
 from utils.db import get_db
@@ -45,6 +46,7 @@ context_service = LibraryContextService()
 settings_service = LibrarySettingsService()
 transcription_service = TranscriptionQueueService()
 transcription_worker = TranscriptionWorker()
+ia_import_service = IAImportService()
 
 
 # =============================================================================
@@ -1257,3 +1259,113 @@ def get_file_transcript(file_id: int):
             )
 
     return jsonify({"error": "Transcript content not available"}), 500
+
+
+# =============================================================================
+# INTERNET ARCHIVE
+# =============================================================================
+
+
+@library_bp.get("/api/library/ia/stats")
+def get_ia_stats():
+    """Get Internet Archive harvester statistics."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    stats = ia_import_service.get_import_stats()
+    return jsonify(stats)
+
+
+@library_bp.get("/api/library/ia/pending")
+def get_ia_pending():
+    """
+    Get IA items downloaded but not yet imported.
+
+    Query params:
+        limit: Max items (default 50)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    limit = min(int(request.args.get("limit", 50)), 200)
+    items = ia_import_service.get_pending_items(limit=limit)
+
+    return jsonify({"items": items, "count": len(items)})
+
+
+@library_bp.post("/api/library/ia/import/<int:ia_item_id>")
+def import_ia_item(ia_item_id: int):
+    """
+    Import a single IA item into the library.
+
+    Query params:
+        auto_index: Generate embeddings (default true)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    auto_index = request.args.get("auto_index", "true").lower() == "true"
+
+    result = ia_import_service.import_item(ia_item_id, auto_index=auto_index)
+
+    if result["status"] == "error":
+        return jsonify(result), 400
+    if result["status"] == "not_found":
+        return jsonify(result), 404
+
+    return jsonify(result)
+
+
+@library_bp.post("/api/library/ia/import-all")
+def import_all_ia_items():
+    """
+    Import all pending IA items into the library.
+
+    Body:
+        auto_index: Generate embeddings (default true)
+        limit: Max items to import (optional)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    auto_index = data.get("auto_index", True)
+    limit = data.get("limit")
+
+    result = ia_import_service.import_all_pending(
+        auto_index=auto_index,
+        limit=limit,
+    )
+
+    return jsonify(result)
+
+
+@library_bp.get("/api/library/ia/search")
+def search_ia_items():
+    """
+    Search harvested IA items.
+
+    Query params:
+        q: Search term (searches title, creator, subject)
+        imported_only: Only return imported items (default false)
+        limit: Max results (default 50)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    query = request.args.get("q")
+    imported_only = request.args.get("imported_only", "false").lower() == "true"
+    limit = min(int(request.args.get("limit", 50)), 200)
+
+    items = ia_import_service.search_ia_items(
+        query=query,
+        imported_only=imported_only,
+        limit=limit,
+    )
+
+    return jsonify({"items": items, "count": len(items)})

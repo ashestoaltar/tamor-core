@@ -98,3 +98,6 @@ yt-dlp==2025.12.8
 # PDF Export (Phase 6.4)
 weasyprint==68.0
 markdown==3.10.1
+
+# Internet Archive Harvester
+internetarchive==5.0.2

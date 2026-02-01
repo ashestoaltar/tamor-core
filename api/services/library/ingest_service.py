@@ -16,6 +16,7 @@ from utils.db import get_db
 
 from .chunk_service import LibraryChunkService
 from .library_service import LibraryService
+from .ocr_service import LibraryOCRService
 from .scanner_service import LibraryScannerService, ScannedFile
 
 
@@ -63,6 +64,7 @@ class LibraryIngestService:
         self.library = LibraryService()
         self.scanner = LibraryScannerService()
         self.chunker = LibraryChunkService()
+        self.ocr = LibraryOCRService()
 
         # Track active ingest operations
         self._active_ingests: Dict[str, IngestProgress] = {}
@@ -105,6 +107,17 @@ class LibraryIngestService:
                 except Exception as e:
                     # Indexing failure shouldn't fail the import
                     result["index_error"] = str(e)
+
+                # Check if OCR is needed (scanned PDF with no/little text)
+                if self.ocr.is_ocr_available():
+                    ocr_result = self.ocr.process_if_needed(result["id"])
+                    if ocr_result["ocr_run"] and ocr_result.get("result", {}).get("success"):
+                        # Re-index after OCR
+                        try:
+                            self.chunker.reindex_file(result["id"])
+                            result["ocr_applied"] = True
+                        except Exception as e:
+                            result["ocr_reindex_error"] = str(e)
 
             return result
 
