@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLibrary } from '../../../hooks/useLibrary';
 import LibrarySettings from './LibrarySettings';
 import TranscriptionQueue from './TranscriptionQueue';
+import CollectionModal from './CollectionModal';
 import './LibraryTab.css';
 
 // File type icons
@@ -34,10 +35,17 @@ function LibraryTab({ projectId }) {
     getIndexQueue,
     processIndexQueue,
     startIngest,
-    getScanConfig
+    getScanConfig,
+    listCollections,
+    createCollection,
+    updateCollection,
+    deleteCollection,
+    getCollectionFiles,
+    addToCollection,
+    removeFromCollection
   } = useLibrary();
 
-  const [view, setView] = useState('browse'); // browse | search | manage | settings
+  const [view, setView] = useState('browse'); // browse | search | manage | settings | collections
   const [showTranscription, setShowTranscription] = useState(false);
   const [files, setFiles] = useState([]);
   const [stats, setStats] = useState(null);
@@ -46,6 +54,14 @@ function LibraryTab({ projectId }) {
   const [indexQueue, setIndexQueue] = useState(null);
   const [scanConfig, setScanConfig] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+
+  // Collections state
+  const [collections, setCollections] = useState([]);
+  const [selectedCollection, setSelectedCollection] = useState(null);
+  const [collectionFiles, setCollectionFiles] = useState([]);
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [editingCollection, setEditingCollection] = useState(null);
+  const [showAddToCollection, setShowAddToCollection] = useState(null); // file id to add
 
   // Load initial data
   useEffect(() => {
@@ -125,6 +141,84 @@ function LibraryTab({ projectId }) {
     }
   };
 
+  // Collections functions
+  const loadCollections = async () => {
+    const result = await listCollections();
+    if (result) {
+      setCollections(result.collections);
+    }
+  };
+
+  const loadCollectionFiles = async (collectionId) => {
+    const result = await getCollectionFiles(collectionId);
+    if (result) {
+      setCollectionFiles(result.files);
+    }
+  };
+
+  const handleCreateCollection = async (data) => {
+    const result = await createCollection(data.name, data.description, data.color);
+    if (result) {
+      setShowCollectionModal(false);
+      loadCollections();
+    }
+  };
+
+  const handleUpdateCollection = async (data) => {
+    const result = await updateCollection(data.id, {
+      name: data.name,
+      description: data.description,
+      color: data.color
+    });
+    if (result) {
+      setShowCollectionModal(false);
+      setEditingCollection(null);
+      loadCollections();
+      if (selectedCollection?.id === data.id) {
+        setSelectedCollection(result.collection);
+      }
+    }
+  };
+
+  const handleDeleteCollection = async (collection) => {
+    if (!confirm(`Delete collection "${collection.name}"? Files will not be deleted.`)) return;
+
+    const result = await deleteCollection(collection.id);
+    if (result) {
+      loadCollections();
+      if (selectedCollection?.id === collection.id) {
+        setSelectedCollection(null);
+        setCollectionFiles([]);
+      }
+    }
+  };
+
+  const handleAddToCollection = async (collectionId, fileId) => {
+    const result = await addToCollection(collectionId, fileId);
+    if (result) {
+      setShowAddToCollection(null);
+      if (selectedCollection?.id === collectionId) {
+        loadCollectionFiles(collectionId);
+      }
+      loadCollections();
+    }
+  };
+
+  const handleRemoveFromCollection = async (fileId) => {
+    if (!selectedCollection) return;
+
+    const result = await removeFromCollection(selectedCollection.id, fileId);
+    if (result) {
+      loadCollectionFiles(selectedCollection.id);
+      loadCollections();
+    }
+  };
+
+  const openCollection = async (collection) => {
+    setSelectedCollection(collection);
+    await loadCollectionFiles(collection.id);
+  };
+
   // Render stats bar
   const renderStats = () => {
     if (!stats) return null;
@@ -150,48 +244,79 @@ function LibraryTab({ projectId }) {
   };
 
   // Render file list
-  const renderFileList = (fileList, showRelevance = false) => {
+  const renderFileList = (fileList, showRelevance = false, options = {}) => {
+    const { showCollectionActions = true, inCollection = false } = options;
+
     return (
       <div className="library-file-list">
-        {fileList.map((file) => (
-          <div
-            key={file.library_file_id || file.id}
-            className={`library-file-item ${selectedFile === (file.library_file_id || file.id) ? 'selected' : ''}`}
-            onClick={() => setSelectedFile(file.library_file_id || file.id)}
-          >
-            <span className="file-icon">{getFileIcon(file.mime_type)}</span>
-            <div className="file-info">
-              <div className="file-name">{file.filename}</div>
-              <div className="file-meta">
-                {formatSize(file.size_bytes)}
-                {showRelevance && file.score && (
-                  <span className="relevance">
-                    {Math.round(file.score * 100)}% match
-                  </span>
+        {fileList.map((file) => {
+          const fileId = file.library_file_id || file.id;
+          return (
+            <div
+              key={fileId}
+              className={`library-file-item ${selectedFile === fileId ? 'selected' : ''}`}
+              onClick={() => setSelectedFile(fileId)}
+            >
+              <span className="file-icon">{getFileIcon(file.mime_type)}</span>
+              <div className="file-info">
+                <div className="file-name">{file.filename}</div>
+                <div className="file-meta">
+                  {formatSize(file.size_bytes)}
+                  {showRelevance && file.score && (
+                    <span className="relevance">
+                      {Math.round(file.score * 100)}% match
+                    </span>
+                  )}
+                </div>
+                {showRelevance && file.content && (
+                  <div className="file-excerpt">
+                    {file.content.substring(0, 150)}...
+                  </div>
                 )}
               </div>
-              {showRelevance && file.content && (
-                <div className="file-excerpt">
-                  {file.content.substring(0, 150)}...
-                </div>
-              )}
+              <div className="file-actions">
+                {showCollectionActions && !inCollection && (
+                  <button
+                    className="btn-small btn-collection"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAddToCollection(fileId);
+                    }}
+                    title="Add to collection"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                    </svg>
+                  </button>
+                )}
+                {inCollection && (
+                  <button
+                    className="btn-small btn-remove"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFromCollection(fileId);
+                    }}
+                    title="Remove from collection"
+                  >
+                    &times;
+                  </button>
+                )}
+                {projectId && (
+                  <button
+                    className="btn-small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToProject(fileId);
+                    }}
+                    title="Add to project"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="file-actions">
-              {projectId && (
-                <button
-                  className="btn-small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddToProject(file.library_file_id || file.id);
-                  }}
-                  title="Add to project"
-                >
-                  +
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -305,6 +430,150 @@ function LibraryTab({ projectId }) {
     </div>
   );
 
+  // Collections view
+  const renderCollections = () => {
+    if (selectedCollection) {
+      return (
+        <div className="collection-view">
+          <div className="collection-header">
+            <button onClick={() => { setSelectedCollection(null); setCollectionFiles([]); }} className="back-btn">
+              ← Back
+            </button>
+            <div className="collection-title">
+              <span className="collection-dot" style={{ backgroundColor: selectedCollection.color }}></span>
+              <span>{selectedCollection.name}</span>
+              <span className="collection-count">({selectedCollection.file_count} files)</span>
+            </div>
+            <div className="collection-actions">
+              <button
+                className="btn-small"
+                onClick={() => {
+                  setEditingCollection(selectedCollection);
+                  setShowCollectionModal(true);
+                }}
+                title="Edit collection"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+              <button
+                className="btn-small btn-remove"
+                onClick={() => handleDeleteCollection(selectedCollection)}
+                title="Delete collection"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          {selectedCollection.description && (
+            <p className="collection-description">{selectedCollection.description}</p>
+          )}
+
+          {collectionFiles.length > 0 ? (
+            renderFileList(collectionFiles, false, { inCollection: true })
+          ) : (
+            <div className="collection-empty">
+              <p>No files in this collection yet.</p>
+              <button onClick={() => setView('browse')}>
+                Browse Library to Add Files
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="collections-list">
+        <div className="collections-header">
+          <h4>Collections</h4>
+          <button
+            className="btn-primary-small"
+            onClick={() => {
+              setEditingCollection(null);
+              setShowCollectionModal(true);
+            }}
+          >
+            + New Collection
+          </button>
+        </div>
+
+        {collections.length > 0 ? (
+          <div className="collection-cards">
+            {collections.map((collection) => (
+              <div
+                key={collection.id}
+                className="collection-card"
+                onClick={() => openCollection(collection)}
+              >
+                <div className="collection-card-header">
+                  <span className="collection-dot" style={{ backgroundColor: collection.color }}></span>
+                  <span className="collection-name">{collection.name}</span>
+                </div>
+                <div className="collection-card-meta">
+                  {collection.file_count} file{collection.file_count !== 1 ? 's' : ''}
+                </div>
+                {collection.description && (
+                  <div className="collection-card-desc">
+                    {collection.description.substring(0, 80)}
+                    {collection.description.length > 80 ? '...' : ''}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="collections-empty">
+            <p>No collections yet. Create one to organize your library.</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Add to collection dropdown
+  const renderAddToCollectionDropdown = () => {
+    if (!showAddToCollection) return null;
+
+    return (
+      <div className="add-to-collection-overlay" onClick={() => setShowAddToCollection(null)}>
+        <div className="add-to-collection-dropdown" onClick={(e) => e.stopPropagation()}>
+          <h4>Add to Collection</h4>
+          {collections.length > 0 ? (
+            <div className="collection-options">
+              {collections.map((collection) => (
+                <button
+                  key={collection.id}
+                  className="collection-option"
+                  onClick={() => handleAddToCollection(collection.id, showAddToCollection)}
+                >
+                  <span className="collection-dot" style={{ backgroundColor: collection.color }}></span>
+                  <span>{collection.name}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="no-collections">No collections yet.</p>
+          )}
+          <button
+            className="btn-create-new"
+            onClick={() => {
+              setShowAddToCollection(null);
+              setEditingCollection(null);
+              setShowCollectionModal(true);
+            }}
+          >
+            + Create New Collection
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="library-tab">
       <div className="library-header">
@@ -315,6 +584,12 @@ function LibraryTab({ projectId }) {
             onClick={() => setView('browse')}
           >
             Browse
+          </button>
+          <button
+            className={view === 'collections' ? 'active' : ''}
+            onClick={() => { setView('collections'); loadCollections(); }}
+          >
+            Collections
           </button>
           <button
             className={view === 'manage' ? 'active' : ''}
@@ -340,6 +615,7 @@ function LibraryTab({ projectId }) {
       <div className="library-content">
         {view === 'browse' && renderBrowse()}
         {view === 'search' && renderSearchResults()}
+        {view === 'collections' && renderCollections()}
         {view === 'manage' && renderManage()}
         {view === 'settings' && (
           <LibrarySettings onClose={() => setView('browse')} />
@@ -351,6 +627,19 @@ function LibraryTab({ projectId }) {
           <TranscriptionQueue onClose={() => setShowTranscription(false)} />
         </div>
       )}
+
+      {showCollectionModal && (
+        <CollectionModal
+          collection={editingCollection}
+          onSave={editingCollection ? handleUpdateCollection : handleCreateCollection}
+          onClose={() => {
+            setShowCollectionModal(false);
+            setEditingCollection(null);
+          }}
+        />
+      )}
+
+      {renderAddToCollectionDropdown()}
     </div>
   );
 }

@@ -144,6 +144,52 @@ The Library System provides a centralized, NAS-backed knowledge repository. Docu
 - `project`: Search only files referenced by current project
 - `all`: Search both, with 10% relevance boost for project files
 
+### Collections
+
+Organize library files into named groups. Files can belong to multiple collections.
+
+#### Collection API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/library/collections` | GET | List all collections with file counts |
+| `/api/library/collections` | POST | Create collection `{name, description?, color?}` |
+| `/api/library/collections/<id>` | GET | Get collection details |
+| `/api/library/collections/<id>` | PATCH | Update collection |
+| `/api/library/collections/<id>` | DELETE | Delete collection (files remain in library) |
+| `/api/library/collections/<id>/files` | GET | List files in collection |
+| `/api/library/collections/<id>/files` | POST | Add file(s) `{file_id}` or `{file_ids: [...]}` |
+| `/api/library/collections/<id>/files/<file_id>` | DELETE | Remove file from collection |
+| `/api/library/<file_id>/collections` | GET | Get collections a file belongs to |
+
+#### Example: Create and Populate a Collection
+
+```bash
+# Create collection
+curl -X POST http://localhost:5055/api/library/collections \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Founding Era", "description": "American founding documents", "color": "#6366f1"}'
+
+# Add file to collection (returns collection_id in response)
+curl -X POST http://localhost:5055/api/library/collections/1/files \
+  -H "Content-Type: application/json" \
+  -d '{"file_id": 42}'
+
+# Add multiple files
+curl -X POST http://localhost:5055/api/library/collections/1/files \
+  -H "Content-Type: application/json" \
+  -d '{"file_ids": [42, 43, 44]}'
+
+# List collection files
+curl http://localhost:5055/api/library/collections/1/files
+```
+
+#### Available Colors
+
+Collections support 10 preset colors for visual organization:
+- Indigo (#6366f1), Purple (#8b5cf6), Pink (#ec4899), Red (#ef4444), Orange (#f97316)
+- Yellow (#eab308), Green (#22c55e), Teal (#14b8a6), Sky (#0ea5e9), Gray (#6b7280)
+
 ### Directory Scanning
 
 Configure which directories to scan for library content:
@@ -1315,4 +1361,4 @@ iOS requires additional meta tags in `index.html`:
 
 ---
 
-*Last updated: 2026-01-29 (v1.38 - Phase 6.4 complete)*
+*Last updated: 2026-02-01 (v1.39 - Library Collections)*

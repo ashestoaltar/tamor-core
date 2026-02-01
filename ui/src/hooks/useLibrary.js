@@ -240,6 +240,142 @@ export function useLibrary() {
     }
   }, []);
 
+  // ==========================================================================
+  // COLLECTIONS
+  // ==========================================================================
+
+  // List all collections
+  const listCollections = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/library/collections`);
+      if (!res.ok) throw new Error('Failed to fetch collections');
+      return await res.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
+  // Create collection
+  const createCollection = useCallback(async (name, description = null, color = null) => {
+    try {
+      const res = await fetch(`${API_BASE}/library/collections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, color })
+      });
+      if (!res.ok) throw new Error('Failed to create collection');
+      return await res.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
+  // Get collection
+  const getCollection = useCallback(async (collectionId) => {
+    try {
+      const res = await fetch(`${API_BASE}/library/collections/${collectionId}`);
+      if (!res.ok) throw new Error('Collection not found');
+      return await res.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
+  // Update collection
+  const updateCollection = useCallback(async (collectionId, updates) => {
+    try {
+      const res = await fetch(`${API_BASE}/library/collections/${collectionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) throw new Error('Failed to update collection');
+      return await res.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
+  // Delete collection
+  const deleteCollection = useCallback(async (collectionId) => {
+    try {
+      const res = await fetch(`${API_BASE}/library/collections/${collectionId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete collection');
+      return await res.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
+  // Get files in collection
+  const getCollectionFiles = useCallback(async (collectionId, params = {}) => {
+    try {
+      const query = new URLSearchParams();
+      if (params.limit) query.set('limit', params.limit);
+      if (params.offset) query.set('offset', params.offset);
+
+      const res = await fetch(`${API_BASE}/library/collections/${collectionId}/files?${query}`);
+      if (!res.ok) throw new Error('Failed to fetch collection files');
+      return await res.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
+  // Add file(s) to collection
+  const addToCollection = useCallback(async (collectionId, fileIdOrIds) => {
+    try {
+      const body = Array.isArray(fileIdOrIds)
+        ? { file_ids: fileIdOrIds }
+        : { file_id: fileIdOrIds };
+
+      const res = await fetch(`${API_BASE}/library/collections/${collectionId}/files`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error('Failed to add to collection');
+      return await res.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
+  // Remove file from collection
+  const removeFromCollection = useCallback(async (collectionId, fileId) => {
+    try {
+      const res = await fetch(`${API_BASE}/library/collections/${collectionId}/files/${fileId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to remove from collection');
+      return await res.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
+  // Get collections for a file
+  const getFileCollections = useCallback(async (fileId) => {
+    try {
+      const res = await fetch(`${API_BASE}/library/${fileId}/collections`);
+      if (!res.ok) throw new Error('Failed to fetch file collections');
+      return await res.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
   return {
     loading,
     error,
@@ -257,7 +393,17 @@ export function useLibrary() {
     getIndexQueue,
     processIndexQueue,
     getSettings,
-    updateSettings
+    updateSettings,
+    // Collections
+    listCollections,
+    createCollection,
+    getCollection,
+    updateCollection,
+    deleteCollection,
+    getCollectionFiles,
+    addToCollection,
+    removeFromCollection,
+    getFileCollections
   };
 }
 

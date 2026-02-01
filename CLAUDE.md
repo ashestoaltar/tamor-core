@@ -77,6 +77,16 @@ Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in A
 
 ## Session Notes
 
+### 2026-02-01 (Library Collections)
+- **Library Collections System** — Organize library files into named groups
+  - Flat collections design (files can belong to multiple collections)
+  - Full CRUD: create, edit, delete collections with name, description, color
+  - Many-to-many relationship via junction table
+  - New database tables: `library_collections`, `library_collection_files`
+  - 9 API endpoints for collection management and file membership
+  - UI: Collections tab in Library, collection cards, add-to-collection dropdown
+  - Color picker with 10 preset colors for visual organization
+
 ### 2026-02-01 (Internet Archive Integration)
 - **Internet Archive Harvester** — CLI tool for searching/downloading public domain materials
   - Downloads to NAS at `/mnt/library/internet_archive/`

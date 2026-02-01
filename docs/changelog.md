@@ -4,6 +4,58 @@ Running log of issues, root causes, and fixes.
 
 ---
 
+## 2026-02-01
+
+### Feature: Library Collections
+
+**Purpose:** Organize NAS library files into named groups (e.g., "Founding Era", "Patristics", "Torah Commentary"). Files can belong to multiple collections.
+
+**Design:** Flat collections (not hierarchical) for simplicity. Files tagged via many-to-many junction table. Future option to add `parent_id` for hierarchy if needed.
+
+**Database (Migration 010):**
+- `library_collections` table — id, name, description, color, timestamps
+- `library_collection_files` junction — collection_id, library_file_id, added_at
+- Indexes on both foreign keys for efficient queries
+
+**Backend Service (`api/services/library/collection_service.py`):**
+- Collection CRUD: create, get, list (with file_count), update, delete
+- File membership: add_file, add_files (bulk), remove_file, get_files, get_file_collections
+
+**API Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/library/collections` | List all collections with file counts |
+| POST | `/api/library/collections` | Create collection |
+| GET | `/api/library/collections/<id>` | Get collection details |
+| PATCH | `/api/library/collections/<id>` | Update collection |
+| DELETE | `/api/library/collections/<id>` | Delete collection |
+| GET | `/api/library/collections/<id>/files` | List files in collection |
+| POST | `/api/library/collections/<id>/files` | Add file(s) to collection |
+| DELETE | `/api/library/collections/<id>/files/<file_id>` | Remove file from collection |
+| GET | `/api/library/<file_id>/collections` | Get collections for a file |
+
+**UI Components:**
+- "Collections" tab in Library navigation
+- Collection cards with color dot, name, file count, description
+- CollectionModal for create/edit (name, description, 10-color picker)
+- Add-to-collection dropdown from file actions
+- Collection view with file list and remove option
+
+**Files created:**
+- `api/migrations/010_library_collections.sql`
+- `api/services/library/collection_service.py`
+- `ui/src/components/RightPanel/tabs/CollectionModal.jsx`
+- `ui/src/components/RightPanel/tabs/CollectionModal.css`
+
+**Files modified:**
+- `api/services/library/__init__.py`
+- `api/routes/library_api.py`
+- `ui/src/hooks/useLibrary.js`
+- `ui/src/components/RightPanel/tabs/LibraryTab.jsx`
+- `ui/src/components/RightPanel/tabs/LibraryTab.css`
+
+---
+
 ## 2026-01-27
 
 ### Fix: Blank screen when clicking "Start Pipeline"

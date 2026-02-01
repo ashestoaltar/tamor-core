@@ -12,6 +12,7 @@ import json
 
 from services.library import (
     LibraryChunkService,
+    LibraryCollectionService,
     LibraryContextService,
     LibraryIndexQueueService,
     LibraryIngestService,
@@ -47,6 +48,7 @@ settings_service = LibrarySettingsService()
 transcription_service = TranscriptionQueueService()
 transcription_worker = TranscriptionWorker()
 ia_import_service = IAImportService()
+collection_service = LibraryCollectionService()
 
 
 # =============================================================================
@@ -1369,3 +1371,212 @@ def search_ia_items():
     )
 
     return jsonify({"items": items, "count": len(items)})
+
+
+# =============================================================================
+# COLLECTIONS
+# =============================================================================
+
+
+@library_bp.get("/api/library/collections")
+def list_collections():
+    """List all collections with file counts."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    collections = collection_service.list_collections()
+    return jsonify({"collections": collections})
+
+
+@library_bp.post("/api/library/collections")
+def create_collection():
+    """
+    Create a new collection.
+
+    Body:
+        name: Collection name (required)
+        description: Optional description
+        color: Hex color for UI (default: #6366f1)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+    name = data.get("name")
+
+    if not name:
+        return jsonify({"error": "name required"}), 400
+
+    collection = collection_service.create_collection(
+        name=name,
+        description=data.get("description"),
+        color=data.get("color"),
+    )
+
+    return jsonify({"collection": collection}), 201
+
+
+@library_bp.get("/api/library/collections/<int:collection_id>")
+def get_collection(collection_id: int):
+    """Get collection details with file count."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    collection = collection_service.get_collection(collection_id)
+    if not collection:
+        return jsonify({"error": "not_found"}), 404
+
+    return jsonify({"collection": collection})
+
+
+@library_bp.patch("/api/library/collections/<int:collection_id>")
+def update_collection(collection_id: int):
+    """
+    Update a collection.
+
+    Body:
+        name: New name (optional)
+        description: New description (optional)
+        color: New color (optional)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    data = request.json or {}
+
+    collection = collection_service.update_collection(
+        collection_id=collection_id,
+        name=data.get("name"),
+        description=data.get("description"),
+        color=data.get("color"),
+    )
+
+    if not collection:
+        return jsonify({"error": "not_found"}), 404
+
+    return jsonify({"collection": collection})
+
+
+@library_bp.delete("/api/library/collections/<int:collection_id>")
+def delete_collection(collection_id: int):
+    """Delete a collection. Files remain in the library."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    deleted = collection_service.delete_collection(collection_id)
+    if not deleted:
+        return jsonify({"error": "not_found"}), 404
+
+    return jsonify({"deleted": True})
+
+
+@library_bp.get("/api/library/collections/<int:collection_id>/files")
+def get_collection_files(collection_id: int):
+    """
+    List files in a collection.
+
+    Query params:
+        limit: Max files (default 100)
+        offset: Pagination offset
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Verify collection exists
+    collection = collection_service.get_collection(collection_id)
+    if not collection:
+        return jsonify({"error": "not_found"}), 404
+
+    limit = min(int(request.args.get("limit", 100)), 500)
+    offset = int(request.args.get("offset", 0))
+
+    files = collection_service.get_files(
+        collection_id=collection_id,
+        limit=limit,
+        offset=offset,
+    )
+
+    return jsonify({
+        "collection_id": collection_id,
+        "files": files,
+        "count": len(files),
+        "total": collection["file_count"],
+    })
+
+
+@library_bp.post("/api/library/collections/<int:collection_id>/files")
+def add_files_to_collection(collection_id: int):
+    """
+    Add file(s) to a collection.
+
+    Body:
+        file_id: Single file ID
+        OR
+        file_ids: List of file IDs
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Verify collection exists
+    collection = collection_service.get_collection(collection_id)
+    if not collection:
+        return jsonify({"error": "collection_not_found"}), 404
+
+    data = request.json or {}
+    file_id = data.get("file_id")
+    file_ids = data.get("file_ids")
+
+    if file_id:
+        # Single file
+        success = collection_service.add_file(collection_id, file_id)
+        return jsonify({
+            "added": 1 if success else 0,
+            "status": "added" if success else "already_exists"
+        })
+    elif file_ids:
+        # Multiple files
+        count = collection_service.add_files(collection_id, file_ids)
+        return jsonify({"added": count})
+    else:
+        return jsonify({"error": "file_id or file_ids required"}), 400
+
+
+@library_bp.delete("/api/library/collections/<int:collection_id>/files/<int:file_id>")
+def remove_file_from_collection(collection_id: int, file_id: int):
+    """Remove a file from a collection."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    removed = collection_service.remove_file(collection_id, file_id)
+    if not removed:
+        return jsonify({"error": "not_found"}), 404
+
+    return jsonify({"removed": True})
+
+
+@library_bp.get("/api/library/<int:file_id>/collections")
+def get_file_collections(file_id: int):
+    """Get all collections a file belongs to."""
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    # Verify file exists
+    file = library_service.get_file(file_id)
+    if not file:
+        return jsonify({"error": "file_not_found"}), 404
+
+    collections = collection_service.get_file_collections(file_id)
+
+    return jsonify({
+        "file_id": file_id,
+        "collections": collections,
+    })
