@@ -83,6 +83,7 @@ class LibraryIndexQueueService:
             {'processed': int, 'success': int, 'errors': int, 'details': [...]}
         """
         files = self.get_unindexed_files(limit=count)
+        conn = get_db()
 
         results = {"processed": 0, "success": 0, "errors": 0, "details": []}
 
@@ -91,6 +92,12 @@ class LibraryIndexQueueService:
 
             try:
                 chunks = self.chunker.get_chunks(file["id"])
+                # Mark as indexed
+                conn.execute(
+                    "UPDATE library_files SET last_indexed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (file["id"],),
+                )
+                conn.commit()
                 results["success"] += 1
                 results["details"].append(
                     {
