@@ -426,6 +426,38 @@ UI exposure for backend services from Phases 4-5:
 
 ✅ Step notes, advance, reset, abandon controls
 
+5.5 Integrated Reader (Planned)
+
+A unified reading interface for long-form content from the NAS library, project files, and transcripts. Combines visual reading with local text-to-speech.
+
+**Visual Reader:**
+- ⬜ Distraction-free reading view (full-screen or overlay)
+- ⬜ Clean typography with adjustable font size and line spacing
+- ⬜ Pagination or continuous scroll modes
+- ⬜ Bookmarking and progress tracking
+- ⬜ Support for: PDFs (text extraction), transcripts, DOCX, HTML, plain text
+
+**Audio Reader (Piper TTS):**
+- ⬜ Local text-to-speech via Piper (MIT licensed, fully offline)
+- ⬜ Playback controls: speed, pause/resume, skip
+- ⬜ Sentence-level text highlighting synced with audio
+- ⬜ Queue multiple documents for continuous listening
+- ⬜ "Read this to me" command from chat or file actions
+
+**Progress Tracking:**
+- ⬜ `reading_sessions` table: file_id, position, duration, last_accessed
+- ⬜ Resume where you left off (visual and audio)
+
+**Integration:**
+- ⬜ "Open in Reader" file action (Phase 5.1 pattern)
+- ⬜ Chat commands: "Read me [document]", "Continue reading"
+- ⬜ Library and transcript content support
+
+**Constraints:**
+- Fully offline (no cloud TTS)
+- English TTS only in v1
+- PDF via text extraction (not full rendering)
+
 Phase 6 – Advanced Assistant Evolution
 6.1 Long-Term Memory 2.0 (Governed Memory) (Complete)
 

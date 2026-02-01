@@ -212,6 +212,79 @@ Merged into Phase 7 Global Library System as the transcription queue subsystem.
 
 ---
 
+### 24. Integrated Reader (Visual + Audio)
+**Status:** 🟢 Approved for Promotion
+**Maps To:** Phase 5.5 – Integrated Reader
+**Created:** 2026-02-01
+**Expands:** Extension #5 (Audio Reading Mode, completed in 3.4.3)
+
+**Purpose:** A unified reading interface for long-form content from the NAS library, project files, and transcripts. Combines visual reading with local text-to-speech for offline, distraction-free consumption.
+
+**Visual Reader:**
+- Distraction-free reading view (full-screen or overlay)
+- Clean typography with adjustable font size and line spacing
+- Pagination or continuous scroll modes
+- Bookmarking and progress tracking
+- Support for: PDFs (text extraction), transcripts, DOCX, HTML, plain text
+
+**Audio Reader (TTS):**
+- Local text-to-speech via Piper (MIT licensed, high quality, fully offline)
+- Playback controls: speed adjustment, pause/resume, skip forward/back
+- Sentence-level text highlighting synced with audio position
+- Queue multiple documents for continuous listening
+- "Read this to me" command from chat or file actions
+
+**Progress Tracking:**
+- `reading_sessions` table: file_id, position, duration, last_accessed
+- Resume where you left off (visual and audio)
+- Optional reading history / "recently read"
+
+**Integration Points:**
+- NAS Library (Phase 7): browse and select content
+- Transcripts (Phase 5.3): read/listen to transcribed content
+- File Actions (Phase 5.1): "Open in Reader" action
+- Chat: "Read me [document]" or "Continue reading"
+
+**Technical Decisions:**
+- **PDF handling:** Text extraction (reuse library indexing), not full PDF.js rendering. "View Original" link for layout-critical docs.
+- **Audio sync:** Sentence-level highlighting (word-level deferred as future enhancement)
+- **Non-English TTS:** Deferred. English voices only in v1.
+
+**Technical Dependencies:**
+- Piper TTS: `pip install piper-tts` (or run as subprocess)
+- Voice models: downloadable, stored on NAS (~50-100MB each)
+- Audio streaming: chunked TTS generation for long documents
+- Existing MediaTab UI patterns (timestamps, segments)
+
+**Voice Models (starter set):**
+- en_US-lessac-medium (male) - ~50MB
+- en_US-amy-medium (female) - ~50MB
+- Additional voices as needed
+
+**Scope Boundaries:**
+- Single-user, local playback only (no casting/sync initially)
+- No annotation or highlighting in v1 (future extension)
+- TTS quality is "good enough" not "perfect narrator"
+- Progress is per-file, not per-device
+- English only for TTS
+
+**MVP Path:**
+1. Visual reader view (reuse transcript viewer patterns)
+2. Piper TTS integration with basic controls
+3. Progress tracking table and resume logic
+4. "Open in Reader" file action
+5. Chat command support
+
+**Constraints:**
+- Must work fully offline
+- No cloud TTS APIs
+- Reader view must not interfere with main workspace flow
+
+**Promotion Edit:**
+Add Phase 5.5 – Integrated Reader to main roadmap after Phase 5.4.
+
+---
+
 ## E. UI, UX, and Presentation
 
 ### 10. Search Results UX Improvements
