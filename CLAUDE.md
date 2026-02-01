@@ -77,6 +77,31 @@ Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in A
 
 ## Session Notes
 
+### 2026-02-01 (WildBranch Ministries Ingest + Transcription)
+- **Bulk Ingest Workflow** — Added 629 files to NAS library
+  - Created `/mnt/library/religious/wildbranch ministries/` with subfolders
+  - Organized: audio/, articles/, hebrew-mind-greek-mind/, lessons/, powerpoint/, word-studies/
+  - 608 PDFs + 21 MP3s ingested into library system
+- **Transcription Queue System** — First real test of MP3 transcription
+  - Created migration 011 for `transcription_queue` table (was missing)
+  - Fixed worker to save transcripts alongside source audio files
+  - All 21 MP3s transcribed with Whisper base model
+  - Added `api/scripts/run_transcriptions.py` CLI with progress display
+- **Bulk Ingest + Transcription Workflow** (for future use):
+  ```bash
+  # 1. Copy files to NAS folder, then ingest
+  curl -b /tmp/tamor-cookies.txt -X POST http://localhost:5055/api/library/ingest \
+    -H "Content-Type: application/json" \
+    -d '{"path": "/mnt/library/your/folder", "auto_index": false}'
+
+  # 2. Queue all audio for transcription
+  curl -b /tmp/tamor-cookies.txt -X POST http://localhost:5055/api/library/transcription/queue-all
+
+  # 3. Run transcriptions (with progress)
+  cd ~/tamor-core/api && source venv/bin/activate
+  python3 scripts/run_transcriptions.py
+  ```
+
 ### 2026-02-01 (Library Collections)
 - **Library Collections System** — Organize library files into named groups
   - Flat collections design (files can belong to multiple collections)

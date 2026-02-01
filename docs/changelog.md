@@ -6,6 +6,45 @@ Running log of issues, root causes, and fixes.
 
 ## 2026-02-01
 
+### Feature: Transcription Queue System
+
+**Purpose:** Enable bulk transcription of audio/video files in the library with background processing.
+
+**Problem:** The transcription service code existed but was incomplete — missing database migration and API endpoints weren't fully wired up.
+
+**Database (Migration 011):**
+- `transcription_queue` table — tracks files pending transcription
+- Fields: library_file_id, model, language, priority, status, timestamps, result_library_file_id
+- Supports statuses: pending, processing, completed, failed
+
+**Worker Fix:**
+- Changed transcript save location from central `/mnt/library/transcripts/` to alongside source audio files
+- Example: `audio/Christian Man.mp3` → `audio/Christian Man_transcript.json`
+
+**CLI Script (`api/scripts/run_transcriptions.py`):**
+- Progress display with ETA
+- Processes queue items sequentially with timing info
+
+**API Endpoints (already existed, now functional):**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/library/transcription/models` | List Whisper models |
+| GET | `/api/library/transcription/queue` | List queue with stats |
+| POST | `/api/library/transcription/queue` | Add file to queue |
+| DELETE | `/api/library/transcription/queue/<id>` | Remove from queue |
+| GET | `/api/library/transcription/candidates` | Files needing transcription |
+| POST | `/api/library/transcription/queue-all` | Queue all candidates |
+| POST | `/api/library/transcription/process` | Process next/batch |
+
+**Files created:**
+- `api/migrations/011_transcription_queue.sql`
+- `api/scripts/run_transcriptions.py`
+
+**Files modified:**
+- `api/services/library/transcription_worker.py`
+
+---
+
 ### Feature: Library Collections
 
 **Purpose:** Organize NAS library files into named groups (e.g., "Founding Era", "Patristics", "Torah Commentary"). Files can belong to multiple collections.

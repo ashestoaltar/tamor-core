@@ -609,15 +609,16 @@ Audio/video transcription with timestamps and batch queue processing.
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/library/transcription/models` | GET | List available Whisper models |
-| `/api/library/transcription/queue` | GET | List queue items with status |
-| `/api/library/transcription/queue/stats` | GET | Queue statistics |
-| `/api/library/transcription/queue/add` | POST | Add file to queue |
+| `/api/library/transcription/queue` | GET | List queue items with stats |
+| `/api/library/transcription/queue` | POST | Add file to queue `{library_file_id, model?}` |
 | `/api/library/transcription/queue/<id>` | DELETE | Remove from queue |
-| `/api/library/transcription/candidates` | GET | Files without transcripts |
-| `/api/library/transcription/candidates/queue-all` | POST | Queue all candidates |
-| `/api/library/transcription/process/next` | POST | Process next queue item |
-| `/api/library/transcription/process/batch` | POST | Process batch of items |
-| `/api/library/transcription/<file_id>/transcript` | GET | Get transcript for library file |
+| `/api/library/transcription/queue/<id>/retry` | POST | Retry failed item |
+| `/api/library/transcription/candidates` | GET | Files that can be transcribed |
+| `/api/library/transcription/queue-all` | POST | Queue all candidates |
+| `/api/library/transcription/process` | POST | Process next or batch `{count?}` |
+| `/api/library/<file_id>/transcript` | GET | Get transcript for library file |
+
+**Note:** Transcripts are saved alongside source audio files (e.g., `audio/file.mp3` → `audio/file_transcript.json`).
 
 ### Whisper Models
 
@@ -644,30 +645,46 @@ curl -X POST http://localhost:5055/api/projects/13/transcribe-url \
 curl http://localhost:5055/api/library/transcription/candidates
 
 # Queue all candidates with base model
-curl -X POST http://localhost:5055/api/library/transcription/candidates/queue-all \
+curl -X POST http://localhost:5055/api/library/transcription/queue-all \
   -H "Content-Type: application/json" \
   -d '{"model": "base"}'
 
 # Process next item in queue
-curl -X POST http://localhost:5055/api/library/transcription/process/next
+curl -X POST http://localhost:5055/api/library/transcription/process
 ```
 
-### Background Worker
+### Bulk Ingest + Transcription Workflow
 
-Run the transcription worker as a background service:
+Complete workflow for adding new audio files to the library and transcribing them:
 
 ```bash
-# Run continuously (polls every 60 seconds)
-python -m scripts.run_transcription_worker --interval 60
+# 1. Copy files to NAS folder (manually or via script)
 
-# Process one item and exit
-python -m scripts.run_transcription_worker --once
+# 2. Ingest folder into library
+curl -b cookies.txt -X POST http://localhost:5055/api/library/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/mnt/library/religious/your-folder", "auto_index": false}'
 
-# Process batch of 10 items
-python -m scripts.run_transcription_worker --batch 10
+# 3. Queue all audio for transcription
+curl -b cookies.txt -X POST http://localhost:5055/api/library/transcription/queue-all \
+  -H "Content-Type: application/json" \
+  -d '{"model": "base"}'
+
+# 4. Run transcriptions with progress display
+cd ~/tamor-core/api && source venv/bin/activate
+python3 scripts/run_transcriptions.py
 ```
 
-Systemd service file available at `api/scripts/tamor-transcription.service`
+### CLI Transcription Script
+
+Run transcriptions with progress display:
+
+```bash
+cd ~/tamor-core/api && source venv/bin/activate
+python3 scripts/run_transcriptions.py
+```
+
+Output shows progress bar, time per file, and ETA for remaining files.
 
 ---
 
@@ -1361,4 +1378,4 @@ iOS requires additional meta tags in `index.html`:
 
 ---
 
-*Last updated: 2026-02-01 (v1.39 - Library Collections)*
+*Last updated: 2026-02-01 (v1.40 - Transcription Queue & Bulk Workflow)*
