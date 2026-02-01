@@ -77,6 +77,18 @@ Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in A
 
 ## Session Notes
 
+### 2026-02-01 (Internet Archive Integration)
+- **Internet Archive Harvester** — CLI tool for searching/downloading public domain materials
+  - Downloads to NAS at `/mnt/library/internet_archive/`
+  - Clean filename renaming: `{Author} - {Title}.pdf`
+  - Provenance tracking in `ia_items` table
+- **IA Import Service** — Bridge to library system
+  - API endpoints: `/api/library/ia/{stats,pending,import,import-all,search}`
+  - Full metadata preservation from IA to library
+  - OCR integration for scanned PDFs
+- Tested with founding era documents (Federalist Papers, Constitutional Convention, American Revolution)
+- 6 test items harvested, imported to library with embeddings
+
 ### 2026-01-30 (Moltbook Research)
 - **Created ~/moltbook-research/** — Side project for archiving AI agent social network posts
 - Analyzed 100 posts for memory management strategies

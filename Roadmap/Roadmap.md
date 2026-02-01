@@ -1220,6 +1220,18 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.39 – 2026-02-01
+
+Internet Archive Harvester Integration:
+- ✅ CLI tool for searching/downloading from Internet Archive (`api/tools/ia_harvester.py`)
+- ✅ Provenance tracking in `ia_items` table with full IA metadata
+- ✅ Clean filename renaming (`{Author} - {Title}.pdf` format)
+- ✅ Import service bridging IA downloads to library system
+- ✅ API endpoints for import management (`/api/library/ia/*`)
+- ✅ OCR integration for scanned PDFs during import
+
+Downloads to NAS at `/mnt/library/internet_archive/`. Enables corpus building for public domain research materials.
+
 v1.38 – 2026-01-29
 
 Completed Phase 6.4 Plugin Framework Expansion:

@@ -12,13 +12,14 @@ This document provides a reference for Tamor's major features, their APIs, and u
 4. [Memory System](#memory-system)
 5. [Plugin Framework](#plugin-framework)
 6. [Zotero Integration](#zotero-integration)
-7. [Reference Cache](#reference-cache)
-8. [Project Pipelines](#project-pipelines)
-9. [Auto-Insights & Reasoning](#auto-insights--reasoning)
-10. [Media & Transcription](#media--transcription)
-11. [Epistemic Honesty System](#epistemic-honesty-system)
-12. [Focus Mode](#focus-mode)
-13. [Progressive Web App (PWA)](#progressive-web-app-pwa)
+7. [Internet Archive Integration](#internet-archive-integration)
+8. [Reference Cache](#reference-cache)
+9. [Project Pipelines](#project-pipelines)
+10. [Auto-Insights & Reasoning](#auto-insights--reasoning)
+11. [Media & Transcription](#media--transcription)
+12. [Epistemic Honesty System](#epistemic-honesty-system)
+13. [Focus Mode](#focus-mode)
+14. [Progressive Web App (PWA)](#progressive-web-app-pwa)
 
 ---
 
@@ -383,6 +384,66 @@ Zotero data directory is auto-detected from:
 - Custom: `~/Zotero/`
 
 For NAS setup, point Zotero's data directory to NAS path.
+
+---
+
+## Internet Archive Integration
+
+Search, download, and import public domain materials from the Internet Archive into Tamor's library.
+
+### Features
+
+- **Search**: Query IA's catalog with optional filters (mediatype, collection, date range)
+- **Download**: Fetch items to NAS with preferred format selection (PDF, EPUB, etc.)
+- **Clean Filenames**: Automatically rename verbose IA filenames to `{Author} - {Title}.pdf`
+- **Provenance Tracking**: All downloads tracked in `ia_items` table with full metadata
+- **Library Import**: Bridge service imports IA items into Tamor's library with OCR if needed
+- **Metadata Preservation**: IA metadata (creator, date, subject, collection, etc.) preserved as library metadata
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/library/ia/stats` | GET | IA import statistics |
+| `/api/library/ia/pending` | GET | Items downloaded but not imported |
+| `/api/library/ia/import/<id>` | POST | Import single IA item to library |
+| `/api/library/ia/import-all` | POST | Import all pending items |
+| `/api/library/ia/search` | GET | Search IA items in database |
+
+### CLI Tool
+
+The harvester CLI is at `api/tools/ia_harvester.py`:
+
+```bash
+# Search IA catalog
+python api/tools/ia_harvester.py search "federalist papers" --limit 5
+
+# Download items (saves to /mnt/library/internet_archive/)
+python api/tools/ia_harvester.py download <identifier>
+
+# Download with clean filename disabled (keeps original IA filename)
+python api/tools/ia_harvester.py download <identifier> --no-clean-filenames
+```
+
+### Example: Import to Library
+
+```bash
+# Check pending items
+curl http://localhost:5055/api/library/ia/pending
+
+# Import all pending with embeddings
+curl -X POST http://localhost:5055/api/library/ia/import-all
+
+# Check stats
+curl http://localhost:5055/api/library/ia/stats
+```
+
+### Setup Notes
+
+- Downloads stored at `/mnt/library/internet_archive/`
+- Requires `internetarchive` Python package (included in requirements.txt)
+- Downloaded items tracked in `ia_items` table for deduplication
+- Import service uses standard ingest pipeline (OCR for scanned PDFs)
 
 ---
 
