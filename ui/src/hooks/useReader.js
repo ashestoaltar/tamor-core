@@ -248,6 +248,7 @@ export function useReader(contentType, contentId, initialMode = 'visual') {
     // Set audio source and play
     const audioUrl = `${API_BASE}/audio/${chunk.audio_path.split('/').pop()}`;
     audioRef.current.src = audioUrl;
+    audioRef.current.playbackRate = session?.tts_speed || 1.0;
     audioRef.current.load();
 
     setAudioState(prev => ({
@@ -264,12 +265,19 @@ export function useReader(contentType, contentId, initialMode = 'visual') {
       setAudioState(prev => ({ ...prev, playing: false, loading: false }));
     }
 
-    // Pre-generate next chunks
+    // Pre-generate next chunks immediately
     if (chunkPreloadTimer.current) clearTimeout(chunkPreloadTimer.current);
     chunkPreloadTimer.current = setTimeout(() => {
-      generateAudio(chunkIndex + 1, 2);
-    }, 2000);
-  }, [audioState.bufferedChunks, generateAudio]);
+      generateAudio(chunkIndex + 1, 5);  // Preload 5 chunks ahead
+    }, 100);  // Start preloading quickly
+  }, [audioState.bufferedChunks, generateAudio, session?.tts_speed]);
+
+  // Update playback rate when speed changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = session?.tts_speed || 1.0;
+    }
+  }, [session?.tts_speed]);
 
   // Update playNextChunkRef when current chunk changes
   useEffect(() => {
