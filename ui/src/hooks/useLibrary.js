@@ -48,17 +48,16 @@ export function useLibrary() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/library/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query,
-          scope: options.scope || 'library',
-          project_id: options.project_id,
-          limit: options.limit || 10,
-          min_score: options.min_score || 0.4
-        })
+      const params = new URLSearchParams({
+        q: query,
+        scope: options.scope || 'library',
+        limit: options.limit || 10,
+        min_score: options.min_score || 0.4
       });
+      if (options.project_id) {
+        params.append('project_id', options.project_id);
+      }
+      const res = await fetch(`${API_BASE}/library/search?${params}`);
       if (!res.ok) throw new Error('Search failed');
       return await res.json();
     } catch (err) {
