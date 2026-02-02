@@ -1263,6 +1263,14 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.43 – 2026-02-01
+
+Reader and Library improvements:
+- ✅ Added "View Original" button in Reader for library files (opens PDF in browser)
+- ✅ New endpoint: `GET /api/library/<id>/download?inline=true` for file viewing/download
+- ✅ Added PDF text cleanup: removes page numbers, merges broken lines
+- ✅ Evaluated Marker PDF library for scanned documents (documented for future Tier 2 parser)
+
 v1.42 – 2026-02-01
 
 Bug fixes and improvements:

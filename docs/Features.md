@@ -46,6 +46,7 @@ The Library System provides a centralized, NAS-backed knowledge repository. Docu
 | `/api/library` | POST | Add file to library |
 | `/api/library/<id>` | PATCH | Update file metadata |
 | `/api/library/<id>` | DELETE | Delete file from library |
+| `/api/library/<id>/download` | GET | Download/view original file (`?inline=true` for browser view) |
 | `/api/library/stats` | GET | Library statistics |
 
 #### Project References
@@ -1395,6 +1396,7 @@ The Integrated Reader provides a unified reading interface for long-form content
 - **Progress Tracking**: Resume where you left off (visual and audio)
 - **Bookmarking**: Mark positions with visual indicators on progress bar
 - **Dual Mode**: Read visually, listen via audio, or both simultaneously
+- **View Original**: Open original PDF in browser for scanned documents with poor text extraction
 
 ### Opening the Reader
 

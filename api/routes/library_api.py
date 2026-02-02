@@ -6,7 +6,7 @@ Library API endpoints.
 Provides REST API for managing the global library and project references.
 """
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 import json
 
@@ -21,6 +21,7 @@ from services.library import (
     LibrarySearchService,
     LibraryService,
     LibrarySettingsService,
+    LibraryStorageService,
     LibraryTextService,
     ScannedFile,
     TranscriptionQueueService,
@@ -49,6 +50,7 @@ transcription_service = TranscriptionQueueService()
 transcription_worker = TranscriptionWorker()
 ia_import_service = IAImportService()
 collection_service = LibraryCollectionService()
+storage_service = LibraryStorageService()
 
 
 # =============================================================================
@@ -200,6 +202,39 @@ def delete_library_file(file_id: int):
     library_service.delete_file(file_id, delete_from_disk=delete_disk)
 
     return jsonify({"deleted": True})
+
+
+@library_bp.get("/api/library/<int:file_id>/download")
+def download_library_file(file_id: int):
+    """
+    Download/view the original library file.
+
+    Query params:
+        inline: If 'true', set Content-Disposition to inline (view in browser)
+                If 'false' or omitted, set to attachment (download)
+    """
+    user_id, err = ensure_user()
+    if err:
+        return err
+
+    file = library_service.get_file(file_id)
+    if not file:
+        return jsonify({"error": "not_found"}), 404
+
+    # Resolve full path
+    full_path = storage_service.resolve_path(file["stored_path"])
+    if not full_path.exists():
+        return jsonify({"error": "file_not_found_on_disk"}), 404
+
+    # Determine disposition (inline for viewing, attachment for download)
+    inline = request.args.get("inline", "false").lower() == "true"
+
+    return send_file(
+        full_path,
+        mimetype=file.get("mime_type") or "application/octet-stream",
+        as_attachment=not inline,
+        download_name=file.get("filename") or full_path.name,
+    )
 
 
 @library_bp.get("/api/library/<int:file_id>/text")

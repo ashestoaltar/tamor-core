@@ -213,6 +213,20 @@ function ReaderView({
         </div>
 
         <div className="reader-header-right">
+          {/* View Original - only for library files */}
+          {contentType === 'library' && (
+            <button
+              className="reader-btn"
+              onClick={() => window.open(`/api/library/${contentId}/download?inline=true`, '_blank')}
+              aria-label="View original file"
+              title="View Original"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+              </svg>
+            </button>
+          )}
+
           <button
             className={`reader-btn ${showBookmarks ? 'active' : ''}`}
             onClick={() => setShowBookmarks(!showBookmarks)}

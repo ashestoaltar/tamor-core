@@ -90,6 +90,29 @@ Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in A
   - Fixed speed control: uses browser `playbackRate` (Piper doesn't support speed natively)
   - Improved preloading: 5 chunks ahead, starts after 100ms (was 2 chunks after 2s)
   - Note: Sentence-by-sentence following not possible without word-level timing from TTS
+- **PDF Text Cleanup** — `clean_extracted_text()` in file_parsing.py
+  - Removes standalone page numbers (various formats)
+  - Merges broken lines (hyphenated, mid-sentence)
+  - Collapses multiple blank lines
+  - Applied both in PDF extraction and at text retrieval time
+- **View Original Feature** — Reader can now open original PDF in browser
+  - New endpoint: `GET /api/library/<file_id>/download?inline=true`
+  - Button in Reader header for library files (external link icon)
+  - Useful for scanned PDFs where extracted text is poor quality
+
+### 2026-02-01 (Marker PDF Evaluation)
+- **Evaluated Marker PDF library** (`pip install marker-pdf`) for advanced PDF extraction
+- Test results:
+  | Aspect | PyPDF | Marker |
+  |--------|-------|--------|
+  | Clean PDFs | Good | Excellent (adds markdown structure) |
+  | Scanned PDFs | Poor OCR artifacts | Better layout-aware OCR |
+  | Processing time | ~0.1 sec | ~4 min (34KB file) |
+  | Dependencies | pypdf (small) | PyTorch + 2GB models |
+- **Decision:** Keep pypdf as Tier 1 (fast, handles most clean PDFs)
+- **Future consideration:** Marker as optional Tier 2 for scanned/complex PDFs
+  - User-triggered re-extraction when quality is poor
+  - Batch processing overnight for archive collection
 
 ### 2026-02-01 (Phase 5.5 Integrated Reader)
 - **Integrated Reader Complete** — Unified reading interface with local TTS
