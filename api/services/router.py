@@ -5,7 +5,7 @@ Agent Router (Phase 6.2)
 Central orchestration layer for all chat requests.
 
 Responsibilities:
-1. Classify intent (deterministic gates first, then heuristics)
+1. Classify intent (deterministic gates first, then heuristics, then local LLM)
 2. Check deterministic paths (hard stops that never go to LLM)
 3. Select agent sequence based on intent
 4. Execute agents in order, passing outputs between them
@@ -15,9 +15,11 @@ Design principles:
 - Router decides, agents execute
 - Agents never call each other
 - Deterministic paths always take priority
+- Local LLM for classification, cloud LLM for generation
 - Stateless per-turn (artifacts saved separately)
 """
 
+import json
 import logging
 import re
 import time
@@ -43,6 +45,7 @@ class RouteTrace:
     trace_id: str
     route_type: str  # "deterministic" | "llm_single" | "agent_pipeline"
     intents_detected: List[str] = field(default_factory=list)
+    intent_source: str = "heuristic"  # "heuristic" | "local_llm" | "none"
     agent_sequence: List[str] = field(default_factory=list)
     retrieval_used: bool = False
     retrieval_count: int = 0
@@ -54,6 +57,7 @@ class RouteTrace:
             "trace_id": self.trace_id,
             "route_type": self.route_type,
             "intents_detected": self.intents_detected,
+            "intent_source": self.intent_source,
             "agent_sequence": self.agent_sequence,
             "retrieval_used": self.retrieval_used,
             "retrieval_count": self.retrieval_count,
@@ -199,9 +203,11 @@ class AgentRouter:
                     handled_by="deterministic",
                 )
 
-            # Step 2: Classify intent
-            intents = self._classify_intent(ctx.user_message)
+            # Step 2: Classify intent (heuristics first, then local LLM fallback)
+            classify_start = time.time()
+            intents = self._classify_intent(ctx.user_message, trace)
             trace.intents_detected = intents
+            trace.timing_ms["classify"] = int((time.time() - classify_start) * 1000)
 
             # Step 3: Decide routing strategy
             agent_sequence = self._select_agent_sequence(intents, ctx)
@@ -276,7 +282,7 @@ class AgentRouter:
 
         return None
 
-    def _classify_intent(self, message: str) -> List[str]:
+    def _classify_intent_heuristic(self, message: str) -> List[str]:
         """
         Classify user intent using heuristic patterns.
 
@@ -297,6 +303,89 @@ class AgentRouter:
                     break
 
         return detected
+
+    def _classify_intent_local_llm(self, message: str) -> List[str]:
+        """
+        Classify user intent using local LLM (Ollama).
+
+        Used as fallback when heuristics don't match.
+        Returns list of detected intents.
+        """
+        try:
+            from services.llm_service import get_local_llm_client
+
+            client = get_local_llm_client()
+            if not client:
+                return []
+
+            prompt = f"""Classify the following user message into one or more intent categories.
+
+Categories:
+- research: Looking up information, analyzing sources, comparing documents
+- write: Creating prose content, articles, summaries, essays
+- summarize: Condensing content, getting the gist, TL;DR
+- explain: Understanding concepts, how things work, why something is
+- code: Writing, fixing, or modifying code, implementing features
+- memory: Storing preferences, remembering information, forgetting things
+- general: General conversation, greetings, chitchat
+
+User message: "{message}"
+
+Respond with ONLY a JSON array of intent strings, most specific first.
+Example: ["research", "summarize"]
+Example: ["code"]
+Example: ["general"]
+
+JSON array:"""
+
+            response = client.generate(prompt, temperature=0.1)
+
+            # Parse JSON from response
+            response = response.strip()
+            # Handle markdown code blocks
+            if response.startswith("```"):
+                response = response.split("```")[1]
+                if response.startswith("json"):
+                    response = response[4:]
+                response = response.strip()
+
+            intents = json.loads(response)
+
+            # Validate intents
+            valid_intents = ["research", "write", "summarize", "explain", "code", "memory"]
+            filtered = [i for i in intents if i in valid_intents]
+
+            return filtered
+
+        except Exception as e:
+            logger.warning(f"Local LLM classification failed: {e}")
+            return []
+
+    def _classify_intent(self, message: str, trace: Optional[RouteTrace] = None) -> List[str]:
+        """
+        Classify user intent, trying heuristics first, then local LLM.
+
+        Returns list of detected intents, most specific first.
+        """
+        # Try heuristics first (fast)
+        intents = self._classify_intent_heuristic(message)
+
+        if intents:
+            if trace:
+                trace.intent_source = "heuristic"
+            return intents
+
+        # Fall back to local LLM if available
+        intents = self._classify_intent_local_llm(message)
+
+        if intents:
+            if trace:
+                trace.intent_source = "local_llm"
+            return intents
+
+        if trace:
+            trace.intent_source = "none"
+        return []
 
     def _select_agent_sequence(
         self, intents: List[str], ctx: RequestContext

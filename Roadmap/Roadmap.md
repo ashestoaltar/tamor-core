@@ -1263,6 +1263,14 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.45 – 2026-02-01
+
+Local LLM Agent Routing:
+- ✅ Router uses local LLM for intent classification fallback
+- ✅ Heuristics first (0ms), local LLM when ambiguous (6-20s on CPU)
+- ✅ Trace includes intent_source for debugging/monitoring
+- ✅ Reduces cloud API calls for routing decisions
+
 v1.44 – 2026-02-01
 
 Local LLM Integration (Ollama):
