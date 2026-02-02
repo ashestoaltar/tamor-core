@@ -53,6 +53,7 @@ function LibraryTab({ projectId }) {
   const [files, setFiles] = useState([]);
   const [stats, setStats] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState('content'); // 'content' | 'title'
   const [searchResults, setSearchResults] = useState(null);
   const [indexQueue, setIndexQueue] = useState(null);
   const [scanConfig, setScanConfig] = useState(null);
@@ -90,15 +91,29 @@ function LibraryTab({ projectId }) {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    const result = await search(searchQuery, {
-      scope: projectId ? 'all' : 'library',
-      project_id: projectId,
-      limit: 20
-    });
-
-    if (result) {
-      setSearchResults(result);
-      setView('search');
+    if (searchMode === 'title') {
+      // Filename/metadata search
+      const result = await listFiles({ search: searchQuery, limit: 50 });
+      if (result) {
+        setSearchResults({
+          query: searchQuery,
+          count: result.files.length,
+          results: result.files,
+          mode: 'title'
+        });
+        setView('search');
+      }
+    } else {
+      // Semantic content search
+      const result = await search(searchQuery, {
+        scope: projectId ? 'all' : 'library',
+        project_id: projectId,
+        limit: 20
+      });
+      if (result) {
+        setSearchResults({ ...result, mode: 'content' });
+        setView('search');
+      }
     }
   };
 
@@ -343,11 +358,29 @@ function LibraryTab({ projectId }) {
       {renderStats()}
 
       <form onSubmit={handleSearch} className="library-search-form">
+        <div className="search-mode-toggle">
+          <button
+            type="button"
+            className={searchMode === 'content' ? 'active' : ''}
+            onClick={() => setSearchMode('content')}
+            title="Search inside file contents"
+          >
+            Content
+          </button>
+          <button
+            type="button"
+            className={searchMode === 'title' ? 'active' : ''}
+            onClick={() => setSearchMode('title')}
+            title="Search by title/author/filename"
+          >
+            Title
+          </button>
+        </div>
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search library..."
+          placeholder={searchMode === 'content' ? "Search content..." : "Search by title/author..."}
           className="library-search-input"
         />
         <button type="submit" disabled={loading}>
@@ -369,24 +402,28 @@ function LibraryTab({ projectId }) {
   );
 
   // Search results view
-  const renderSearchResults = () => (
-    <div className="library-search-results">
-      <div className="search-header">
-        <button onClick={() => setView('browse')} className="back-btn">
-          ← Back
-        </button>
-        <span className="search-info">
-          {searchResults?.count || 0} results for "{searchResults?.query}"
-        </span>
-      </div>
+  const renderSearchResults = () => {
+    const isContentSearch = searchResults?.mode === 'content';
+    return (
+      <div className="library-search-results">
+        <div className="search-header">
+          <button onClick={() => setView('browse')} className="back-btn">
+            ← Back
+          </button>
+          <span className="search-info">
+            {searchResults?.count || 0} results for "{searchResults?.query}"
+            {isContentSearch ? ' (content)' : ' (title)'}
+          </span>
+        </div>
 
-      {searchResults?.results?.length > 0 ? (
-        renderFileList(searchResults.results, true)
-      ) : (
-        <div className="no-results">No matching content found.</div>
-      )}
-    </div>
-  );
+        {searchResults?.results?.length > 0 ? (
+          renderFileList(searchResults.results, isContentSearch)
+        ) : (
+          <div className="no-results">No matching files found.</div>
+        )}
+      </div>
+    );
+  };
 
   // Manage view
   const renderManage = () => (
