@@ -20,12 +20,14 @@ export function useReader(contentType, contentId, initialMode = 'visual') {
     duration: 0,
     currentChunk: null,
     bufferedChunks: [],
+    totalChunks: null,
   });
 
   // Audio element ref
   const audioRef = useRef(null);
   const progressSaveTimer = useRef(null);
   const chunkPreloadTimer = useRef(null);
+  const playNextChunkRef = useRef(null); // For auto-advance
 
   // Initialize audio element
   useEffect(() => {
@@ -69,11 +71,15 @@ export function useReader(contentType, contentId, initialMode = 'visual') {
   }, []);
 
   const handleAudioEnded = useCallback(() => {
-    setAudioState(prev => ({
-      ...prev,
-      playing: false,
-    }));
-    // Could auto-advance to next chunk here
+    // Auto-advance to next chunk
+    if (playNextChunkRef.current) {
+      playNextChunkRef.current();
+    } else {
+      setAudioState(prev => ({
+        ...prev,
+        playing: false,
+      }));
+    }
   }, []);
 
   const handleAudioError = useCallback((e) => {
@@ -203,10 +209,11 @@ export function useReader(contentType, contentId, initialMode = 'visual') {
 
       const data = await res.json();
 
-      // Update buffered chunks
+      // Update buffered chunks and total count
       setAudioState(prev => ({
         ...prev,
         loading: false,
+        totalChunks: data.total_chunks ?? prev.totalChunks,
         bufferedChunks: [
           ...prev.bufferedChunks.filter(c =>
             !data.generated_chunks.some(gc => gc.index === c.index)
@@ -263,6 +270,24 @@ export function useReader(contentType, contentId, initialMode = 'visual') {
       generateAudio(chunkIndex + 1, 2);
     }, 2000);
   }, [audioState.bufferedChunks, generateAudio]);
+
+  // Update playNextChunkRef when current chunk changes
+  useEffect(() => {
+    if (audioState.currentChunk !== null) {
+      playNextChunkRef.current = () => {
+        const nextIndex = audioState.currentChunk.index + 1;
+        // Check if there are more chunks
+        if (audioState.totalChunks && nextIndex >= audioState.totalChunks) {
+          // No more chunks, stop playing
+          setAudioState(prev => ({ ...prev, playing: false }));
+        } else {
+          playAudio(nextIndex);
+        }
+      };
+    } else {
+      playNextChunkRef.current = null;
+    }
+  }, [audioState.currentChunk, audioState.totalChunks, playAudio]);
 
   // Pause audio
   const pauseAudio = useCallback(() => {
