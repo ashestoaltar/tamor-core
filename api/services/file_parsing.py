@@ -26,7 +26,124 @@ Design goals:
 from __future__ import annotations
 
 import os
+import re
 from typing import Any, Dict, List, Optional, Tuple
+
+
+# ---------------------------------------------------------------------------
+# Text Cleanup
+# ---------------------------------------------------------------------------
+
+
+def clean_extracted_text(text: str) -> str:
+    """
+    Clean up poorly formatted extracted text from PDFs.
+
+    Handles common issues:
+    - Standalone page number lines ("2/1224", "Page 5", just "42")
+    - Repeated headers/footers
+    - Broken lines (mid-sentence line breaks)
+    - Excessive whitespace
+    """
+    if not text:
+        return text
+
+    lines = text.split("\n")
+    cleaned_lines = []
+
+    # Patterns for lines to remove entirely
+    page_number_patterns = [
+        r"^\s*\d+\s*/\s*\d+\s*$",  # "2/1224", "15 / 200"
+        r"^\s*Page\s+\d+\s*$",  # "Page 5"
+        r"^\s*-\s*\d+\s*-\s*$",  # "- 42 -"
+        r"^\s*\[\s*\d+\s*\]\s*$",  # "[42]"
+        r"^\s*\d+\s*$",  # Just a number (be careful - only if short)
+    ]
+    page_number_re = re.compile("|".join(page_number_patterns), re.IGNORECASE)
+
+    # First pass: remove page number lines
+    for line in lines:
+        stripped = line.strip()
+
+        # Skip empty lines for now (we'll handle spacing later)
+        if not stripped:
+            cleaned_lines.append("")
+            continue
+
+        # Skip standalone page numbers
+        if page_number_re.match(stripped):
+            continue
+
+        # Skip very short lines that are just numbers (likely page numbers)
+        if len(stripped) <= 4 and stripped.isdigit():
+            continue
+
+        cleaned_lines.append(line)
+
+    # Second pass: merge broken lines
+    # A line is "broken" if it doesn't end with sentence punctuation
+    # and the next line starts with a lowercase letter
+    merged_lines = []
+    i = 0
+    sentence_enders = '.!?:;"\'"\u201d\u2019'  # Include curly quotes
+
+    while i < len(cleaned_lines):
+        line = cleaned_lines[i]
+        stripped = line.strip()
+
+        if not stripped:
+            # Preserve paragraph breaks (blank lines)
+            merged_lines.append("")
+            i += 1
+            continue
+
+        # Check if this line should be merged with the next
+        while i + 1 < len(cleaned_lines):
+            next_line = cleaned_lines[i + 1].strip()
+
+            # Don't merge if next line is empty (paragraph break)
+            if not next_line:
+                break
+
+            # Don't merge if current line ends with sentence punctuation
+            if stripped and stripped[-1] in sentence_enders:
+                break
+
+            # Don't merge if next line starts with uppercase (likely new sentence/heading)
+            if next_line and next_line[0].isupper():
+                # But do merge if current line ends with common continuation patterns
+                if not (stripped.endswith(",") or stripped.endswith("-") or
+                        stripped.endswith("and") or stripped.endswith("or") or
+                        stripped.endswith("the") or stripped.endswith("a")):
+                    break
+
+            # Merge the lines
+            stripped = stripped + " " + next_line
+            i += 1
+
+        merged_lines.append(stripped)
+        i += 1
+
+    # Third pass: collapse multiple blank lines to one
+    final_lines = []
+    prev_blank = False
+    for line in merged_lines:
+        is_blank = not line.strip()
+        if is_blank:
+            if not prev_blank:
+                final_lines.append("")
+            prev_blank = True
+        else:
+            final_lines.append(line)
+            prev_blank = False
+
+    # Remove leading/trailing blank lines
+    while final_lines and not final_lines[0].strip():
+        final_lines.pop(0)
+    while final_lines and not final_lines[-1].strip():
+        final_lines.pop()
+
+    return "\n".join(final_lines)
 
 
 # ---------------------------------------------------------------------------
@@ -125,8 +242,8 @@ def _parse_pdf(full_path: str) -> Dict[str, Any]:
                 # When we later do "\n".join(page_texts) we add 1 char newline
                 running += len(t) + 1
 
-        text = "\n".join(page_texts).strip()
-        if not text:
+        raw_text = "\n".join(page_texts).strip()
+        if not raw_text:
             return {
                 "text": (
                     "This PDF appears to have no extractable text (it may be a scan). "
@@ -140,16 +257,19 @@ def _parse_pdf(full_path: str) -> Dict[str, Any]:
                 "parser": "pdf-pypdf2-empty",
             }
 
+        # Clean up the extracted text (remove page numbers, merge broken lines)
+        text = clean_extracted_text(raw_text)
+
         meta: Dict[str, Any] = {
             "page_count": len(getattr(reader, "pages", [])),
-            # starting character index (in the concatenated text) for each page
+            # Note: page_offsets are based on raw text, may not match cleaned text
             "page_offsets": page_offsets,
         }
         return {
             "text": text,
             "meta": meta,
             "warnings": [],
-            "parser": "pdf-pypdf2",
+            "parser": "pdf-pypdf2-cleaned",
         }
     except Exception as e:
         return {

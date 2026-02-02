@@ -9,7 +9,7 @@ Reuses existing parsing infrastructure but stores in library-specific tables.
 import json
 from typing import Any, Dict, Optional, Tuple
 
-from services.file_parsing import extract_text_from_file
+from services.file_parsing import clean_extracted_text, extract_text_from_file
 from utils.db import get_db
 
 from .library_service import LibraryService
@@ -23,9 +23,15 @@ class LibraryTextService:
         self.storage = LibraryStorageService()
         self.library = LibraryService()
 
-    def get_text(self, library_file_id: int) -> Tuple[Optional[str], Optional[Dict]]:
+    def get_text(
+        self, library_file_id: int, clean: bool = True
+    ) -> Tuple[Optional[str], Optional[Dict]]:
         """
         Get extracted text for a library file.
+
+        Args:
+            library_file_id: ID of the library file
+            clean: Whether to apply text cleanup (remove page numbers, merge lines)
 
         Returns:
             (text, metadata) or (None, None) if not available
@@ -33,10 +39,16 @@ class LibraryTextService:
         # Check cache first
         cached = self._get_cached_text(library_file_id)
         if cached:
-            return cached
+            text, meta = cached
+            if clean and text:
+                text = clean_extracted_text(text)
+            return (text, meta)
 
         # Extract and cache
-        return self._extract_and_cache(library_file_id)
+        result = self._extract_and_cache(library_file_id)
+        if result and clean and result[0]:
+            return (clean_extracted_text(result[0]), result[1])
+        return result
 
     def _get_cached_text(self, library_file_id: int) -> Optional[Tuple[str, Dict]]:
         """Get text from cache if available."""
