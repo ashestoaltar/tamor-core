@@ -94,64 +94,82 @@ OLLAMA_MODEL=llama3.1:8b
 - Routing/classification
 - Offline fallback
 
-**Next steps:** Wire local LLM into agent routing for cost reduction.
-
 ## Session Notes
 
-### 2026-02-01 (Local LLM Integration)
-- **Ollama installed** — Local LLM inference via Ollama v0.15.4
-  - Models: llama3.1:8b (4.9GB), mistral:latest (4.4GB)
-  - Performance: ~5 tokens/sec on CPU (usable for background tasks)
-- **LLM Service updated** — `api/services/llm_service.py`
-  - Added `OllamaProvider` class with chat_completion and generate methods
-  - New functions: `get_local_llm_client()`, `local_llm_is_configured()`
-  - `get_best_available_client(prefer_local=False)` for routing
-- **Agent Router updated** — `api/services/router.py`
-  - Intent classification now uses local LLM as fallback when heuristics don't match
-  - `_classify_intent_heuristic()` for fast regex-based classification (0ms)
-  - `_classify_intent_local_llm()` for nuanced classification with phi3:mini (5-15s on CPU)
-  - **Optimizations:**
-    - LRU cache for classification results (500 entries, ~0ms on cache hit)
-    - Uses phi3:mini (2.2GB) for faster inference vs larger models
-    - Pre-warms model in background thread on first router access
-  - Trace includes `intent_source` ("heuristic" | "local_llm" | "local_llm_cache" | "none")
-- **System status** — `/api/system-status` now reports Ollama availability and models
-- **Documentation** — Added Section K "Local AI Vision" to Roadmap-extensions.md
-  - Comprehensive plan for local-first AI capabilities
-  - Background processing, proactive context, voice interface
+### 2026-02-01 (Local AI Integration - Major Feature)
 
-### 2026-02-01 (Bug Fixes & Improvements)
-- **Library Indexing Fix** — `index_queue_service.py` wasn't updating `last_indexed_at` after processing
-  - Files were being processed but never marked as indexed, causing infinite reprocessing
-  - All 1,934 library files now properly indexed
-- **Library Search Fixes**
-  - Fixed 405 error: frontend was using POST, backend expected GET
-  - Added search mode toggle: Content (semantic) vs Title (filename/metadata)
-  - Content search uses embeddings; Title search filters by filename text
-- **Reader Audio Improvements**
-  - Fixed auto-advance: reader now continues through all chunks instead of stopping after first
-  - Fixed speed control: uses browser `playbackRate` (Piper doesn't support speed natively)
-  - Improved preloading: 5 chunks ahead, starts after 100ms (was 2 chunks after 2s)
-  - Note: Sentence-by-sentence following not possible without word-level timing from TTS
-- **PDF Text Cleanup** — `clean_extracted_text()` in file_parsing.py
+**Ollama Installation & Models**
+- Installed Ollama v0.15.4 for local LLM inference
+- Models downloaded:
+  - `phi3:mini` (2.2GB) — Fast classification model
+  - `mistral:latest` (4.4GB) — General purpose
+  - `llama3.1:8b` (4.9GB) — Complex reasoning
+- Performance: ~5 tokens/sec on CPU (Ryzen 5 5500U)
+
+**LLM Service Integration** (`api/services/llm_service.py`)
+- Added `OllamaProvider` class with `chat_completion()` and `generate()` methods
+- New functions:
+  - `get_local_llm_client()` — Get Ollama provider
+  - `local_llm_is_configured()` — Check if Ollama is running
+  - `get_best_available_client(prefer_local=False)` — Smart provider selection
+- Environment variables: `OLLAMA_BASE_URL`, `OLLAMA_MODEL`
+
+**Agent Router Integration** (`api/services/router.py`)
+- Intent classification now uses 3-tier system:
+  1. **Heuristics** (regex patterns) — 0ms
+  2. **Cache hit** (LRU, 500 entries) — 0ms
+  3. **Local LLM** (phi3:mini) — 5-15s on CPU
+- New methods:
+  - `_classify_intent_heuristic()` — Fast regex matching
+  - `_classify_intent_local_llm()` — Nuanced classification with caching
+- Optimizations:
+  - `ClassificationCache` — LRU cache for repeated queries
+  - Uses phi3:mini instead of larger models (2x faster)
+  - Pre-warms model in background thread on startup
+- Trace includes `intent_source`: "heuristic" | "local_llm" | "local_llm_cache" | "none"
+- Fixed: Research/write queries without project context now fall through to Claude
+
+**System Status Updates**
+- `/api/system-status` now reports:
+  - `local_llm_available`: boolean
+  - `local_llm_models`: list of installed models
+
+**Documentation**
+- Added Section K "Local AI Vision" to `Roadmap/Roadmap-extensions.md`
+- Comprehensive plan for local-first AI capabilities
+- Hardware evaluation and upgrade path documented
+
+### 2026-02-01 (Reader & Library Improvements)
+
+**View Original Feature**
+- New endpoint: `GET /api/library/<file_id>/download?inline=true`
+- "View Original" button in Reader header (external link icon)
+- Opens PDF in browser's native viewer — useful for scanned documents
+
+**PDF Text Cleanup** (`api/services/file_parsing.py`)
+- New `clean_extracted_text()` function:
   - Removes standalone page numbers (various formats)
   - Merges broken lines (hyphenated, mid-sentence)
   - Collapses multiple blank lines
-  - Applied both in PDF extraction and at text retrieval time
-- **View Original Feature** — Reader can now open original PDF in browser
-  - New endpoint: `GET /api/library/<file_id>/download?inline=true`
-  - Button in Reader header for library files (external link icon)
-  - Useful for scanned PDFs where extracted text is poor quality
+- Applied at extraction time and retrieval time
 
-### 2026-02-01 (Marker PDF Evaluation)
-- **Evaluated Marker PDF library** (`pip install marker-pdf`) for advanced PDF extraction
-- Test results:
-  | Aspect | PyPDF | Marker |
-  |--------|-------|--------|
-  | Clean PDFs | Good | Excellent (adds markdown structure) |
-  | Scanned PDFs | Poor OCR artifacts | Better layout-aware OCR |
-  | Processing time | ~0.1 sec | ~4 min (34KB file) |
-  | Dependencies | pypdf (small) | PyTorch + 2GB models |
+**Marker PDF Evaluation**
+- Tested `marker-pdf` library for advanced extraction
+- Results: Better for scanned PDFs but 4 min vs 0.1s for pypdf
+- Decision: Keep pypdf as Tier 1, Marker as future Tier 2 for scanned docs
+
+**Reader Audio Fixes**
+- Fixed auto-advance: continues through all chunks
+- Fixed speed control: uses browser `playbackRate`
+- Improved preloading: 5 chunks ahead, starts after 100ms
+
+**Library Search Fixes**
+- Fixed 405 error (POST→GET)
+- Added search mode toggle: Content (semantic) vs Title (filename)
+
+**Library Indexing Fix**
+- `last_indexed_at` now properly updates after processing
+- All 1,934 library files properly indexed
 - **Decision:** Keep pypdf as Tier 1 (fast, handles most clean PDFs)
 - **Future consideration:** Marker as optional Tier 2 for scanned/complex PDFs
   - User-triggered re-extraction when quality is poor
