@@ -80,22 +80,25 @@ The Library System provides a centralized, NAS-backed knowledge repository. Docu
 
 #### Search
 
+The UI provides two search modes via a toggle:
+- **Content**: Semantic search using embeddings (finds conceptually related text)
+- **Title**: Filename/metadata text filter (exact substring match)
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/library/search` | POST | Semantic search across library |
-| `/api/library/search/file/<id>` | GET | Search within specific file |
+| `/api/library/search` | GET | Semantic search across library |
+| `/api/library/<id>/search` | GET | Search within specific file |
 | `/api/library/<id>/similar` | GET | Find similar files |
+| `/api/library` | GET | List files with `search` param for title/filename filter |
 
-**Search Request Body:**
-```json
-{
-  "query": "search text",
-  "scope": "library",      // "library", "project", or "all"
-  "project_id": 13,        // Required if scope is "project" or "all"
-  "limit": 10,
-  "min_score": 0.4,
-  "file_types": ["application/pdf"]
-}
+**Semantic Search Query Params:**
+```
+/api/library/search?q=search+text&scope=library&limit=10&min_score=0.4
+```
+
+**Title/Filename Filter:**
+```
+/api/library?search=hamilton&limit=50
 ```
 
 #### Context Preview
@@ -1387,6 +1390,8 @@ The Integrated Reader provides a unified reading interface for long-form content
 
 - **Visual Reading**: Clean typography with adjustable font size and line spacing
 - **Audio Reading**: Local TTS via Piper (fully offline, no cloud services)
+- **Speed Control**: Adjust playback speed (0.75x to 2.0x) via browser playbackRate
+- **Auto-Advance**: Automatically plays through all chunks; preloads 5 chunks ahead
 - **Progress Tracking**: Resume where you left off (visual and audio)
 - **Bookmarking**: Mark positions with visual indicators on progress bar
 - **Dual Mode**: Read visually, listen via audio, or both simultaneously
@@ -1541,4 +1546,4 @@ Storage:
 
 ---
 
-*Last updated: 2026-02-01 (v1.41 - Integrated Reader)*
+*Last updated: 2026-02-01 (v1.42 - Reader improvements, search mode toggle)*

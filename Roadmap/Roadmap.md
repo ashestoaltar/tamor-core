@@ -1263,6 +1263,16 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.42 – 2026-02-01
+
+Bug fixes and improvements:
+- ✅ Fixed library indexing: `last_indexed_at` now properly updates after processing
+- ✅ Fixed library search 405 error: changed frontend from POST to GET
+- ✅ Added search mode toggle: Content (semantic) vs Title (filename/metadata)
+- ✅ Fixed reader auto-advance: now continues through all chunks
+- ✅ Fixed reader speed control: uses browser `playbackRate` (0.75x to 2.0x)
+- ✅ Improved reader preloading: 5 chunks ahead, starts after 100ms
+
 v1.40 – 2026-02-01
 
 Completed Phase 5.5 Integrated Reader:

@@ -77,6 +77,20 @@ Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in A
 
 ## Session Notes
 
+### 2026-02-01 (Bug Fixes & Improvements)
+- **Library Indexing Fix** — `index_queue_service.py` wasn't updating `last_indexed_at` after processing
+  - Files were being processed but never marked as indexed, causing infinite reprocessing
+  - All 1,934 library files now properly indexed
+- **Library Search Fixes**
+  - Fixed 405 error: frontend was using POST, backend expected GET
+  - Added search mode toggle: Content (semantic) vs Title (filename/metadata)
+  - Content search uses embeddings; Title search filters by filename text
+- **Reader Audio Improvements**
+  - Fixed auto-advance: reader now continues through all chunks instead of stopping after first
+  - Fixed speed control: uses browser `playbackRate` (Piper doesn't support speed natively)
+  - Improved preloading: 5 chunks ahead, starts after 100ms (was 2 chunks after 2s)
+  - Note: Sentence-by-sentence following not possible without word-level timing from TTS
+
 ### 2026-02-01 (Phase 5.5 Integrated Reader)
 - **Integrated Reader Complete** — Unified reading interface with local TTS
   - TTS Service (`api/services/tts_service.py`): Piper wrapper with chunking and caching
