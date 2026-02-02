@@ -35,16 +35,20 @@ Add explicit deterministic enforcement language to Phase 3.1, including demo-saf
 ---
 
 ### 2. Multi-LLM Routing & Fallback
-**Status:** 🔵 Investigating
+**Status:** 🟢 Partially Complete
 **Maps To:** Phase 6.2 – Multi-Agent Support
 
-- Primary LLM with secondary fallback
-- Optional task-based routing (writing vs code vs analysis)
-- Health-based failover
+- ✅ Primary LLM with secondary fallback (`get_best_available_client()`)
+- ✅ Ollama provider integration (`OllamaProvider` class)
+- ✅ Intent classification using local LLM (phi3:mini)
+- ⏳ Optional task-based routing (writing vs code vs analysis)
+- ⏳ Health-based failover
 
 Constraints:
 - Must preserve consistent tone
 - Must not fragment memory semantics
+
+> Partial implementation completed 2026-02-01. Cloud for generation, local for classification.
 
 ---
 
@@ -587,7 +591,7 @@ Based on Moltbook analysis, Tamor's architecture already provides:
 
 ## K. Local AI Vision
 
-**Status:** 🔵 Investigating
+**Status:** 🟢 In Progress (K.1 Complete)
 **Priority:** High
 **Added:** 2026-02-01
 
@@ -617,22 +621,25 @@ Everything else can run locally, making Tamor:
 
 ### K.1 Local LLM Integration (Ollama)
 
+**Status:** 🟢 Completed (2026-02-01)
 **Impact:** High
 **Effort:** Medium
 
-Install Ollama with 8-13B model as Tamor's "local brain":
+Ollama installed with local models as Tamor's "local brain":
 
-| Use Case | Model | Why |
-|----------|-------|-----|
-| Routing/classification | Mistral 7B | Fast intent detection |
-| Summarization | Llama 3.1 8B | Good quality, reasonable speed |
-| Code assistance | DeepSeek Coder 6.7B | Specialized |
-| Quality-critical (slow) | Llama 3.1 70B | When time permits |
+| Use Case | Model | Status |
+|----------|-------|--------|
+| Routing/classification | phi3:mini | ✅ Active (fast, 2.2GB) |
+| General purpose | llama3.1:8b | ✅ Installed |
+| Summarization | llama3.1:8b | ⏳ Ready to use |
 
-**Implementation:**
-- Add Ollama provider to `llm_service.py`
-- Route by task type: local for prep, Claude for generation
-- Config in `config/providers.yml`
+**Implemented:**
+- ✅ `OllamaProvider` class in `llm_service.py`
+- ✅ Intent classification using local LLM with LRU caching (500 entries)
+- ✅ Model pre-warming on startup (background thread)
+- ✅ Heuristic → cache → local LLM classification tier
+- ✅ System status reporting for local LLM availability
+- ✅ Environment config: `OLLAMA_BASE_URL`, `OLLAMA_MODEL`
 
 ### K.2 Aggressive Background Processing
 
@@ -723,6 +730,41 @@ The 64GB RAM is already excellent—no upgrade needed there.
 4. **Knowledge graph extraction** — Uses local LLM
 5. **Voice interface** — Polish feature
 6. **Proactive insights** — Capstone feature
+
+---
+
+## L. Library System Enhancements
+
+**Status:** 🔵 Ready to Build
+**Maps To:** Phase 7 – Global Library System
+
+### L.1 Library Collections
+
+**Status:** 🟢 Planned (design complete)
+**Impact:** Medium
+**Effort:** Low-Medium
+
+Organize NAS library files into named groups (e.g., "Founding Era", "Patristics", "Torah Commentary"). Files can belong to multiple collections.
+
+**Design:** Flat collections (v1). Files can be in multiple collections. Naming conventions can simulate hierarchy if needed.
+
+**Schema:**
+- `library_collections`: id, name, description, color, timestamps
+- `library_collection_files`: collection_id, library_file_id (junction table)
+
+**API Endpoints:**
+- CRUD for collections
+- Add/remove files from collections
+- List files in collection
+- List collections for file
+
+**UI:**
+- Collections view in Library tab
+- Collection cards with color indicators
+- "Add to Collection" action on files
+- CollectionModal for create/edit
+
+**Full design:** `/home/tamor/.claude/plans/valiant-frolicking-flame.md`
 
 ---
 
