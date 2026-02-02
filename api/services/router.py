@@ -486,15 +486,19 @@ JSON array:"""
 
         primary_intent = intents[0]
 
-        # Writing tasks: Researcher → Writer
+        # Writing tasks: Researcher → Writer (only if project context exists)
         if primary_intent == "write":
-            return ["researcher", "writer"]
-
-        # Research tasks: Researcher only (or + Writer if "summarize" also detected)
-        if primary_intent == "research":
-            if "summarize" in intents or "write" in intents:
+            if ctx.project_id:
                 return ["researcher", "writer"]
-            return ["researcher"]
+            return []  # No project, use single LLM for general writing
+
+        # Research tasks: Researcher only (requires project context)
+        if primary_intent == "research":
+            if ctx.project_id:
+                if "summarize" in intents or "write" in intents:
+                    return ["researcher", "writer"]
+                return ["researcher"]
+            return []  # No project, use single LLM for general questions
 
         # Summarization: Researcher → Writer (for polish)
         if primary_intent == "summarize":
