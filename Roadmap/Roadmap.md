@@ -1263,11 +1263,19 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.46 – 2026-02-01
+
+Classification Optimizations:
+- ✅ LRU cache for classification results (500 entries, 0ms on cache hit)
+- ✅ phi3:mini (2.2GB) for faster classification (5-15s vs 23s)
+- ✅ Pre-warm model in background thread on startup
+- ✅ `get_classification_cache_stats()` for monitoring
+
 v1.45 – 2026-02-01
 
 Local LLM Agent Routing:
 - ✅ Router uses local LLM for intent classification fallback
-- ✅ Heuristics first (0ms), local LLM when ambiguous (6-20s on CPU)
+- ✅ Heuristics first (0ms), local LLM when ambiguous (5-15s on CPU)
 - ✅ Trace includes intent_source for debugging/monitoring
 - ✅ Reduces cloud API calls for routing decisions
 

@@ -19,11 +19,14 @@ Design principles:
 - Stateless per-turn (artifacts saved separately)
 """
 
+import hashlib
 import json
 import logging
 import re
+import threading
 import time
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -37,6 +40,75 @@ from services.agents import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Classification Cache (LRU)
+# ---------------------------------------------------------------------------
+
+class ClassificationCache:
+    """
+    Simple LRU cache for intent classification results.
+
+    Caches normalized message -> intents mapping to avoid
+    repeated local LLM calls for similar queries.
+    """
+
+    def __init__(self, max_size: int = 500):
+        self._cache: OrderedDict[str, List[str]] = OrderedDict()
+        self._max_size = max_size
+        self._lock = threading.Lock()
+        self._hits = 0
+        self._misses = 0
+
+    def _normalize(self, message: str) -> str:
+        """Normalize message for cache key."""
+        # Lowercase, strip whitespace, collapse spaces
+        normalized = " ".join(message.lower().split())
+        # Hash for consistent key size
+        return hashlib.md5(normalized.encode()).hexdigest()
+
+    def get(self, message: str) -> Optional[List[str]]:
+        """Get cached intents for message."""
+        key = self._normalize(message)
+        with self._lock:
+            if key in self._cache:
+                # Move to end (most recently used)
+                self._cache.move_to_end(key)
+                self._hits += 1
+                return self._cache[key]
+            self._misses += 1
+            return None
+
+    def set(self, message: str, intents: List[str]) -> None:
+        """Cache intents for message."""
+        key = self._normalize(message)
+        with self._lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+            else:
+                if len(self._cache) >= self._max_size:
+                    # Remove oldest
+                    self._cache.popitem(last=False)
+            self._cache[key] = intents
+
+    def stats(self) -> Dict[str, Any]:
+        """Get cache statistics."""
+        with self._lock:
+            total = self._hits + self._misses
+            return {
+                "size": len(self._cache),
+                "max_size": self._max_size,
+                "hits": self._hits,
+                "misses": self._misses,
+                "hit_rate": self._hits / total if total > 0 else 0,
+            }
+
+
+# Global cache instance
+_classification_cache = ClassificationCache()
+
+# Model to use for classification (smaller = faster)
+CLASSIFICATION_MODEL = "phi3:mini"
 
 
 @dataclass
@@ -304,19 +376,28 @@ class AgentRouter:
 
         return detected
 
-    def _classify_intent_local_llm(self, message: str) -> List[str]:
+    def _classify_intent_local_llm(self, message: str, use_cache: bool = True) -> Tuple[List[str], bool]:
         """
         Classify user intent using local LLM (Ollama).
 
+        Uses phi3:mini for faster inference and caches results.
         Used as fallback when heuristics don't match.
-        Returns list of detected intents.
+
+        Returns:
+            (intents, from_cache) tuple
         """
+        # Check cache first
+        if use_cache:
+            cached = _classification_cache.get(message)
+            if cached is not None:
+                return (cached, True)
+
         try:
             from services.llm_service import get_local_llm_client
 
             client = get_local_llm_client()
             if not client:
-                return []
+                return ([], False)
 
             prompt = f"""Classify the following user message into one or more intent categories.
 
@@ -338,7 +419,8 @@ Example: ["general"]
 
 JSON array:"""
 
-            response = client.generate(prompt, temperature=0.1)
+            # Use phi3:mini for faster classification
+            response = client.generate(prompt, model=CLASSIFICATION_MODEL, temperature=0.1)
 
             # Parse JSON from response
             response = response.strip()
@@ -355,11 +437,15 @@ JSON array:"""
             valid_intents = ["research", "write", "summarize", "explain", "code", "memory"]
             filtered = [i for i in intents if i in valid_intents]
 
-            return filtered
+            # Cache the result
+            if use_cache and filtered:
+                _classification_cache.set(message, filtered)
+
+            return (filtered, False)
 
         except Exception as e:
             logger.warning(f"Local LLM classification failed: {e}")
-            return []
+            return ([], False)
 
     def _classify_intent(self, message: str, trace: Optional[RouteTrace] = None) -> List[str]:
         """
@@ -375,12 +461,12 @@ JSON array:"""
                 trace.intent_source = "heuristic"
             return intents
 
-        # Fall back to local LLM if available
-        intents = self._classify_intent_local_llm(message)
+        # Fall back to local LLM if available (with caching)
+        intents, from_cache = self._classify_intent_local_llm(message)
 
         if intents:
             if trace:
-                trace.intent_source = "local_llm"
+                trace.intent_source = "local_llm_cache" if from_cache else "local_llm"
             return intents
 
         if trace:
@@ -720,13 +806,57 @@ JSON array:"""
 
 # Singleton instance
 _router_instance: Optional[AgentRouter] = None
+_model_warmed: bool = False
+_warming_lock = threading.Lock()
+
+
+def _warm_classification_model() -> None:
+    """
+    Pre-warm the classification model by running a dummy query.
+
+    This loads the model into memory so first real query is fast.
+    Runs in background thread to not block startup.
+    """
+    global _model_warmed
+
+    with _warming_lock:
+        if _model_warmed:
+            return
+        _model_warmed = True
+
+    try:
+        from services.llm_service import get_local_llm_client
+
+        client = get_local_llm_client()
+        if not client:
+            return
+
+        logger.info(f"Pre-warming classification model ({CLASSIFICATION_MODEL})...")
+        start = time.time()
+
+        # Simple query to load model into memory
+        client.generate(
+            "Classify: hello",
+            model=CLASSIFICATION_MODEL,
+            temperature=0.1,
+        )
+
+        elapsed = time.time() - start
+        logger.info(f"Classification model warmed in {elapsed:.1f}s")
+
+    except Exception as e:
+        logger.warning(f"Failed to warm classification model: {e}")
 
 
 def get_router() -> AgentRouter:
     """Get or create the router singleton."""
     global _router_instance
+
     if _router_instance is None:
         _router_instance = AgentRouter()
+        # Pre-warm in background thread
+        threading.Thread(target=_warm_classification_model, daemon=True).start()
+
     return _router_instance
 
 
@@ -742,3 +872,8 @@ def route_chat(ctx: RequestContext, include_trace: bool = False) -> RouterResult
         RouterResult with content and optional trace
     """
     return get_router().route(ctx, include_trace=include_trace)
+
+
+def get_classification_cache_stats() -> Dict[str, Any]:
+    """Get classification cache statistics."""
+    return _classification_cache.stats()

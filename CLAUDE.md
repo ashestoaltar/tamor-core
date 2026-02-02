@@ -109,8 +109,12 @@ OLLAMA_MODEL=llama3.1:8b
 - **Agent Router updated** — `api/services/router.py`
   - Intent classification now uses local LLM as fallback when heuristics don't match
   - `_classify_intent_heuristic()` for fast regex-based classification (0ms)
-  - `_classify_intent_local_llm()` for nuanced classification (6-20s on CPU)
-  - Trace now includes `intent_source` ("heuristic" | "local_llm" | "none")
+  - `_classify_intent_local_llm()` for nuanced classification with phi3:mini (5-15s on CPU)
+  - **Optimizations:**
+    - LRU cache for classification results (500 entries, ~0ms on cache hit)
+    - Uses phi3:mini (2.2GB) for faster inference vs larger models
+    - Pre-warms model in background thread on first router access
+  - Trace includes `intent_source` ("heuristic" | "local_llm" | "local_llm_cache" | "none")
 - **System status** — `/api/system-status` now reports Ollama availability and models
 - **Documentation** — Added Section K "Local AI Vision" to Roadmap-extensions.md
   - Comprehensive plan for local-first AI capabilities
