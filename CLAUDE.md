@@ -63,19 +63,53 @@ make ui         # UI only
 
 Add `?debug=1` to URL or `X-Tamor-Debug: 1` header to see routing decisions in API responses.
 
-## Next Steps
+## Local LLM (Ollama)
 
-- [ ] **Install Ollama + local LLM** — Add as fallback/offline provider
-  ```bash
-  # Install Ollama
-  curl -fsSL https://ollama.com/install.sh | sh
+Ollama is installed and integrated as a local LLM provider.
 
-  # Pull recommended model
-  ollama pull llama3.1:8b
-  ```
-  Then wire into `api/services/llm_service.py` as secondary provider.
+**Installed models:**
+- `llama3.1:8b` (4.9 GB) — General purpose, good instruction following
+- `mistral:latest` (4.4 GB) — Fast, good for coding and general tasks
+
+**Usage in code:**
+```python
+from services.llm_service import get_local_llm_client
+
+client = get_local_llm_client()
+if client:
+    response = client.chat_completion([
+        {"role": "user", "content": "Summarize this text..."}
+    ])
+```
+
+**Environment variables** (in `.env`):
+```
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1:8b
+```
+
+**Performance:** ~5 tokens/sec on CPU (Ryzen 5 5500U). Suitable for:
+- Background summarization
+- Entity extraction
+- Routing/classification
+- Offline fallback
+
+**Next steps:** Wire local LLM into agent routing for cost reduction.
 
 ## Session Notes
+
+### 2026-02-01 (Local LLM Integration)
+- **Ollama installed** — Local LLM inference via Ollama v0.15.4
+  - Models: llama3.1:8b (4.9GB), mistral:latest (4.4GB)
+  - Performance: ~5 tokens/sec on CPU (usable for background tasks)
+- **LLM Service updated** — `api/services/llm_service.py`
+  - Added `OllamaProvider` class with chat_completion and generate methods
+  - New functions: `get_local_llm_client()`, `local_llm_is_configured()`
+  - `get_best_available_client(prefer_local=False)` for routing
+- **System status** — `/api/system-status` now reports Ollama availability and models
+- **Documentation** — Added Section K "Local AI Vision" to Roadmap-extensions.md
+  - Comprehensive plan for local-first AI capabilities
+  - Background processing, proactive context, voice interface
 
 ### 2026-02-01 (Bug Fixes & Improvements)
 - **Library Indexing Fix** — `index_queue_service.py` wasn't updating `last_indexed_at` after processing

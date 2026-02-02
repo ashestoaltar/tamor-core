@@ -1263,6 +1263,15 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.44 – 2026-02-01
+
+Local LLM Integration (Ollama):
+- ✅ Installed Ollama with llama3.1:8b and mistral models
+- ✅ Added OllamaProvider to llm_service.py
+- ✅ New functions: get_local_llm_client(), local_llm_is_configured()
+- ✅ System status reports Ollama availability and installed models
+- ✅ Documented Local AI Vision in Roadmap-extensions.md (Section K)
+
 v1.43 – 2026-02-01
 
 Reader and Library improvements:

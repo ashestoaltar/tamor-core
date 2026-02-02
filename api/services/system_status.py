@@ -21,9 +21,13 @@ class SystemStatus:
     library_path: Optional[str] = None
     library_file_count: int = 0
 
-    # LLM
+    # LLM (Cloud)
     llm_available: bool = True
     llm_provider: str = "unknown"
+
+    # LLM (Local - Ollama)
+    local_llm_available: bool = False
+    local_llm_models: list = None  # Available models
 
     # Voice
     voice_available: bool = True  # Frontend determines this
@@ -35,6 +39,10 @@ class SystemStatus:
 
     # Embeddings
     embeddings_available: bool = True
+
+    def __post_init__(self):
+        if self.local_llm_models is None:
+            self.local_llm_models = []
 
 
 def get_system_status() -> SystemStatus:
@@ -57,13 +65,23 @@ def get_system_status() -> SystemStatus:
     except Exception:
         pass
 
-    # Check LLM
+    # Check Cloud LLM
     try:
-        from services.llm_service import get_llm_provider
-        status.llm_provider = get_llm_provider()
-        status.llm_available = True
+        from services.llm_service import llm_is_configured
+        status.llm_available = llm_is_configured()
+        status.llm_provider = "openai" if status.llm_available else "none"
     except Exception:
         status.llm_available = False
+
+    # Check Local LLM (Ollama)
+    try:
+        from services.llm_service import get_local_llm_client
+        local = get_local_llm_client()
+        if local:
+            status.local_llm_available = True
+            status.local_llm_models = local.list_models()
+    except Exception:
+        status.local_llm_available = False
 
     # Check SWORD
     try:

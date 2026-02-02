@@ -585,6 +585,147 @@ Based on Moltbook analysis, Tamor's architecture already provides:
 
 ---
 
+## K. Local AI Vision
+
+**Status:** 🔵 Investigating
+**Priority:** High
+**Added:** 2026-02-01
+
+A comprehensive plan to make Tamor maximally capable using local AI inference, reducing cloud dependency while improving capabilities.
+
+### Philosophy
+
+**Claude is the expert you consult. The local LLM is the assistant who does the prep work.**
+
+Cloud AI (Claude) should be reserved for:
+- Complex reasoning and analysis
+- High-stakes decisions
+- Tasks requiring frontier-level capability
+
+Everything else can run locally, making Tamor:
+- Fully functional offline
+- Near-zero marginal cost to operate
+- Faster for routine operations
+- More private
+
+### Current Hardware Context
+
+- AMD Ryzen 5 5500U (6 cores, 12 threads)
+- 64GB RAM (key advantage - enables larger models)
+- No discrete GPU (CPU inference only)
+- 5.3TB NAS for library storage
+
+### K.1 Local LLM Integration (Ollama)
+
+**Impact:** High
+**Effort:** Medium
+
+Install Ollama with 8-13B model as Tamor's "local brain":
+
+| Use Case | Model | Why |
+|----------|-------|-----|
+| Routing/classification | Mistral 7B | Fast intent detection |
+| Summarization | Llama 3.1 8B | Good quality, reasonable speed |
+| Code assistance | DeepSeek Coder 6.7B | Specialized |
+| Quality-critical (slow) | Llama 3.1 70B | When time permits |
+
+**Implementation:**
+- Add Ollama provider to `llm_service.py`
+- Route by task type: local for prep, Claude for generation
+- Config in `config/providers.yml`
+
+### K.2 Aggressive Background Processing
+
+**Impact:** High
+**Effort:** Medium
+
+With 64GB RAM, batch process the entire library:
+
+- **Document summarization**: Every file gets a 2-3 sentence summary
+- **Entity extraction**: People, places, concepts, dates
+- **Relationship mapping**: Build knowledge graph edges
+- **Cross-reference detection**: "This document mentions X from that document"
+- **Pre-computed similarity**: "Related documents" ready instantly
+
+Run overnight, update incrementally as new files arrive.
+
+### K.3 Proactive Context Assembly
+
+**Impact:** High
+**Effort:** High
+
+Current: RAG retrieves chunks based on query similarity.
+Better: Intelligent context assembly that considers:
+
+- Query intent (what kind of answer is needed?)
+- Document authority (primary sources vs commentary)
+- Recency and relevance decay
+- User's current project focus
+- Conversation history context
+
+Assemble the *perfect* context window for each query, not just "top K chunks."
+
+### K.4 Local Embedding Model
+
+**Impact:** Medium
+**Effort:** Low
+
+If using cloud embeddings, switch to local:
+
+- `sentence-transformers/all-MiniLM-L6-v2` (fast, decent)
+- `BAAI/bge-large-en-v1.5` (better quality, still fast on CPU)
+- `intfloat/e5-large-v2` (excellent quality)
+
+All embeddings computed locally, no API calls for semantic search.
+
+### K.5 Voice Interface
+
+**Impact:** Medium
+**Effort:** Low
+
+Already have the pieces:
+- Whisper for speech-to-text
+- Piper for text-to-speech
+
+Wire them together:
+- Voice input mode for queries
+- Optional spoken responses
+- Useful when reading physical books and dictating notes
+
+### K.6 Proactive Insights
+
+**Impact:** High
+**Effort:** High
+
+Shift from reactive search to proactive surfacing:
+
+- "Based on your current project, you might find this relevant..."
+- "This contradicts something in [other document]..."
+- "You asked about X last week—here's new material on that topic"
+
+Requires K.2 (background processing) as foundation.
+
+### Hardware Upgrade Path
+
+If upgrading hardware, priority order:
+
+1. **NVIDIA GPU (RTX 3060 12GB or better)**: 10-50x faster inference, enables larger models in real-time
+2. **More CPU cores (Ryzen 9 / Threadripper)**: Better parallel processing for batch jobs
+3. **NVMe for model storage**: Faster model loading
+
+The 64GB RAM is already excellent—no upgrade needed there.
+
+### Implementation Order
+
+1. **Ollama + Mistral 7B** — Immediate win, enables everything else
+2. **Local embedding model** — Quick, removes cloud dependency
+3. **Background summarization pipeline** — Uses local LLM
+4. **Knowledge graph extraction** — Uses local LLM
+5. **Voice interface** — Polish feature
+6. **Proactive insights** — Capstone feature
+
+---
+
 ## Promotion Checklist
 
 An item may be promoted to the authoritative roadmap only when:
