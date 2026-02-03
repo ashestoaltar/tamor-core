@@ -19,8 +19,9 @@ import time
 from typing import Any, Dict, List, Optional
 
 from .base import BaseAgent, AgentOutput, Citation, RequestContext
-from services.llm_service import get_llm_client, get_model_name
+from services.llm_service import get_agent_llm
 from services.ghm import get_research_directives_prompt
+from services.library.search_service import LibrarySearchService
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,16 @@ class ResearcherAgent(BaseAgent):
         """
         start_time = time.time()
 
-        # Check if we have sources to research
+        # Check if we have sources to research OR if it's a scholarly question
+        is_scholarly = self._is_theological_research(ctx)
+
+        # For scholarly questions without project context, use Scholar mode
+        # This uses the Scholar persona and queries the global library
+        # Takes priority over the generic structured research path
+        if is_scholarly and not ctx.project_id:
+            return self._run_scholarly_research(ctx, start_time)
+
+        # For non-scholarly questions without any sources, return early
         if not ctx.retrieved_chunks and not ctx.project_id:
             return AgentOutput(
                 agent_name=self.name,
@@ -144,15 +154,26 @@ class ResearcherAgent(BaseAgent):
 
 Analyze these sources and provide structured research notes in JSON format."""
 
-        # Call LLM
+        # Call LLM with agent-specific provider routing
         try:
-            llm = get_llm_client()
+            llm, model, provider_name = get_agent_llm("researcher")
+            if not llm:
+                return AgentOutput(
+                    agent_name=self.name,
+                    content={"error": "No LLM provider available"},
+                    is_final=False,
+                    error="No LLM provider configured",
+                    processing_ms=int((time.time() - start_time) * 1000),
+                )
+
+            logger.info(f"Researcher using provider: {provider_name}, model: {model}")
+
             response = llm.chat_completion(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
                 ],
-                model=get_model_name(),
+                model=model,
             )
 
             # Parse JSON response
@@ -175,6 +196,8 @@ Analyze these sources and provide structured research notes in JSON format."""
                     }
                 ],
                 processing_ms=processing_ms,
+                provider_used=provider_name,
+                model_used=model,
             )
 
         except Exception as e:
@@ -277,6 +300,215 @@ Analyze these sources and provide structured research notes in JSON format."""
             )
 
         return citations
+
+    def _run_scholarly_research(self, ctx: RequestContext, start_time: float) -> AgentOutput:
+        """
+        Handle scholarly/theological research questions without project context.
+
+        Uses xAI/Grok with the Scholar mode persona from modes.json.
+        Uses library sources from ctx.retrieved_chunks if available,
+        otherwise searches global library directly.
+        """
+        # Use retrieved_chunks if router already populated them, otherwise search library
+        library_results = []
+        if ctx.retrieved_chunks:
+            # Router already did library search - convert chunk dicts to a usable format
+            logger.info(f"Using {len(ctx.retrieved_chunks)} chunks from router retrieval")
+            # retrieved_chunks are dicts, use them directly for formatting
+            library_results = ctx.retrieved_chunks
+        else:
+            # No chunks from router - do our own library search
+            try:
+                search_service = LibrarySearchService()
+                search_results = search_service.search(
+                    query=ctx.user_message,
+                    scope="library",
+                    limit=15,
+                    min_score=0.3,
+                )
+                # Convert SearchResult objects to dicts for consistent formatting
+                library_results = [
+                    {
+                        "library_file_id": r.library_file_id,
+                        "filename": r.filename,
+                        "chunk_index": r.chunk_index,
+                        "content": r.content,
+                        "score": r.score,
+                        "page": r.page,
+                    }
+                    for r in search_results
+                ]
+                logger.info(f"Library search returned {len(library_results)} results for scholarly research")
+            except Exception as e:
+                logger.warning(f"Library search failed: {e}")
+
+        # Load Scholar mode persona from modes.json
+        system_prompt = self._load_scholar_persona()
+
+        # Append research directives if configured
+        research_directives = get_research_directives_prompt()
+        if research_directives:
+            system_prompt += f"\n\n{research_directives}"
+
+        # Append GHM frame challenge if present
+        if ctx.ghm_frame_challenge:
+            system_prompt += f"\n\n{ctx.ghm_frame_challenge}"
+
+        # Append memory context if available
+        if ctx.memories:
+            memory_context = self._format_memories(ctx.memories)
+            system_prompt += f"\n\n## User Context\n{memory_context}"
+
+        # Build user message with library sources if found
+        if library_results:
+            sources_text = self._format_library_sources(library_results)
+            user_message = f"""## Question
+{ctx.user_message}
+
+{sources_text}
+
+Use the library sources above where relevant. Cite them by filename when drawing from them. If the sources don't address the question, you may draw on your broader knowledge but note that you're doing so."""
+        else:
+            user_message = ctx.user_message
+
+        try:
+            llm, model, provider_name = get_agent_llm("researcher")
+            if not llm:
+                return AgentOutput(
+                    agent_name=self.name,
+                    content={"error": "No LLM provider available"},
+                    is_final=False,
+                    error="No LLM provider configured",
+                    processing_ms=int((time.time() - start_time) * 1000),
+                )
+
+            logger.info(f"Researcher (scholarly mode) using provider: {provider_name}, model: {model}")
+
+            response = llm.chat_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                model=model,
+            )
+
+            processing_ms = int((time.time() - start_time) * 1000)
+
+            # Build citations from library results
+            citations = self._build_library_citations(library_results)
+
+            # For scholarly research, the response IS the final content
+            # (no Writer needed for reformatting)
+            return AgentOutput(
+                agent_name=self.name,
+                content=response,
+                is_final=True,  # Scholarly research is final, no Writer needed
+                citations=citations,
+                artifacts=[],
+                processing_ms=processing_ms,
+                provider_used=provider_name,
+                model_used=model,
+            )
+
+        except Exception as e:
+            logger.error(f"Researcher agent (scholarly) error: {e}")
+            return AgentOutput(
+                agent_name=self.name,
+                content={"error": str(e)},
+                is_final=False,
+                error=str(e),
+                processing_ms=int((time.time() - start_time) * 1000),
+            )
+
+    def _format_library_sources(self, results) -> str:
+        """Format library search results as numbered sources for the prompt.
+
+        Accepts either SearchResult objects or dicts with same keys.
+        """
+        if not results:
+            return "## Library Sources\nNo relevant sources found in library."
+
+        lines = ["## Library Sources\n"]
+        for i, result in enumerate(results, 1):
+            # Handle both SearchResult objects and dicts
+            if hasattr(result, 'filename'):
+                filename = result.filename
+                page = result.page
+                score = result.score
+                content = result.content
+            else:
+                filename = result.get("filename", "unknown")
+                page = result.get("page")
+                score = result.get("score", 0)
+                content = result.get("content", "")
+
+            header = f"[{i}] {filename}"
+            if page:
+                header += f" (page {page})"
+            if score:
+                header += f" [relevance: {score:.2f}]"
+
+            # Truncate very long chunks
+            if len(content) > 1500:
+                content = content[:1500] + "...[truncated]"
+
+            lines.append(f"{header}\n{content}\n")
+
+        return "\n".join(lines)
+
+    def _build_library_citations(self, results) -> List[Citation]:
+        """Build Citation objects from library search results.
+
+        Accepts either SearchResult objects or dicts with same keys.
+        """
+        citations = []
+        for result in results:
+            # Handle both SearchResult objects and dicts
+            if hasattr(result, 'filename'):
+                file_id = result.library_file_id
+                filename = result.filename
+                chunk_index = result.chunk_index
+                page = result.page
+                content = result.content
+                score = result.score
+            else:
+                file_id = result.get("library_file_id") or result.get("file_id")
+                filename = result.get("filename", "unknown")
+                chunk_index = result.get("chunk_index")
+                page = result.get("page")
+                content = result.get("content", "")
+                score = result.get("score", 0)
+
+            citations.append(
+                Citation(
+                    file_id=file_id,
+                    filename=filename,
+                    chunk_index=chunk_index,
+                    page=page,
+                    snippet=content[:200] if content else "",
+                    relevance_score=score,
+                )
+            )
+        return citations
+
+    def _load_scholar_persona(self) -> str:
+        """Load the Scholar mode persona from modes.json."""
+        import os
+
+        modes_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "config",
+            "modes.json"
+        )
+
+        try:
+            with open(modes_path, "r") as f:
+                modes = json.load(f)
+            return modes.get("Scholar", {}).get("persona", "")
+        except Exception as e:
+            logger.warning(f"Failed to load Scholar persona: {e}")
+            # Minimal fallback
+            return "You are a biblical and theological research assistant."
 
     def _is_theological_research(self, ctx: RequestContext) -> bool:
         """

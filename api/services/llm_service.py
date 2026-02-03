@@ -723,3 +723,57 @@ def get_model_for_agent(agent_type: str) -> str:
         return AnthropicProvider.DEFAULT_MODEL
 
     return get_model_name()  # OpenAI default
+
+
+from typing import Tuple
+
+def get_agent_llm(agent_type: str) -> Tuple[Optional[LLMProvider], str, str]:
+    """
+    Get the LLM provider, model, and provider name for an agent with automatic fallback.
+
+    This is the recommended function for agents to use. It:
+    1. Gets the preferred provider for the agent type
+    2. Falls back to other providers if the preferred one is unavailable
+    3. Returns the provider name for tracing/debugging
+
+    Args:
+        agent_type: Agent type (e.g., "researcher", "writer", "engineer", "archivist")
+
+    Returns:
+        Tuple of (provider, model_name, provider_name):
+        - provider: The LLM provider instance (or None if all fail)
+        - model_name: The model to use
+        - provider_name: String identifier for tracing ("xai", "anthropic", "openai", "none")
+
+    Usage:
+        llm, model, provider_name = get_agent_llm("researcher")
+        if llm:
+            response = llm.chat_completion(messages, model=model)
+    """
+    preferred_provider = AGENT_PROVIDER_MAP.get(agent_type.lower(), "xai")
+
+    # Try preferred provider first
+    if preferred_provider == "xai":
+        client = get_xai_client()
+        if client and client.is_configured():
+            return client, XAIProvider.DEFAULT_MODEL, "xai"
+    elif preferred_provider == "anthropic":
+        client = get_anthropic_client()
+        if client and client.is_configured():
+            return client, AnthropicProvider.DEFAULT_MODEL, "anthropic"
+
+    # Fallback chain: xAI → Anthropic → OpenAI
+    fallback_chain = [
+        ("xai", get_xai_client, XAIProvider.DEFAULT_MODEL),
+        ("anthropic", get_anthropic_client, AnthropicProvider.DEFAULT_MODEL),
+        ("openai", get_llm_client, get_model_name()),
+    ]
+
+    for name, getter, model in fallback_chain:
+        if name == preferred_provider:
+            continue  # Already tried
+        client = getter()
+        if client and client.is_configured():
+            return client, model, name
+
+    return None, "", "none"

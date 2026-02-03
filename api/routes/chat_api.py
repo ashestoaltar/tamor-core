@@ -1041,6 +1041,7 @@ def chat():
         })
 
     # Phase 6.2: Agent Router - check if multi-agent pipeline should handle this
+    router_result = None  # Initialize for fallback path access
     try:
         from services.router import route_chat, RequestContext as RouterContext
         import services.memory_service as mem_svc
@@ -1174,6 +1175,25 @@ def chat():
         # Log but don't fail - fall through to existing LLM path
         import logging
         logging.getLogger(__name__).warning(f"Router error, falling back to LLM: {e}")
+
+    # Capture router trace for fallback path (if router ran but returned passthrough)
+    fallback_router_trace = None
+    debug_info = {
+        "router_result_exists": router_result is not None,
+        "router_result_has_trace": router_result.trace is not None if router_result else False,
+        "handled_by": router_result.handled_by if router_result else None,
+    }
+    if router_result and router_result.trace:
+        fallback_router_trace = router_result.trace.to_dict()
+        # Mark that this went through fallback
+        fallback_router_trace["route_type"] = "llm_fallback"
+        fallback_router_trace["_debug"] = debug_info
+    elif request.args.get("debug") == "1":
+        # No trace but debug requested - create minimal trace
+        fallback_router_trace = {
+            "route_type": "llm_fallback_no_trace",
+            "_debug": debug_info,
+        }
 
     system_prompt = build_system_prompt(effective_mode)
     system_prompt += """
@@ -1340,6 +1360,10 @@ Capability note (Tamor app):
     # Include epistemic metadata if available
     if epistemic_metadata:
         response_data["epistemic"] = epistemic_metadata
+
+    # Include router trace for debug mode (fallback path)
+    if fallback_router_trace and request.args.get("debug") == "1":
+        response_data["router_trace"] = fallback_router_trace
 
     return jsonify(response_data)
 

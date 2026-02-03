@@ -96,6 +96,46 @@ OLLAMA_MODEL=llama3.1:8b
 
 ## Session Notes
 
+### 2026-02-02 (Multi-Provider LLM & Library Integration)
+
+**Multi-Provider LLM Architecture**
+- Implemented xAI (Grok) and Anthropic (Claude) as primary providers
+- Added `XAIProvider` and `AnthropicProvider` classes to `llm_service.py`
+- Agent-to-provider routing via `get_agent_llm()`:
+  - researcher/writer → xAI (`grok-4-fast-reasoning`)
+  - engineer/archivist → Anthropic (`claude-sonnet-4-5`)
+- RouteTrace now includes `provider_used` and `model_used`
+- Test script: `tests/test_llm_providers.py`
+
+**Debug Panel UI**
+- New `DebugPanel` component shows routing decisions when `?debug=1` in URL
+- Displays: provider, model, intents, agent sequence, timing, errors
+- Fixed React state batching race condition with `routerTraceMapRef`
+- Provider-specific colors in CSS
+
+**Researcher Agent + Library Integration**
+- Wired researcher agent to `LibrarySearchService` (27,839 indexed chunks)
+- `_run_scholarly_research()` now queries library before calling LLM
+- Library sources injected into prompt with attribution
+- Router `_run_retrieval()` now searches library for research intents
+- Project chunks + library chunks merged (project first, deduped)
+- Scholarly questions work without project context
+
+**Scholarly Question Detection**
+- Added theological patterns to router heuristics (biblical books, terms)
+- New `_is_scholarly_question()` helper in router
+- Routes to researcher agent even without project_id
+
+**Scholar Mode Improvements**
+- Added "Output style" section to Scholar persona in `modes.json`
+- Concise research analysis, not exhaustive essays
+- Default to 3-5 focused paragraphs
+- Added `hermeneutic_config.yml` for Torah-observant research directives
+
+**Decision Document**
+- `tamor-llm-provider-decision.md` — Complete rationale and implementation guide
+- Section 10 expanded with GHM calibration examples (green/yellow/red lines)
+
 ### 2026-02-01 (Local AI Integration - Major Feature)
 
 **Ollama Installation & Models**

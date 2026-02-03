@@ -256,24 +256,41 @@ User: "What does Genesis 1:1 mean?"
 
 ## Multi-Agent System
 
-Specialized agents handle different types of requests.
+Specialized agents handle different types of requests, with different LLM providers optimized for each task.
 
 ### Available Agents
 
-| Agent | Purpose | Triggers |
-|-------|---------|----------|
-| **Researcher** | Source gathering, structured analysis | "research", "analyze", "find", "compare" |
-| **Writer** | Prose synthesis from research | "write", "draft", "compose" |
-| **Engineer** | Code generation with project awareness | "implement", "fix", "create function" |
-| **Archivist** | Memory management | "remember", "forget", "I prefer" |
+| Agent | Purpose | Triggers | LLM Provider |
+|-------|---------|----------|--------------|
+| **Researcher** | Source gathering, structured analysis | "research", "analyze", "find", "compare" | xAI (Grok) |
+| **Writer** | Prose synthesis from research | "write", "draft", "compose" | xAI (Grok) |
+| **Engineer** | Code generation with project awareness | "implement", "fix", "create function" | Anthropic (Claude) |
+| **Archivist** | Memory management | "remember", "forget", "I prefer" | Anthropic (Claude) |
+
+### LLM Provider Assignments
+
+| Mode | Provider | Model | Rationale |
+|------|----------|-------|-----------|
+| Scholar | xAI | `grok-4-fast-reasoning` | Best textual analysis for theological research, 2M context window, lowest cost |
+| Engineer | Anthropic | `claude-sonnet-4-5` | Top coding benchmarks, best instruction-following |
+| Classification | Ollama | `phi3:mini` | Local, zero-cost routing decisions |
 
 ### How Routing Works
 
-1. Intent is classified using pattern matching
-2. Agent sequence is selected based on intent
-3. For research/writing: Researcher → Writer pipeline
-4. For code with project context: Researcher → Engineer
-5. Simple queries fall through to single LLM call
+1. Intent classified using heuristics (0ms) or local LLM (5-15s fallback)
+2. Scholarly/theological questions detected via pattern matching
+3. Agent sequence selected based on intent
+4. LLM provider selected based on agent (researcher→xAI, engineer→Anthropic)
+5. Library chunks retrieved and injected into context
+6. Simple queries fall through to default LLM
+
+### Library Integration
+
+The Researcher agent queries the global library (27K+ indexed chunks) before calling the LLM:
+- For project context: searches both project files and global library
+- For unassigned scholarly questions: searches global library directly
+- Library sources are injected into the prompt with attribution
+- LLM is instructed to cite sources when using library content
 
 ### Debug Trace
 
@@ -284,10 +301,14 @@ Add `?debug=1` or header `X-Tamor-Debug: 1` to see routing decisions:
   "router_trace": {
     "trace_id": "abc123",
     "route_type": "agent_pipeline",
+    "provider_used": "xai",
+    "model_used": "grok-4-fast-reasoning",
     "intents_detected": ["research", "summarize"],
+    "intent_source": "heuristic",
     "agent_sequence": ["researcher", "writer"],
     "retrieval_used": true,
-    "retrieval_count": 15
+    "retrieval_count": 15,
+    "timing_ms": {"classify": 1, "retrieval": 45, "researcher": 2500, "total": 2600}
   }
 }
 ```

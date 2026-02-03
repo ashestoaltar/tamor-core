@@ -1277,8 +1277,22 @@ LLM Provider Architecture Decision:
 - ✅ Scholar mode → xAI `grok-4-fast-reasoning` (best textual analysis, 2M context, cheapest)
 - ✅ Engineer mode → Anthropic `claude-sonnet-4-5` (top coding benchmarks, instruction-following)
 - ✅ Classification/routing → Ollama local (unchanged)
-- ✅ Decision document: `docs/decisions/2026-02-02-llm-provider-swap.md`
-- ⏳ Implementation pending
+- ✅ Decision document: `tamor-llm-provider-decision.md`
+- ✅ Implementation complete (see v1.49)
+
+v1.49 – 2026-02-02
+
+Multi-Provider LLM Implementation & Library Integration:
+- ✅ Implemented xAI (Grok) and Anthropic (Claude) providers in llm_service.py
+- ✅ Agent-to-provider routing: researcher/writer → xAI, engineer/archivist → Anthropic
+- ✅ RouteTrace now includes provider_used and model_used for debugging
+- ✅ Debug panel UI shows routing decisions when ?debug=1 in URL
+- ✅ Wired Researcher agent to global library (LibrarySearchService)
+- ✅ Scholarly questions now search 27,839 library chunks before calling LLM
+- ✅ Router retrieval includes library search for research intents
+- ✅ Scholar mode persona updated with output style guidance (concise research vs essays)
+- ✅ Added hermeneutic_config.yml for Torah-observant research directives
+- ✅ Theological/biblical question detection patterns in router heuristics
 
 v1.47 – 2026-02-02
 

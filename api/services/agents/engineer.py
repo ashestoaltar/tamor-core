@@ -19,7 +19,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from .base import BaseAgent, AgentOutput, Citation, RequestContext
-from services.llm_service import get_llm_client, get_model_name
+from services.llm_service import get_agent_llm
 
 logger = logging.getLogger(__name__)
 
@@ -138,15 +138,26 @@ class EngineerAgent(BaseAgent):
         if specs:
             user_message = f"{ctx.user_message}\n\n## Technical Specifications\n{specs}"
 
-        # Call LLM
+        # Call LLM with agent-specific provider routing
         try:
-            llm = get_llm_client()
+            llm, model, provider_name = get_agent_llm("engineer")
+            if not llm:
+                return AgentOutput(
+                    agent_name=self.name,
+                    content="No LLM provider available.",
+                    is_final=True,
+                    error="No LLM provider configured",
+                    processing_ms=int((time.time() - start_time) * 1000),
+                )
+
+            logger.info(f"Engineer using provider: {provider_name}, model: {model}")
+
             response = llm.chat_completion(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
                 ],
-                model=get_model_name(),
+                model=model,
             )
 
             # Extract code artifacts from response
@@ -160,6 +171,8 @@ class EngineerAgent(BaseAgent):
                 is_final=True,  # Code output is user-facing
                 artifacts=artifacts,
                 processing_ms=processing_ms,
+                provider_used=provider_name,
+                model_used=model,
             )
 
         except Exception as e:

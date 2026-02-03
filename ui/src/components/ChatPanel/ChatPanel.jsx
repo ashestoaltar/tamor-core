@@ -15,7 +15,15 @@ import VoiceButton from "../VoiceButton/VoiceButton";
 import CitationCard from "../CitationCard/CitationCard";
 import EpistemicBadge from "../Chat/EpistemicBadge";
 import GHMBadge from "../GHMBadge/GHMBadge";
+import DebugPanel from "./DebugPanel";
 import ProjectTemplates from "../ProjectTemplates/ProjectTemplates";
+
+// Check if debug mode is enabled via URL parameter
+const isDebugMode = () => {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("debug") === "1";
+};
 
 /**
  * Strip markdown formatting from text for speech synthesis.
@@ -211,7 +219,13 @@ function mergeMessages(prev, serverMsgs) {
       continue;
     }
     const existing = byId.get(key);
-    const merged = existing ? { ...existing, ...sm } : sm;
+    // Merge but preserve local-only fields that server doesn't have
+    const merged = existing ? {
+      ...existing,
+      ...sm,
+      // Preserve local-only debug/trace fields
+      router_trace: existing.router_trace || sm.router_trace,
+    } : sm;
     out.push(merged);
   }
 
@@ -599,6 +613,10 @@ export default function ChatPanel({
   const lastSeenMessageIdRef = useRef(0);
   const lastLoadedConversationIdRef = useRef(null);
 
+  // Store router_trace in a ref to survive React state batching race conditions
+  // Maps message_id -> router_trace
+  const routerTraceMapRef = useRef(new Map());
+
   // local ids (stable keys + DOM ids)
   const localSeqRef = useRef(1);
   const nextLocalId = () => `local-${Date.now()}-${localSeqRef.current++}`;
@@ -847,6 +865,7 @@ export default function ChatPanel({
     if (lastLoadedConversationIdRef.current !== convId) {
       lastLoadedConversationIdRef.current = convId;
       lastSeenMessageIdRef.current = 0;
+      routerTraceMapRef.current.clear();
       setMessages([]);
       setFileRefsByMessageId({});
     }
@@ -896,6 +915,7 @@ export default function ChatPanel({
     if (!activeConversationId) {
       lastLoadedConversationIdRef.current = null;
       lastSeenMessageIdRef.current = 0;
+      routerTraceMapRef.current.clear();
       setMessages([]);
       setFileRefsByMessageId({});
       setLoadingHistory(false);
@@ -999,7 +1019,9 @@ export default function ChatPanel({
 
 
     try {
-      const data = await apiFetch(`/chat`, {
+      // Include debug parameter if debug mode is active
+      const chatEndpoint = isDebugMode() ? `/chat?debug=1` : `/chat`;
+      const data = await apiFetch(chatEndpoint, {
         method: "POST",
         body: {
           message: trimmed,
@@ -1032,6 +1054,17 @@ export default function ChatPanel({
       const assistantText = (data?.reply ?? data?.tamor ?? data?.reply_text ?? "").toString();
       const assistantMsgId = data?.message_ids?.assistant;
 
+      // Debug: log router_trace if present
+      if (isDebugMode()) {
+        console.log("[DEBUG] API response router_trace:", data?.router_trace);
+      }
+
+      // Store router_trace in ref SYNCHRONOUSLY to survive React state batching
+      // This runs immediately, before any async state updates
+      if (assistantMsgId && data?.router_trace) {
+        routerTraceMapRef.current.set(String(assistantMsgId), data.router_trace);
+      }
+
       // replace placeholder content (best-effort, by local id)
       setMessages((prevRaw) => {
         const prev = ensureLocalIds(prevRaw);
@@ -1048,6 +1081,7 @@ export default function ChatPanel({
               meta: data?.meta || null,
               epistemic: data?.epistemic || null,
               ghm: data?.ghm || null,
+              router_trace: data?.router_trace || null,
             };
             break;
           }
@@ -1067,6 +1101,13 @@ export default function ChatPanel({
 
       if (data?.memory_refresh && typeof setMemoryRefreshToken === "function") {
         setMemoryRefreshToken((x) => x + 1);
+      }
+
+      // Mark this conversation as "loaded" BEFORE triggering onConversationsChanged
+      // This prevents loadConversationHistory from clearing the router_trace ref
+      // when it's called for a newly-created conversation from this session
+      if (returnedConvId) {
+        lastLoadedConversationIdRef.current = returnedConvId;
       }
 
       if (typeof onConversationsChanged === "function") {
@@ -1360,6 +1401,14 @@ export default function ChatPanel({
                     )}
                   </div>
                 )}
+
+                {/* Debug panel - shows router trace when ?debug=1 */}
+                {(() => {
+                  if (isUser || msg.status === "thinking" || !isDebugMode()) return null;
+                  // Look up router_trace from ref (survives state batching), fall back to msg
+                  const trace = msg.router_trace || (msg.id ? routerTraceMapRef.current.get(String(msg.id)) : null);
+                  return trace ? <DebugPanel trace={trace} /> : null;
+                })()}
 
                 {!isUser && msg.status === "thinking" && (
                   <div className="thinkingLine">

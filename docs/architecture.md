@@ -108,8 +108,34 @@ Response with metadata
 | Service | Purpose |
 |---------|---------|
 | `library_service` | File CRUD and deduplication |
-| `library_search_service` | Semantic search |
+| `library_search_service` | Semantic search across 27K+ chunks |
 | `library_context_service` | Chat context injection |
+
+### Library Integration with Agents
+
+The library is the primary knowledge source for research queries. The integration flow:
+
+```
+User question
+    ↓
+Router classifies intent (research/write/summarize/explain)
+    ↓
+Router calls _run_retrieval():
+  • Search project files (if project_id exists)
+  • Search global library via LibrarySearchService
+  • Merge results (project first, deduplicated)
+    ↓
+Researcher agent receives ctx.retrieved_chunks
+    ↓
+For scholarly questions (no project):
+  • Uses Scholar mode persona from modes.json
+  • Injects library sources into prompt
+  • Calls xAI/Grok with sources
+    ↓
+Response with citations
+```
+
+**Key principle:** The library is the corrective mechanism, not the LLM choice. All LLMs have training biases; library-based retrieval provides grounded context regardless of which provider generates the response.
 
 ### Reference Services
 
@@ -176,7 +202,7 @@ Epistemic processing (provider-agnostic)
 
 ### Design Rationale
 
-The provider swap was driven by empirical testing (see [LLM Provider Decision](decisions/2026-02-02-llm-provider-swap.md)):
+The provider swap was driven by empirical testing (see [LLM Provider Decision](/tamor-llm-provider-decision.md)):
 
 1. **Theological research** — Grok demonstrated stronger textual analysis and willingness to follow minority interpretive positions on textual merits without hedging toward consensus
 2. **Coding tasks** — Claude leads coding benchmarks and excels at instruction-following for niche languages

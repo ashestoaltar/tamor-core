@@ -1,0 +1,155 @@
+/* DebugPanel.css - Styling for the router trace debug panel */
+
+/* Override parent overflow:hidden when debug panel is present */
+.chat-bubble:has(.debug-panel) {
+  overflow: visible !important;
+}
+
+.debug-panel {
+  margin-top: 12px;
+  border: 2px dashed #f97316;
+  border-radius: 6px;
+  background: rgba(249, 115, 22, 0.15);
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 11px;
+}
+
+.debug-panel-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  text-align: left;
+}
+
+.debug-panel-toggle:hover {
+  color: var(--text-color, #ccc);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.debug-icon {
+  font-size: 12px;
+}
+
+.debug-label {
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.debug-provider {
+  flex: 1;
+  color: var(--accent-color, #8b5cf6);
+  font-weight: 600;
+}
+
+.debug-chevron {
+  font-size: 9px;
+  color: var(--text-muted, #666);
+}
+
+.debug-panel-content {
+  padding: 8px 10px 10px;
+  border-top: 1px dashed var(--border-color, #333);
+}
+
+.debug-row {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  align-items: flex-start;
+}
+
+.debug-key {
+  min-width: 70px;
+  color: var(--text-muted, #666);
+  flex-shrink: 0;
+}
+
+.debug-value {
+  color: var(--text-color, #ccc);
+  word-break: break-word;
+}
+
+.debug-source {
+  color: var(--text-muted, #666);
+  margin-left: 6px;
+  font-size: 10px;
+}
+
+/* Provider-specific colors */
+.provider-xai {
+  color: #f97316; /* Orange for xAI/Grok */
+}
+
+.provider-anthropic {
+  color: #d97706; /* Amber for Anthropic/Claude */
+}
+
+.provider-openai {
+  color: #10b981; /* Green for OpenAI */
+}
+
+.provider-ollama {
+  color: #06b6d4; /* Cyan for Ollama */
+}
+
+.provider-none {
+  color: var(--text-muted, #666);
+}
+
+/* Agent tags */
+.debug-agents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.debug-agent-tag {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+/* Timing */
+.debug-timing .debug-value {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.debug-timing-item {
+  color: var(--text-muted, #888);
+}
+
+.debug-timing-item:last-child {
+  color: var(--accent-color, #8b5cf6);
+  font-weight: 500;
+}
+
+/* Errors */
+.debug-errors .debug-value {
+  color: #ef4444;
+}
+
+.debug-error {
+  padding: 2px 0;
+}
+
+/* Light mode adjustments */
+@media (prefers-color-scheme: light) {
+  .debug-panel {
+    background: rgba(240, 240, 245, 0.8);
+  }
+
+  .debug-agent-tag {
+    background: rgba(139, 92, 246, 0.15);
+  }
+}

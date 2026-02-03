@@ -119,6 +119,8 @@ class RouteTrace:
     intents_detected: List[str] = field(default_factory=list)
     intent_source: str = "heuristic"  # "heuristic" | "local_llm" | "none"
     agent_sequence: List[str] = field(default_factory=list)
+    provider_used: str = ""  # "xai" | "anthropic" | "openai" | "ollama" | "none"
+    model_used: str = ""  # The actual model name used
     retrieval_used: bool = False
     retrieval_count: int = 0
     timing_ms: Dict[str, int] = field(default_factory=dict)
@@ -131,6 +133,8 @@ class RouteTrace:
             "intents_detected": self.intents_detected,
             "intent_source": self.intent_source,
             "agent_sequence": self.agent_sequence,
+            "provider_used": self.provider_used,
+            "model_used": self.model_used,
             "retrieval_used": self.retrieval_used,
             "retrieval_count": self.retrieval_count,
             "timing_ms": self.timing_ms,
@@ -206,6 +210,11 @@ class AgentRouter:
                 r"\baccording to\b",
                 r"\bin the (document|file|source|transcript)",
                 r"\bcompare\b.*\b(and|with|to)\b",
+                # Theological/biblical research patterns
+                r"\b(matthew|mark|luke|john|genesis|exodus|leviticus|deuteronomy|psalm|proverb|isaiah|jeremiah|ezekiel|daniel|romans|corinthians|galatians|ephesians|hebrews|revelation)\s+\d",
+                r"\b(torah|gospel|epistle|scripture|biblical|talmud|midrash)\b",
+                r"\b(hebrew|greek)\s+(word|term|meaning|root)\b",
+                r"\brelationship\s+between\b.*\b(and|teaching|doctrine)\b",
             ],
             "write": [
                 r"\b(write|draft|compose|create)\s+(an?\s+)?(article|essay|summary|document|post|outline)",
@@ -286,7 +295,9 @@ class AgentRouter:
             trace.agent_sequence = agent_sequence
 
             # Step 4: Run retrieval if needed
-            if agent_sequence and ctx.project_id:
+            # Run for project context OR for research intents (library search)
+            is_research_intent = any(i in intents for i in ["research", "write", "summarize", "explain"])
+            if agent_sequence and (ctx.project_id or is_research_intent):
                 ctx = self._run_retrieval(ctx, intents)
                 trace.retrieval_used = bool(ctx.retrieved_chunks)
                 trace.retrieval_count = len(ctx.retrieved_chunks)
@@ -326,6 +337,37 @@ class AgentRouter:
             r"\b(existing|current)\s+\w+",
         ]
         for pattern in project_indicators:
+            if re.search(pattern, msg, re.IGNORECASE):
+                return True
+        return False
+
+    def _is_scholarly_question(self, message: str) -> bool:
+        """
+        Check if the message is a scholarly/theological question.
+
+        These questions should route to the researcher agent (xAI/Grok)
+        even without project context, as they benefit from Grok's
+        theological research capabilities.
+        """
+        msg = message.lower()
+        scholarly_indicators = [
+            # Biblical books and references
+            r"\b(matthew|mark|luke|john|acts|romans|corinthians|galatians|ephesians|philippians|colossians|thessalonians|timothy|titus|philemon|hebrews|james|peter|jude|revelation)\s+\d",
+            r"\b(genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|samuel|kings|chronicles|ezra|nehemiah|esther|job|psalm|proverbs|ecclesiastes|song|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi)\b",
+            # Theological terms
+            r"\b(torah|tanakh|talmud|midrash|mishnah|gemara|targum)\b",
+            r"\b(gospel|epistle|scripture|biblical|covenant|commandment|sabbath|passover|pentecost|tabernacle|temple)\b",
+            r"\b(hebrew|greek|aramaic)\s+(word|term|meaning|root|text)\b",
+            r"\b(law|grace|faith|works|righteousness|justification|sanctification|atonement|redemption|salvation)\b.*\b(bible|scripture|paul|jesus|moses|god)\b",
+            # Hermeneutical patterns
+            r"\b(exegesis|hermeneutic|interpretation|context|original|meaning)\b.*\b(text|passage|verse|scripture)\b",
+            r"\bwhat\s+(does|did)\s+(jesus|paul|moses|david|peter|james)\s+(say|teach|mean)\b",
+            r"\b(christian|jewish|messianic)\s+(teaching|doctrine|tradition|interpretation)\b",
+            # Direct theological questions
+            r"\brelationship\s+between\b.*\b(law|grace|faith|works|old testament|new testament)\b",
+            r"\b(fulfilled|abolish|fulfill)\b.*\b(law|commandment|torah)\b",
+        ]
+        for pattern in scholarly_indicators:
             if re.search(pattern, msg, re.IGNORECASE):
                 return True
         return False
@@ -492,13 +534,16 @@ JSON array:"""
                 return ["researcher", "writer"]
             return []  # No project, use single LLM for general writing
 
-        # Research tasks: Researcher only (requires project context)
+        # Research tasks: Researcher (with project context OR scholarly question)
         if primary_intent == "research":
-            if ctx.project_id:
+            # Scholarly/theological questions route to researcher even without project
+            # This enables xAI/Grok for theological research
+            is_scholarly = self._is_scholarly_question(ctx.user_message)
+            if ctx.project_id or is_scholarly:
                 if "summarize" in intents or "write" in intents:
                     return ["researcher", "writer"]
                 return ["researcher"]
-            return []  # No project, use single LLM for general questions
+            return []  # No project and not scholarly, use single LLM
 
         # Summarization: Researcher → Writer (for polish)
         if primary_intent == "summarize":
@@ -506,9 +551,10 @@ JSON array:"""
                 return ["researcher", "writer"]
             return []  # No files, use single LLM
 
-        # Explanation: Could use Researcher if project context exists
+        # Explanation: Use Researcher if project context OR scholarly question
         if primary_intent == "explain":
-            if ctx.project_id:
+            is_scholarly = self._is_scholarly_question(ctx.user_message)
+            if ctx.project_id or is_scholarly:
                 return ["researcher", "writer"]
             return []  # General explanation, use single LLM
 
@@ -532,52 +578,105 @@ JSON array:"""
 
         For research/write intents, ensures coverage across all project files
         by retrieving more chunks and diversifying by file.
+
+        Also searches global library for supplemental sources.
         """
-        if not ctx.project_id or not ctx.user_id:
-            return ctx
+        project_chunks = []
+        library_chunks = []
 
-        try:
-            from services.file_semantic_service import semantic_search_project_files
-            from utils.db import get_db
+        # Step 1: Search project files if project context exists
+        if ctx.project_id and ctx.user_id:
+            try:
+                from services.file_semantic_service import semantic_search_project_files
+                from utils.db import get_db
 
-            is_broad_query = "research" in intents or "write" in intents or "summarize" in intents
+                is_broad_query = "research" in intents or "write" in intents or "summarize" in intents
 
-            if is_broad_query:
-                # For broad queries, ensure we get chunks from ALL files
-                # First, find how many files are in the project
-                conn = get_db()
-                cur = conn.cursor()
-                cur.execute(
-                    "SELECT COUNT(*) FROM project_files WHERE project_id = ?",
-                    (ctx.project_id,)
+                if is_broad_query:
+                    conn = get_db()
+                    cur = conn.cursor()
+                    cur.execute(
+                        "SELECT COUNT(*) FROM project_files WHERE project_id = ?",
+                        (ctx.project_id,)
+                    )
+                    file_count = cur.fetchone()[0]
+                    conn.close()
+                    top_k = max(50, file_count * 10)
+                else:
+                    top_k = 10
+
+                result = semantic_search_project_files(
+                    project_id=ctx.project_id,
+                    user_id=ctx.user_id,
+                    query=ctx.user_message,
+                    top_k=top_k,
+                    include_answer=False,
                 )
-                file_count = cur.fetchone()[0]
-                conn.close()
 
-                # Get enough chunks to cover all files (5 per file minimum)
-                top_k = max(50, file_count * 10)
-            else:
-                top_k = 10
+                project_chunks = result.get("results", [])
 
-            result = semantic_search_project_files(
-                project_id=ctx.project_id,
-                user_id=ctx.user_id,
-                query=ctx.user_message,
-                top_k=top_k,
-                include_answer=False,
-            )
+                if is_broad_query and project_chunks:
+                    project_chunks = self._diversify_chunks(project_chunks, max_per_file=5, total_max=25)
 
-            chunks = result.get("results", [])
+            except Exception as e:
+                logger.warning(f"Project file retrieval failed: {e}")
 
-            # For broad queries, ensure we have chunks from each file
-            if is_broad_query and chunks:
-                chunks = self._diversify_chunks(chunks, max_per_file=5, total_max=25)
+        # Step 2: Search global library for supplemental sources
+        # Do this for research/write/summarize intents regardless of project context
+        is_research_intent = any(i in intents for i in ["research", "write", "summarize", "explain"])
+        if is_research_intent:
+            try:
+                from services.library.search_service import LibrarySearchService
 
-            ctx.retrieved_chunks = chunks
+                search_service = LibrarySearchService()
+                # Use 'all' scope if project exists (marks project refs), else 'library'
+                scope = "all" if ctx.project_id else "library"
+                results = search_service.search(
+                    query=ctx.user_message,
+                    scope=scope,
+                    project_id=ctx.project_id,
+                    limit=10,
+                    min_score=0.3,
+                )
 
-        except Exception as e:
-            logger.warning(f"Retrieval failed: {e}")
-            ctx.retrieved_chunks = []
+                # Convert SearchResult to dict format matching project chunks
+                for r in results:
+                    library_chunks.append({
+                        "file_id": r.library_file_id,
+                        "filename": r.filename,
+                        "chunk_index": r.chunk_index,
+                        "content": r.content,
+                        "score": r.score,
+                        "page": r.page,
+                        "source": "library",
+                    })
+
+                logger.info(f"Library search returned {len(library_chunks)} results")
+
+            except Exception as e:
+                logger.warning(f"Library retrieval failed: {e}")
+
+        # Step 3: Merge results - project chunks first (higher priority), then library
+        # Deduplicate by content hash to avoid showing same text twice
+        seen_content = set()
+        merged = []
+
+        # Project chunks first
+        for chunk in project_chunks:
+            content_key = chunk.get("content", "")[:200]
+            if content_key not in seen_content:
+                seen_content.add(content_key)
+                chunk["source"] = "project"
+                merged.append(chunk)
+
+        # Then library chunks
+        for chunk in library_chunks:
+            content_key = chunk.get("content", "")[:200]
+            if content_key not in seen_content:
+                seen_content.add(content_key)
+                merged.append(chunk)
+
+        ctx.retrieved_chunks = merged[:30]  # Cap total chunks
 
         return ctx
 
@@ -640,6 +739,14 @@ JSON array:"""
 
         # Compose final result from last output
         final_output = outputs[-1] if outputs else None
+
+        # Capture provider info from agent outputs for trace
+        # Use the last agent that actually used an LLM
+        for output in reversed(outputs):
+            if output.provider_used:
+                trace.provider_used = output.provider_used
+                trace.model_used = output.model_used
+                break
 
         if not final_output:
             return RouterResult(

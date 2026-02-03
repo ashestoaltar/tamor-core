@@ -87,6 +87,10 @@ class AgentOutput:
     tokens_used: int = 0
     processing_ms: int = 0
 
+    # LLM provider tracking (for debugging/tracing)
+    provider_used: str = ""  # "xai" | "anthropic" | "openai" | "ollama" | ""
+    model_used: str = ""
+
     # Error state
     error: Optional[str] = None
 
@@ -110,6 +114,8 @@ class AgentOutput:
             ],
             "tokens_used": self.tokens_used,
             "processing_ms": self.processing_ms,
+            "provider_used": self.provider_used,
+            "model_used": self.model_used,
             "error": self.error,
         }
 
