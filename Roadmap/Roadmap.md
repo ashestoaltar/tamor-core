@@ -1132,18 +1132,24 @@ GHM enforces textual-historical discipline when Tamor handles Scripture and Scri
 
 ---
 
-### 8.7 Declaration of Stability
+### 8.7 Declaration of Stability ✅
 
 **Purpose:** Formally end "core feature development."
 
-#### Deliverable
-
-Roadmap entry:
+**Status:** Complete (2026-02-02)
 
 > **Tamor core is feature-complete.**
 > Future work focuses on content, libraries, and refinement — not expansion.
+> New capabilities are always possible through the extensions process.
 
 **This is significant. Most systems never do this.**
+
+#### What This Means
+
+- Phase 1–8 define Tamor's complete foundation
+- New ideas enter via `Roadmap-extensions.md`, not ad-hoc additions
+- Expansion is welcome — through governance, not impulse
+- The core is stable; the system can grow deliberately
 
 ---
 
@@ -1263,6 +1269,14 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.47 – 2026-02-02
+
+Phase 8 Complete — Declaration of Stability:
+- ✅ Phase 8.7 Declaration of Stability marked complete
+- ✅ Tamor core is feature-complete
+- ✅ All Phase 8 items (8.1–8.7) now done
+- Future expansion proceeds through extensions governance
+
 v1.46 – 2026-02-01
 
 Classification Optimizations:
