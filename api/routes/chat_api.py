@@ -491,10 +491,15 @@ def apply_ghm_pipeline(user_message: str, assistant_response: str, project_id: i
     return assistant_response, ghm_metadata, ghm_is_active
 
 
-def get_ghm_prompt_addition(user_message: str, project_id: int) -> Optional[str]:
+def get_ghm_prompt_addition(user_message: str, project_id: int, mode: Optional[str] = None) -> Optional[str]:
     """
     Pre-LLM check: if GHM is active, build full GHM system prompt instructions.
     If the question also assumes a post-biblical framework, include the frame challenge.
+
+    Args:
+        user_message: The user's message
+        project_id: The project ID
+        mode: Active Tamor mode (Scholar, Path, etc.) for research directive injection
 
     Returns None if GHM is inactive.
     """
@@ -510,7 +515,11 @@ def get_ghm_prompt_addition(user_message: str, project_id: int) -> Optional[str]
         if needs_challenge:
             frame_challenge = challenge_text
 
-    return build_ghm_system_prompt(frame_challenge, profile_id=ghm_status.get('profile'))
+    return build_ghm_system_prompt(
+        frame_challenge,
+        profile_id=ghm_status.get('profile'),
+        mode=mode
+    )
 
 
 def get_or_create_conversation(user_id, conversation_id=None, title="New chat", project_id=None):
@@ -1212,8 +1221,9 @@ Capability note (Tamor app):
         pass  # Don't fail chat if project files context fails
 
     # Phase 8.2.7: GHM frame challenge injection (pre-LLM)
+    # Phase 8.2.8: Pass mode for research directive injection
     try:
-        ghm_challenge = get_ghm_prompt_addition(user_message, project_id)
+        ghm_challenge = get_ghm_prompt_addition(user_message, project_id, mode=effective_mode)
         if ghm_challenge:
             system_prompt += ghm_challenge
     except Exception:

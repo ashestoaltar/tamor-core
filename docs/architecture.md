@@ -98,8 +98,8 @@ Response with metadata
 
 | Service | Purpose |
 |---------|---------|
-| `llm_service` | LLM provider abstraction (OpenAI) |
-| `router` | Intent-based agent routing |
+| `llm_service` | Multi-provider LLM abstraction (xAI, Anthropic, Ollama) |
+| `router` | Intent-based agent routing with provider selection |
 | `embedding_service` | Local sentence-transformers |
 | `epistemic/pipeline` | Truth signaling system |
 
@@ -118,6 +118,70 @@ Response with metadata
 | `sword_client` | Local Bible modules |
 | `sefaria_client` | Jewish text API with caching |
 | `reference_service` | Unified reference interface |
+
+---
+
+## LLM Provider Architecture
+
+Tamor uses a multi-provider LLM architecture, routing requests to different providers based on the task type.
+
+### Provider Assignments
+
+| Agent Mode | Provider | Model | Rationale |
+|------------|----------|-------|-----------|
+| **Scholar** | xAI | `grok-4-fast-reasoning` | Best textual analysis for theological research, 2M context window, lowest cost for library-heavy context injection |
+| **Engineer** | Anthropic | `claude-sonnet-4-5` | Top coding benchmarks, best instruction-following for niche languages (AutoLISP, VBA, iLogic) |
+| **Classification/Routing** | Ollama (local) | `phi3:mini` | Zero-cost, data sovereignty, fast heuristic + LLM fallback |
+
+### Provider Selection Flow
+
+```
+User message
+    ↓
+Router classifies intent (Ollama local)
+    ↓
+Agent mode determined (Scholar/Engineer/Writer/Archivist)
+    ↓
+Provider selected based on mode:
+  • Scholar → xAI (Grok)
+  • Engineer → Anthropic (Claude)
+  • Writer → xAI (Grok)
+  • Archivist → Anthropic (Claude)
+    ↓
+Context injection (library, references, memory)
+    ↓
+LLM call to selected provider
+    ↓
+Epistemic processing (provider-agnostic)
+```
+
+### API Format Differences
+
+**xAI (OpenAI-compatible):**
+```python
+# Endpoint: https://api.x.ai/v1/chat/completions
+# Auth: Bearer token
+# Messages: [{"role": "system|user|assistant", "content": "..."}]
+# Response: choices[0].message.content
+```
+
+**Anthropic:**
+```python
+# Endpoint: https://api.anthropic.com/v1/messages
+# Auth: x-api-key header + anthropic-version header
+# Messages: NO system role in messages array (system prompt separate)
+# Response: content is a LIST of blocks
+#   Extract: "".join(b["text"] for b in content if b["type"] == "text")
+```
+
+### Design Rationale
+
+The provider swap was driven by empirical testing (see [LLM Provider Decision](decisions/2026-02-02-llm-provider-swap.md)):
+
+1. **Theological research** — Grok demonstrated stronger textual analysis and willingness to follow minority interpretive positions on textual merits without hedging toward consensus
+2. **Coding tasks** — Claude leads coding benchmarks and excels at instruction-following for niche languages
+3. **Cost optimization** — Grok at $0.20/M input tokens is 10-15x cheaper than alternatives for library-heavy context injection
+4. **The library is the corrective** — All models have training biases; the library-based retrieval system provides the corrective mechanism regardless of which LLM generates the response
 
 ---
 
@@ -153,7 +217,9 @@ Single database at: `api/memory/tamor.db`
 
 | Dependency | Purpose | Local/Remote |
 |------------|---------|--------------|
-| OpenAI API | LLM responses | Remote |
+| xAI API (Grok) | LLM for Scholar mode (theological research) | Remote |
+| Anthropic API (Claude) | LLM for Engineer mode (coding tasks) | Remote |
+| Ollama | LLM for classification/routing | Local |
 | sentence-transformers | Embeddings | Local |
 | SWORD modules | Bible texts | Local |
 | Sefaria API | Jewish texts | Remote (cached) |
@@ -169,6 +235,15 @@ Single database at: `api/memory/tamor.db`
 | `config/modes.yml` | Assistant mode definitions |
 | `config/personality.yml` | Tamor's identity |
 | `config/epistemic_rules.yml` | Truth signaling rules |
+
+### Environment Variables (LLM)
+
+| Variable | Purpose |
+|----------|---------|
+| `XAI_API_KEY` | xAI API key for Grok (Scholar mode) |
+| `ANTHROPIC_API_KEY` | Anthropic API key for Claude (Engineer mode) |
+| `OLLAMA_BASE_URL` | Ollama endpoint (default: `http://localhost:11434`) |
+| `OLLAMA_MODEL` | Default Ollama model for classification (default: `phi3:mini`) |
 
 ---
 
@@ -192,4 +267,4 @@ Single database at: `api/memory/tamor.db`
 
 ---
 
-*Last updated: Phase 8.6 (v1.32)*
+*Last updated: v1.48 (LLM Provider Architecture)*

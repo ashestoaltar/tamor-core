@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 
 from .base import BaseAgent, AgentOutput, Citation, RequestContext
 from services.llm_service import get_llm_client, get_model_name
+from services.ghm import get_research_directives_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +120,13 @@ class ResearcherAgent(BaseAgent):
         # Phase 8.2.7: GHM frame challenge injection
         if ctx.ghm_frame_challenge:
             system_prompt += f"\n\n{ctx.ghm_frame_challenge}"
+
+        # Phase 8.2.8: Research directives for theological research
+        # Inject when GHM is active or when sources suggest theological content
+        if ctx.ghm_frame_challenge or self._is_theological_research(ctx):
+            research_directives = get_research_directives_prompt()
+            if research_directives:
+                system_prompt += f"\n\n{research_directives}"
 
         # Add memory context if available
         if ctx.memories:
@@ -269,3 +277,32 @@ Analyze these sources and provide structured research notes in JSON format."""
             )
 
         return citations
+
+    def _is_theological_research(self, ctx: RequestContext) -> bool:
+        """
+        Detect if this research request involves theological content.
+
+        Uses simple keyword detection on user message and source filenames.
+        """
+        theological_keywords = {
+            'scripture', 'bible', 'torah', 'gospel', 'covenant', 'law',
+            'sabbath', 'feast', 'passover', 'pentecost', 'tabernacles',
+            'prophecy', 'messiah', 'apostle', 'church', 'israel',
+            'hebrew', 'greek', 'aramaic', 'septuagint', 'tanakh',
+            'jesus', 'paul', 'moses', 'abraham', 'david',
+            'genesis', 'exodus', 'leviticus', 'deuteronomy', 'romans',
+            'galatians', 'hebrews', 'matthew', 'acts', 'revelation',
+        }
+
+        # Check user message
+        message_lower = ctx.user_message.lower()
+        if any(kw in message_lower for kw in theological_keywords):
+            return True
+
+        # Check source filenames
+        for chunk in (ctx.retrieved_chunks or []):
+            filename = (chunk.get('filename') or '').lower()
+            if any(kw in filename for kw in theological_keywords):
+                return True
+
+        return False

@@ -1269,6 +1269,17 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.48 – 2026-02-02
+
+LLM Provider Architecture Decision:
+- ✅ Evaluated OpenAI, xAI (Grok), and Anthropic (Claude) via theological bias testing
+- ✅ Decision: Replace OpenAI with multi-provider architecture
+- ✅ Scholar mode → xAI `grok-4-fast-reasoning` (best textual analysis, 2M context, cheapest)
+- ✅ Engineer mode → Anthropic `claude-sonnet-4-5` (top coding benchmarks, instruction-following)
+- ✅ Classification/routing → Ollama local (unchanged)
+- ✅ Decision document: `docs/decisions/2026-02-02-llm-provider-swap.md`
+- ⏳ Implementation pending
+
 v1.47 – 2026-02-02
 
 Phase 8 Complete — Declaration of Stability:
@@ -1936,7 +1947,7 @@ Key Architectural Decisions
 | Local-first deployment | Privacy, no cloud dependency, full data ownership |
 | Flask + Gunicorn | Simplicity over async; sufficient for single-user workload |
 | Sentence-Transformers (local) | No API cost for embeddings; works offline |
-| OpenAI for LLM (abstraction layer done) | Best quality/cost for chat; services/llm_service.py enables provider switching |
+| Multi-provider LLM architecture | xAI (Grok) for Scholar mode, Anthropic (Claude) for Engineer mode; Ollama local for classification/routing. Provider abstraction in services/llm_service.py. See [LLM Provider Decision](../docs/decisions/2026-02-02-llm-provider-swap.md). |
 | SQLite | Single-user, file-based, zero config |
 | React + Vite frontend | Fast dev iteration, familiar tooling |
 | Cloudflare Tunnel | Secure remote access without exposing ports |

@@ -35,6 +35,8 @@ from .frame_analyzer import (
 from .prompt_builder import (
     build_ghm_system_prompt,
     build_ghm_user_prefix,
+    load_hermeneutic_config,
+    get_research_directives_prompt,
 )
 from .profile_loader import (
     load_profile,
@@ -66,6 +68,8 @@ __all__ = [
     'should_challenge_frame',
     'build_ghm_system_prompt',
     'build_ghm_user_prefix',
+    'load_hermeneutic_config',
+    'get_research_directives_prompt',
     'load_profile',
     'get_available_profiles',
     'get_profile_prompt_addition',

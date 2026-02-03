@@ -4,14 +4,51 @@ GHM System Prompt Builder
 Builds system prompt additions for GHM-active conversations.
 """
 
+import os
+import yaml
+from functools import lru_cache
 from typing import Optional
 
 from .profile_loader import get_profile_prompt_addition
 
 
+# =============================================================================
+# Hermeneutic Config Loading
+# =============================================================================
+
+HERMENEUTIC_CONFIG_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+    'config',
+    'hermeneutic_config.yml'
+)
+
+
+@lru_cache(maxsize=1)
+def load_hermeneutic_config() -> dict:
+    """Load hermeneutic research directives from YAML config."""
+    if not os.path.exists(HERMENEUTIC_CONFIG_PATH):
+        return {}
+
+    with open(HERMENEUTIC_CONFIG_PATH, 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f) or {}
+
+
+def get_research_directives_prompt() -> str:
+    """
+    Get the research directives prompt template.
+
+    Returns the prompt_template from hermeneutic_config.yml, or empty string
+    if not configured.
+    """
+    config = load_hermeneutic_config()
+    return config.get('prompt_template', '')
+
+
 def build_ghm_system_prompt(
     frame_challenge: Optional[str] = None,
     profile_id: Optional[str] = None,
+    mode: Optional[str] = None,
+    include_research_directives: bool = True,
 ) -> str:
     """
     Build GHM system prompt instructions.
@@ -19,6 +56,8 @@ def build_ghm_system_prompt(
     Args:
         frame_challenge: Pre-built frame challenge text if question assumes frameworks
         profile_id: Optional profile to layer on top of GHM
+        mode: Active mode (Scholar, Path, etc.) - research directives inject for Scholar
+        include_research_directives: Whether to include research process directives
 
     Returns:
         System prompt addition for GHM behavior
@@ -86,6 +125,15 @@ Your final output should read as polished prose, not study notes or outlines.
    to fill in later. Deliver finished thought, not scaffolding.
 '''
 
+    # Research directives section (for Scholar mode or when explicitly requested)
+    research_section = ''
+    if include_research_directives and mode in (None, 'Scholar', 'Path'):
+        # Scholar and Path modes use research directives
+        # None = fallback for backward compatibility
+        directives_text = get_research_directives_prompt()
+        if directives_text:
+            research_section = f'\n{directives_text}\n'
+
     # Profile section (after base GHM, before frame challenge)
     profile_section = ''
     if profile_id:
@@ -103,9 +151,9 @@ The user's question assumes a post-biblical framework. You MUST challenge this f
 
 Do NOT answer within the assumed framework. First explain why the framework is not textually derived, then proceed with direct textual analysis.
 '''
-        return base_instructions + formatting_instruction + profile_section + frame_section
+        return base_instructions + formatting_instruction + research_section + profile_section + frame_section
 
-    return base_instructions + formatting_instruction + profile_section
+    return base_instructions + formatting_instruction + research_section + profile_section
 
 
 def build_ghm_user_prefix(frame_challenge: Optional[str] = None) -> str:

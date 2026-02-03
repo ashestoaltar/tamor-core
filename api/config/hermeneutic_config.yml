@@ -1,0 +1,111 @@
+# Hermeneutic Research Configuration
+# Phase 8.2.8: Research process directives for Torah-observant scholarship
+#
+# This file governs HOW research happens, not WHAT conclusions are reached.
+# Works alongside epistemic_rules.yml (certainty) and ghm_rules.yml (interpretation).
+
+version: "1.0"
+
+# =============================================================================
+# RESEARCH DIRECTIVES
+# =============================================================================
+# Shape the research process to leverage library sources effectively
+
+research_directives:
+  torah_observant_scholarship:
+    description: "Shape research process to leverage library sources for Torah-positive perspectives"
+    rules:
+      - "Retrieve and cite library sources before synthesizing with LLM knowledge"
+      - "Weight primary texts (Scripture, early church writers, Second Temple sources) over post-Reformation commentary"
+      - "Present the Torah-positive reading alongside alternatives rather than assuming discontinuity"
+      - "Flag where modern Christian or Rabbinic consensus diverges from the textual argument being presented"
+    note: "This does not force conclusions — it shapes HOW research happens so library content gets used"
+
+# =============================================================================
+# SOURCE WEIGHTING
+# =============================================================================
+# Priority order for research source selection and citation
+
+source_priorities:
+  - tier: 1
+    name: "Primary texts"
+    examples:
+      - "Scripture (Hebrew Bible, Greek NT)"
+      - "Dead Sea Scrolls"
+      - "Second Temple literature (1 Enoch, Jubilees, etc.)"
+    weight: 1.0
+
+  - tier: 2
+    name: "Early witnesses"
+    examples:
+      - "Apostolic Fathers (Didache, Clement, etc.)"
+      - "Early church writers (pre-Nicene)"
+      - "Josephus, Philo"
+    weight: 0.9
+
+  - tier: 3
+    name: "Pre-modern commentary"
+    examples:
+      - "Rabbinic literature (Mishnah, Talmud, Midrash)"
+      - "Patristic commentary (post-Nicene)"
+      - "Medieval Jewish and Christian commentators"
+    weight: 0.7
+
+  - tier: 4
+    name: "Reformation and later"
+    examples:
+      - "Reformation-era theologians"
+      - "Post-Reformation systematic theology"
+      - "Modern scholarly commentary"
+    weight: 0.5
+    note: "Valuable but may carry theological assumptions to disclose"
+
+# =============================================================================
+# DIVERGENCE MARKERS
+# =============================================================================
+# Topics where user's interpretive approach differs from mainstream consensus
+
+divergence_topics:
+  law_continuity:
+    user_position: "Torah remains instructive for covenant faithfulness"
+    mainstream_position: "Law fulfilled/ended in Christ"
+    flag_when: "Assumes discontinuity without textual argument"
+
+  israel_identity:
+    user_position: "Gentiles grafted into Israel, one covenant people"
+    mainstream_position: "Church replaces or is distinct from Israel"
+    flag_when: "Assumes supersessionism or hard dispensational distinction"
+
+  sabbath_feasts:
+    user_position: "Sabbath and feasts remain meaningful observance"
+    mainstream_position: "Shadow fulfilled, optional or abolished"
+    flag_when: "Assumes Colossians 2 abolishes rather than protects"
+
+  dietary_instruction:
+    user_position: "Food distinctions remain valid creation categories"
+    mainstream_position: "All foods clean, Acts 10 / Mark 7"
+    flag_when: "Assumes vision about foods rather than people"
+
+# =============================================================================
+# PROMPT INJECTION TEMPLATE
+# =============================================================================
+# Template for injecting directives into system prompts
+
+prompt_template: |
+  ## Research Process Directives
+
+  When researching theological topics, follow these principles:
+
+  1. **Library-first**: Retrieve and cite library sources before synthesizing with general knowledge.
+
+  2. **Source weighting**: Prioritize primary texts and early witnesses over later commentary.
+     - Tier 1: Scripture, Second Temple literature
+     - Tier 2: Apostolic Fathers, early church writers
+     - Tier 3: Rabbinic and Patristic commentary
+     - Tier 4: Reformation and modern scholarship (disclose assumptions)
+
+  3. **Torah-positive framing**: Present readings that affirm Torah's ongoing relevance alongside discontinuity readings. Do not assume discontinuity as default.
+
+  4. **Divergence flagging**: Note where modern Christian or Rabbinic consensus diverges from the textual argument being presented.
+
+  These directives shape the research PROCESS, not the conclusions. The goal is ensuring library content is actually used and minority interpretive positions get fair hearing on textual merits.

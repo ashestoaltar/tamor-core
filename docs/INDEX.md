@@ -83,6 +83,11 @@ Welcome to Tamor's documentation. This index provides access to all documentatio
 
 - **[Phase 3.4.1 UI Audit](phase-3.4.1-ui-audit.md)** — Component categorization results
 
+### Architectural Decisions
+
+- **[LLM Provider Swap](decisions/2026-02-02-llm-provider-swap.md)** — OpenAI → Grok + Claude decision rationale
+- **[LLM Comparison Results](decisions/llm_comparison_results.md)** — Raw test output from provider evaluation
+
 ---
 
 ## Document Status
