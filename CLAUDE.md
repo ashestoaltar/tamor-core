@@ -96,6 +96,35 @@ OLLAMA_MODEL=llama3.1:8b
 
 ## Session Notes
 
+### 2026-02-03 (Pronomian Library Expansion)
+
+**Library Content Ingestion**
+- Downloaded and indexed pronomian scholarship from multiple sources
+- Total library now: 2,578 indexed files
+
+**Torah Matters (torahmatters.com)**
+- 38 PDFs of scholarly articles and dissertations
+- Script: `api/scripts/download_torahmatters.py`
+- Location: `/mnt/library/religious/torahmatters/`
+
+**David Wilber Blog (davidwilber.com)**
+- 99 articles scraped as markdown
+- Script: `api/scripts/scrape_davidwilber.py`
+- Location: `/mnt/library/religious/davidwilber/`
+
+**Pronomian Author Sources**
+- Script: `api/scripts/scrape_pronomian_sources.py`
+- Handles: Torah Apologetics (Jonathan A. Brown), Barking Fox (Albert McCarn), Caldron Pool
+- Torah Apologetics: 5 category pages
+- Barking Fox: 500 WordPress articles (2017-2022)
+- Locations: `/mnt/library/religious/{torahapologetics,barkingfox}/`
+
+**Note:** Szumskyj's Substack URL appears to no longer exist (404). McKenzie & Szumskyj dissertations already in library from Torah Matters.
+
+**Claude Code Permissions**
+- Configured `~/.claude/settings.json` and `.claude/settings.json`
+- All Bash, Edit, Write, WebFetch, WebSearch allowed without prompts
+
 ### 2026-02-02 (Multi-Provider LLM & Library Integration)
 
 **Multi-Provider LLM Architecture**
