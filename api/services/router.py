@@ -503,7 +503,17 @@ class AgentRouter:
         self._reset_stale_active_tasks(ctx.project_id)
 
         # Second: Check for waiting_review tasks and capture user feedback
-        self._capture_review_feedback(ctx)
+        feedback_status = self._capture_review_feedback(ctx)
+        if feedback_status == "no_feedback":
+            # User hasn't provided feedback yet - prompt them
+            return RouterResult(
+                content=(
+                    "**No feedback detected.**\n\n"
+                    "Please type your revision notes, then `/next-task` to proceed.\n\n"
+                    "Or type `/next-task` again to approve the draft as-is."
+                ),
+                handled_by="pipeline_executor",
+            )
 
         # Find the next pending task
         conn = get_db()
@@ -697,10 +707,13 @@ What would you like changed, added, or removed? Your feedback will be used to re
                 handled_by="pipeline_executor",
             )
 
-        # Build revision prompt with draft and feedback
+        # Calculate original word count as target
+        original_word_count = len(draft_content.split())
+
+        # Build revision prompt with draft, feedback, and word count target
         revision_prompt = f"""Revise the following draft based on the user's feedback.
 
-## Original Draft
+## Original Draft ({original_word_count} words)
 {draft_content}
 
 ## User Feedback
@@ -709,7 +722,12 @@ What would you like changed, added, or removed? Your feedback will be used to re
 ## Task
 {task_description}
 
-Produce a revised version that addresses the feedback while maintaining the core content and citations."""
+## IMPORTANT: Length Constraint
+The target length is approximately {original_word_count} words (the original draft length).
+- Revise based on feedback — do NOT rewrite from scratch
+- Do NOT expand significantly beyond the target length
+- Maintain the core structure, content, and citations
+- Make targeted edits to address the feedback"""
 
         task_ctx = RequestContext(
             user_message=revision_prompt,
@@ -813,15 +831,19 @@ Produce a revised version that addresses the feedback while maintaining the core
         except Exception as e:
             logger.warning(f"Failed to reset stale tasks: {e}")
 
-    def _capture_review_feedback(self, ctx: RequestContext) -> None:
+    def _capture_review_feedback(self, ctx: RequestContext) -> Optional[str]:
         """
         Check for waiting_review tasks and capture user feedback.
 
         When user provides feedback after a review and types /next-task,
         this stores their feedback in the review task and marks it complete.
+
+        Returns:
+            - None if no waiting_review task or feedback was captured successfully
+            - "no_feedback" if waiting_review exists but no feedback was provided
         """
         if not ctx.project_id:
-            return
+            return None
 
         from utils.db import get_db
 
@@ -840,21 +862,36 @@ Produce a revised version that addresses the feedback while maintaining the core
 
             if not row:
                 conn.close()
-                return
+                return None
 
             review_task_id = row["id"]
 
             # Get user feedback from conversation history
             # Look for the last non-command user message
             feedback = ""
+            next_task_count = 0
             if ctx.history:
                 for msg in reversed(ctx.history):
                     if msg.get("role") == "user":
                         content = msg.get("content", "").strip()
-                        # Skip /next-task commands
-                        if content.lower() not in ["/next-task", "/next", "/continue", "next task", "/nexttask"]:
+                        # Count consecutive /next-task commands
+                        if content.lower() in ["/next-task", "/next", "/continue", "next task", "/nexttask"]:
+                            next_task_count += 1
+                        else:
                             feedback = content
                             break
+                    elif msg.get("role") == "assistant":
+                        # Check if assistant just prompted for feedback
+                        if "No feedback detected" in msg.get("content", ""):
+                            # User confirmed no feedback by typing /next-task again
+                            if next_task_count >= 1:
+                                feedback = "Approved as-is."
+                                break
+
+            # If no feedback found and not a double /next-task, signal to prompt user
+            if not feedback:
+                conn.close()
+                return "no_feedback"
 
             # Store feedback and mark complete
             conn.execute(
@@ -863,14 +900,16 @@ Produce a revised version that addresses the feedback while maintaining the core
                 SET status = 'complete', output_summary = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
-                (feedback or "No specific feedback provided.", review_task_id)
+                (feedback, review_task_id)
             )
             conn.commit()
             conn.close()
             logger.info(f"Captured review feedback for task {review_task_id}")
+            return None
 
         except Exception as e:
             logger.warning(f"Failed to capture review feedback: {e}")
+            return None
 
     def _get_completed_task_outputs(self, conn, project_id: int, current_order: int) -> str:
         """Get output summaries from completed predecessor tasks."""
@@ -912,8 +951,12 @@ Produce a revised version that addresses the feedback while maintaining the core
         else:
             new_status = "complete"
 
-        # Truncate output for storage (keep first 2000 chars as summary)
-        output_summary = output[:2000] if output else ""
+        # Store output - truncate only for research (which can be verbose)
+        # Draft and revise need full content for downstream use
+        if task_type == "research":
+            output_summary = output[:3000] if output else ""  # Research can be summarized
+        else:
+            output_summary = output or ""  # Full content for draft/revise
 
         try:
             conn = get_db()
