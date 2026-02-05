@@ -298,6 +298,15 @@ class AgentRouter:
                     handled_by="deterministic",
                 )
 
+            # Step 1.25: Handle /next-task command - execute next pipeline task
+            if self._is_next_task_command(ctx.user_message):
+                result = self._execute_next_pipeline_task(ctx, trace)
+                if result:
+                    trace.timing_ms["total"] = int((time.time() - start_time) * 1000)
+                    result.trace = trace if include_trace else None
+                    return result
+                # If no result, fall through to normal routing
+
             # Step 1.5: Check for active planning session
             # If Planner asked questions or has pending tasks, route back to Planner
             planning_mode = self._check_planning_mode(ctx)
@@ -467,6 +476,195 @@ class AgentRouter:
                 logger.warning(f"Failed to check pipeline tasks: {e}")
 
         return None
+
+    def _is_next_task_command(self, message: str) -> bool:
+        """Check if message is a /next-task command."""
+        msg = message.strip().lower()
+        return msg in ["/next-task", "/next", "/nexttask", "next task", "/continue"]
+
+    def _execute_next_pipeline_task(
+        self, ctx: RequestContext, trace: RouteTrace
+    ) -> Optional[RouterResult]:
+        """
+        Execute the next pending pipeline task.
+
+        Returns RouterResult if a task was executed, None if no tasks pending.
+        """
+        if not ctx.project_id:
+            return RouterResult(
+                content="No project selected. Use a project context to run pipeline tasks.",
+                handled_by="pipeline_executor",
+            )
+
+        from utils.db import get_db
+
+        # Find the next pending task
+        conn = get_db()
+        try:
+            cur = conn.execute(
+                """
+                SELECT id, task_type, task_description, agent, sequence_order, input_context
+                FROM pipeline_tasks
+                WHERE project_id = ? AND status = 'pending'
+                ORDER BY sequence_order
+                LIMIT 1
+                """,
+                (ctx.project_id,)
+            )
+            row = cur.fetchone()
+
+            if not row:
+                # Check if there are any tasks at all
+                cur = conn.execute(
+                    "SELECT COUNT(*) FROM pipeline_tasks WHERE project_id = ?",
+                    (ctx.project_id,)
+                )
+                total = cur.fetchone()[0]
+                conn.close()
+
+                if total == 0:
+                    return RouterResult(
+                        content="No pipeline tasks for this project. Create a plan first.",
+                        handled_by="pipeline_executor",
+                    )
+                else:
+                    return RouterResult(
+                        content="All pipeline tasks complete! The project is finished.",
+                        handled_by="pipeline_executor",
+                    )
+
+            task = dict(row)
+            task_id = task["id"]
+            task_type = task["task_type"]
+            task_description = task["task_description"]
+            agent_name = task["agent"]
+            sequence_order = task["sequence_order"]
+
+            # Update status to 'active'
+            conn.execute(
+                "UPDATE pipeline_tasks SET status = 'active' WHERE id = ?",
+                (task_id,)
+            )
+            conn.commit()
+
+            # Get output from completed predecessor tasks (for context)
+            prior_context = self._get_completed_task_outputs(conn, ctx.project_id, sequence_order)
+
+            conn.close()
+
+        except Exception as e:
+            logger.error(f"Failed to get next pipeline task: {e}")
+            conn.close()
+            return RouterResult(
+                content=f"Error accessing pipeline: {str(e)}",
+                handled_by="pipeline_executor",
+            )
+
+        # Build context for the agent
+        # Override user_message with the task description
+        task_ctx = RequestContext(
+            user_message=task_description,
+            conversation_id=ctx.conversation_id,
+            project_id=ctx.project_id,
+            user_id=ctx.user_id,
+            history=ctx.history,
+            memories=ctx.memories,
+            mode=ctx.mode,
+        )
+
+        # Add prior task outputs to context if available
+        if prior_context:
+            task_ctx.project_files_context = f"## Prior Research/Draft Output\n{prior_context}"
+
+        # Run retrieval for research/write tasks
+        if task_type in ["research", "draft", "revise"]:
+            task_ctx = self._run_retrieval(task_ctx, [task_type])
+            trace.retrieval_used = bool(task_ctx.retrieved_chunks)
+            trace.retrieval_count = len(task_ctx.retrieved_chunks)
+
+        # Route to the appropriate agent
+        if agent_name == "researcher" or task_type == "research":
+            agent_sequence = ["researcher"]
+        elif agent_name == "writer" or task_type in ["draft", "revise"]:
+            agent_sequence = ["writer"]
+        else:
+            agent_sequence = ["researcher"]  # Default fallback
+
+        trace.route_type = "pipeline_task"
+        trace.intents_detected = [task_type]
+        trace.intent_source = "pipeline_task"
+        trace.agent_sequence = agent_sequence
+
+        # Execute the agent
+        result = self._execute_pipeline(task_ctx, agent_sequence, trace)
+
+        # Store output and update task status
+        self._complete_pipeline_task(task_id, result.content, task_type)
+
+        # Add step completion note to response
+        step_note = f"\n\n---\n**Step {sequence_order} complete.** Type `/next-task` to continue."
+        result.content = result.content + step_note
+
+        return result
+
+    def _get_completed_task_outputs(self, conn, project_id: int, current_order: int) -> str:
+        """Get output summaries from completed predecessor tasks."""
+        try:
+            cur = conn.execute(
+                """
+                SELECT task_type, task_description, output_summary
+                FROM pipeline_tasks
+                WHERE project_id = ? AND status = 'complete' AND sequence_order < ?
+                ORDER BY sequence_order
+                """,
+                (project_id, current_order)
+            )
+            rows = cur.fetchall()
+
+            if not rows:
+                return ""
+
+            lines = []
+            for row in rows:
+                task_type = row["task_type"]
+                summary = row["output_summary"]
+                if summary:
+                    lines.append(f"### {task_type.title()} Output\n{summary}\n")
+
+            return "\n".join(lines)
+
+        except Exception as e:
+            logger.warning(f"Failed to get completed task outputs: {e}")
+            return ""
+
+    def _complete_pipeline_task(self, task_id: int, output: str, task_type: str) -> None:
+        """Mark a pipeline task as complete and store its output."""
+        from utils.db import get_db
+
+        # Determine new status
+        if task_type == "review":
+            new_status = "waiting_review"
+        else:
+            new_status = "complete"
+
+        # Truncate output for storage (keep first 2000 chars as summary)
+        output_summary = output[:2000] if output else ""
+
+        try:
+            conn = get_db()
+            conn.execute(
+                """
+                UPDATE pipeline_tasks
+                SET status = ?, output_summary = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (new_status, output_summary, task_id)
+            )
+            conn.commit()
+            conn.close()
+            logger.info(f"Pipeline task {task_id} marked as {new_status}")
+        except Exception as e:
+            logger.error(f"Failed to complete pipeline task: {e}")
 
     def _classify_intent_heuristic(self, message: str) -> List[str]:
         """
