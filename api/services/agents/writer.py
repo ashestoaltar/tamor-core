@@ -15,6 +15,7 @@ Constraints:
 
 import logging
 import os
+import re
 import time
 import yaml
 from typing import Any, Dict, List, Optional
@@ -138,8 +139,15 @@ class WriterAgent(BaseAgent):
         if style_context:
             system_prompt += f"\n\n## User Style Preferences\n{style_context}"
 
+        # Detect explicit length constraints (these override templates)
+        length_constraint = self._detect_length_constraint(ctx.user_message)
+
         # Format research notes for the writer
-        research_text = self._format_research(research_data)
+        # Suppress recommended_structure when user specified explicit length
+        research_text = self._format_research(
+            research_data,
+            suppress_structure=length_constraint is not None
+        )
 
         # Include full library sources if available (for better context)
         sources_text = ""
@@ -148,10 +156,16 @@ class WriterAgent(BaseAgent):
 
         # Determine output type and get template guidance
         template_name = self._detect_output_type(ctx.user_message)
-        template_guidance = self._get_template_guidance(template_name)
+        # Skip template guidance if user specified explicit length
+        template_guidance = "" if length_constraint else self._get_template_guidance(template_name)
+
+        # Build length constraint section
+        length_section = length_constraint["constraint_text"] if length_constraint else ""
 
         user_message = f"""## Writing Request
 {ctx.user_message}
+
+{length_section}
 
 {template_guidance}
 
@@ -159,7 +173,7 @@ class WriterAgent(BaseAgent):
 
 {sources_text}
 
-Write the requested content following the template structure above. Include inline citations [1], [2], etc."""
+Write the requested content. Include inline citations [1], [2], etc."""
 
         # Call LLM with agent-specific provider routing
         try:
@@ -312,8 +326,14 @@ Write the requested content following the template structure above. Include inli
 
         return "\n".join(lines)
 
-    def _format_research(self, research: Dict[str, Any]) -> str:
-        """Format research data for the writer prompt."""
+    def _format_research(self, research: Dict[str, Any], suppress_structure: bool = False) -> str:
+        """Format research data for the writer prompt.
+
+        Args:
+            research: Research data dict from Researcher agent
+            suppress_structure: If True, omit "Recommended Structure" section
+                               (used when user specified explicit length constraint)
+        """
         lines = ["## Research Notes\n"]
 
         # Summary
@@ -355,15 +375,73 @@ Write the requested content following the template structure above. Include inli
         if gaps:
             lines.append(f"### Information Gaps\n" + "\n".join(f"- {g}" for g in gaps) + "\n")
 
-        # Recommended structure
-        structure = research.get("recommended_structure", [])
-        if structure:
-            lines.append("### Recommended Structure")
-            for i, section in enumerate(structure, 1):
-                lines.append(f"{i}. {section}")
-            lines.append("")
+        # Recommended structure (skip if user specified explicit length constraint)
+        if not suppress_structure:
+            structure = research.get("recommended_structure", [])
+            if structure:
+                lines.append("### Recommended Structure")
+                for i, section in enumerate(structure, 1):
+                    lines.append(f"{i}. {section}")
+                lines.append("")
 
         return "\n".join(lines)
+
+    def _detect_length_constraint(self, message: str) -> Optional[Dict[str, Any]]:
+        """
+        Detect explicit length constraints from user message.
+
+        These are HARD constraints that override templates and research structure.
+        Returns dict with min_words, max_words, and constraint_text for prompt.
+        """
+        msg = message.lower()
+
+        # "a paragraph" - single paragraph, 100-200 words
+        if re.search(r"\b(a|one|single)\s+paragraph\b", msg):
+            return {
+                "min_words": 80,
+                "max_words": 200,
+                "format": "single paragraph",
+                "constraint_text": (
+                    "## HARD LENGTH CONSTRAINT\n"
+                    "The user requested A PARAGRAPH. This means:\n"
+                    "- ONE paragraph only, 100-200 words maximum\n"
+                    "- NO headers, NO sections, NO multi-paragraph structure\n"
+                    "- Exceed 200 words = FAILURE\n"
+                    "This constraint OVERRIDES all templates and structure suggestions."
+                )
+            }
+
+        # "brief" - 400-800 words
+        if re.search(r"\b(brief|briefly)\b", msg):
+            return {
+                "min_words": 300,
+                "max_words": 800,
+                "format": "brief",
+                "constraint_text": (
+                    "## HARD LENGTH CONSTRAINT\n"
+                    "The user requested BRIEF output. This means:\n"
+                    "- 400-800 words maximum\n"
+                    "- Exceed 800 words = FAILURE\n"
+                    "This constraint OVERRIDES all templates and structure suggestions."
+                )
+            }
+
+        # "short" - 800-1200 words
+        if re.search(r"\bshort\b", msg):
+            return {
+                "min_words": 600,
+                "max_words": 1200,
+                "format": "short",
+                "constraint_text": (
+                    "## HARD LENGTH CONSTRAINT\n"
+                    "The user requested SHORT output. This means:\n"
+                    "- 800-1,200 words maximum\n"
+                    "- Exceed 1,200 words = FAILURE\n"
+                    "This constraint OVERRIDES all templates and structure suggestions."
+                )
+            }
+
+        return None
 
     def _detect_output_type(self, message: str) -> str:
         """Detect what kind of output the user wants and return template name."""
