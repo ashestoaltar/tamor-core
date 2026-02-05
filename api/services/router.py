@@ -242,7 +242,7 @@ class AgentRouter:
                 r"\b(add|update|modify)\s+(a\s+)?(\w+\s+)*(feature|endpoint|component|function)\b",
                 r"\b(code|patch|refactor)\b.*\b(for|to|that)\b",
                 r"\bbuild\s+(a\s+)?(\w+\s+)*(component|feature|api|service)\b",
-                r"\b(write|create|make)\s+me\s+",
+                # Removed overly broad "write me" pattern - was matching prose requests
             ],
             "memory": [
                 r"\bremember\s+(that|this|my)\b",
@@ -258,6 +258,10 @@ class AgentRouter:
                 r"\bhelp\s+me\s+(plan|organize)\b",
                 r"\b(multi-?step|complex)\s+(project|writing)\b",
                 r"\bsteps\s+(to|for)\s+(write|create|produce)\b",
+                # Complex writing requests that need planning
+                r"\bi'?d?\s+like\s+to\s+(write|create|draft)\s+(an?\s+)?(article|essay|piece|series)\b",
+                r"\b(write|create|draft)\s+(an?\s+)?(article|essay|piece)\s+(exploring|examining|investigating|connecting|comparing)\b",
+                r"\bhow\s+.+\s+connects?\s+to\b.*\b(article|essay|piece|write)\b",
             ],
         }
 
@@ -416,7 +420,8 @@ class AgentRouter:
         detected = []
 
         # Check patterns in priority order
-        priority_order = ["memory", "code", "write", "research", "summarize", "explain"]
+        # plan before write: complex writing requests should be planned first
+        priority_order = ["memory", "plan", "code", "write", "research", "summarize", "explain"]
 
         for intent in priority_order:
             patterns = self.intent_patterns.get(intent, [])
@@ -580,11 +585,10 @@ JSON array:"""
         if primary_intent == "memory":
             return ["archivist"]
 
-        # Planning: Route to Planner (requires project context)
+        # Planning: Route to Planner
+        # Planner works without project - will prompt user to create one if needed
         if primary_intent == "plan":
-            if ctx.project_id:
-                return ["planner"]
-            return []  # No project, use single LLM
+            return ["planner"]
 
         return []
 
