@@ -219,7 +219,8 @@ class AgentRouter:
                 r"\brelationship\s+between\b.*\b(and|teaching|doctrine)\b",
             ],
             "write": [
-                r"\b(write|draft|compose|create)\s+(an?\s+)?(article|essay|summary|document|post|outline)",
+                r"^(write|draft|compose)\s+(me\s+)?(an?\s+)?(\w+\s+)?(article|essay|summary|document|post|outline|teaching|sermon|paragraph|piece|response|explanation|blog)",
+                r"\b(write|draft|compose|create)\s+(an?\s+)?(\w+\s+)?(article|essay|summary|document|post|outline|teaching|sermon|paragraph|piece|response|explanation|blog)",
                 r"\b(summarize|explain)\b.*\b(in|as)\s+(an?\s+)?(article|essay|paragraph)",
                 r"\bwrite\s+(about|on)\b",
             ],
@@ -537,11 +538,13 @@ JSON array:"""
 
         primary_intent = intents[0]
 
-        # Writing tasks: Researcher → Writer (only if project context exists)
+        # Writing tasks: Researcher → Writer (with project OR scholarly topic)
         if primary_intent == "write":
-            if ctx.project_id:
+            is_scholarly = self._is_scholarly_question(ctx.user_message)
+            if ctx.project_id or is_scholarly:
                 return ["researcher", "writer"]
-            return []  # No project, use single LLM for general writing
+            # Simple writing without theological content - just Writer
+            return ["writer"]
 
         # Research tasks: Researcher (with project context OR scholarly question)
         if primary_intent == "research":
