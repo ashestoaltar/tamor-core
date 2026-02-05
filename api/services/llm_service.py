@@ -832,6 +832,7 @@ AGENT_PROVIDER_MAP = {
     "writer": "xai",          # Theological writing → Grok
     "engineer": "anthropic",  # Coding tasks → Claude
     "archivist": "anthropic", # Memory commands → Claude (instruction-following)
+    "planner": "anthropic",   # Project planning → Claude (structured reasoning)
     "code": "anthropic",      # Code Agent (tool-use) → Claude
 }
 

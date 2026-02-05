@@ -35,6 +35,7 @@ from services.agents import (
     WriterAgent,
     EngineerAgent,
     ArchivistAgent,
+    PlannerAgent,
     RequestContext,
     AgentOutput,
 )
@@ -183,6 +184,7 @@ class AgentRouter:
             "writer": WriterAgent(),
             "engineer": EngineerAgent(),
             "archivist": ArchivistAgent(),
+            "planner": PlannerAgent(),
         }
 
         # Intent patterns for heuristic classification
@@ -248,6 +250,13 @@ class AgentRouter:
                 r"\bi\s+prefer\b",
                 r"\bmy\s+(name|preference|favorite)\b",
                 r"\bstore\s+(this|that)\s+(in\s+)?memory\b",
+            ],
+            "plan": [
+                r"\b(plan|organize|break\s*down)\s+(a\s+)?(project|writing|article|series)\b",
+                r"\bcreate\s+(a\s+)?(project\s+)?plan\b",
+                r"\bhelp\s+me\s+(plan|organize)\b",
+                r"\b(multi-?step|complex)\s+(project|writing)\b",
+                r"\bsteps\s+(to|for)\s+(write|create|produce)\b",
             ],
         }
 
@@ -567,6 +576,12 @@ JSON array:"""
         # Memory: Route to Archivist
         if primary_intent == "memory":
             return ["archivist"]
+
+        # Planning: Route to Planner (requires project context)
+        if primary_intent == "plan":
+            if ctx.project_id:
+                return ["planner"]
+            return []  # No project, use single LLM
 
         return []
 

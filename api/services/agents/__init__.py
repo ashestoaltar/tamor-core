@@ -13,6 +13,7 @@ from .researcher import ResearcherAgent
 from .writer import WriterAgent
 from .engineer import EngineerAgent
 from .archivist import ArchivistAgent
+from .planner import PlannerAgent
 from .code_agent import CodeAgent, AgentConfig, run_code_agent
 from .code_tools import PathSandbox, TOOL_DEFINITIONS, build_tool_dispatch
 
@@ -27,6 +28,7 @@ __all__ = [
     "WriterAgent",
     "EngineerAgent",
     "ArchivistAgent",
+    "PlannerAgent",
     # Standalone code agent
     "CodeAgent",
     "AgentConfig",

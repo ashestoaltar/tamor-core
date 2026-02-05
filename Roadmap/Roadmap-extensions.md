@@ -781,9 +781,10 @@ An item may be promoted to the authoritative roadmap only when:
 
 ## M. Agent System Expansion: Planner & Writer
 
-**Status:** 🟢 Approved — Ready to Build
+**Status:** ✅ Complete
 **Maps To:** Phase 6.2 – Multi-Agent Support (Extension)
 **Created:** 2026-02-04
+**Implemented:** 2026-02-04
 
 ### Purpose
 
@@ -827,9 +828,10 @@ Per-project-type templates for recurring content formats.
 
 ### M.3 Planner Agent
 
-**Status:** 🟢 Ready to Build
+**Status:** ✅ Complete
 **Impact:** High
 **Effort:** Medium
+**Implemented:** 2026-02-04
 
 A project orchestrator that breaks complex writing projects into research and writing tasks.
 
@@ -862,23 +864,26 @@ CREATE TABLE IF NOT EXISTS pipeline_tasks (
 
 ### M.4 Intent Routing Updates
 
-**Status:** 🟢 Ready to Build
+**Status:** ✅ Complete
+**Implemented:** 2026-02-04
 
 Route to Planner when:
-- Request mentions "article," "series," "teaching" (implies structured output)
-- Active pipeline exists in project
-- User explicitly says "plan this" or "start a pipeline"
-- Request implies multiple steps ("research X then write about Y")
+- ✅ Request mentions "plan," "organize," "break down" + project/writing
+- ✅ "multi-step" or "complex" project patterns
+- ✅ Active pipeline exists in project (check existing plan)
 
 Route to Writer directly when:
 - Simple, bounded writing tasks ("write me a paragraph")
 - Rewording, editing, short-form content
 - No implied research need
 
-### Implementation Order
+### Implementation Summary
 
-1. Wire Writer to library (Phase A) — Prerequisite, standalone
-2. Update Writer persona and templates (Phase B)
+All M.1-M.4 items complete:
+- ✅ M.1: Writer wired to LibrarySearchService
+- ✅ M.2: Writer templates (6 content types)
+- ✅ M.3: Planner agent with pipeline_tasks storage
+- ✅ M.4: Router patterns for "plan" intent
 3. Add Planner agent and pipeline_tasks table (Phase C)
 4. Wire Planner task execution (Phase D)
 5. Wire Pipeline UI in right panel (Phase E)
