@@ -154,12 +154,15 @@ Create a project plan for this request. If clarification is needed, ask question
             if plan_data.get("clarifying_questions"):
                 return self._return_questions(plan_data, start_time, provider_name, model)
 
-            # If we have a valid plan and a project, save the tasks
-            if plan_data.get("tasks") and ctx.project_id:
-                self._save_pipeline_tasks(ctx.project_id, plan_data)
+            # Handle task storage based on project context
+            tasks_saved = False
+            if plan_data.get("tasks"):
+                if ctx.project_id:
+                    self._save_pipeline_tasks(ctx.project_id, plan_data)
+                    tasks_saved = True
 
             # Format the plan for display
-            formatted_plan = self._format_plan(plan_data)
+            formatted_plan = self._format_plan(plan_data, tasks_saved=tasks_saved)
 
             processing_ms = int((time.time() - start_time) * 1000)
 
@@ -234,7 +237,7 @@ Create a project plan for this request. If clarification is needed, ask question
             model_used=model,
         )
 
-    def _format_plan(self, plan_data: Dict) -> str:
+    def _format_plan(self, plan_data: Dict, tasks_saved: bool = False) -> str:
         """Format a plan for display to the user."""
         lines = []
 
@@ -263,10 +266,17 @@ Create a project plan for this request. If clarification is needed, ask question
         if plan_data.get("notes"):
             lines.append(f"### Notes\n{plan_data['notes']}")
 
-        # Status message
+        # Status message - different based on whether tasks were saved
         if tasks:
             lines.append("\n---")
-            lines.append("*Tasks have been saved. Use `/next-task` to begin execution.*")
+            if tasks_saved:
+                lines.append("*Tasks saved. Use `/next-task` to begin execution.*")
+            else:
+                lines.append("⚠️ **This plan needs a project to track progress.**")
+                lines.append("")
+                lines.append("Would you like to:")
+                lines.append("- Create a new project for this plan?")
+                lines.append("- Assign it to an existing project?")
 
         return "\n".join(lines)
 
