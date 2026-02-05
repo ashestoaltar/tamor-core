@@ -193,7 +193,7 @@ Write the requested content following the template structure above. Include inli
                         "type": "draft",
                         "data": {
                             "content": response,
-                            "output_type": output_type,
+                            "template": template_name,
                             "word_count": len(response.split()),
                         },
                     }
