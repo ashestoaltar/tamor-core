@@ -44,37 +44,37 @@ def _load_templates() -> Dict[str, Any]:
 WRITER_TEMPLATES = _load_templates()
 
 
-WRITER_SYSTEM_PROMPT = """You are a Writer Agent. Your role is to transform research notes into polished, readable prose.
+def _load_writer_persona() -> str:
+    """Load Writer persona from modes.json."""
+    import os
+    modes_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "config",
+        "modes.json"
+    )
+    try:
+        import json
+        with open(modes_path, "r") as f:
+            modes = json.load(f)
+        return modes.get("Writer", {}).get("persona", "")
+    except Exception:
+        return ""
 
-## Your Responsibilities
-1. Take structured research notes and write clear, engaging content
-2. Use the template structure as internal guidance for organization
-3. Maintain a consistent voice and tone
-4. Include citations in the text (e.g., "According to [1]..." or "The document states [2]...")
-5. Make the content accessible and well-organized
+# Load persona at module level
+_WRITER_PERSONA = _load_writer_persona()
 
-## Constraints
-- ONLY use information from the research notes provided
-- NEVER invent facts, quotes, or claims not in the research
-- NEVER add information from your own knowledge
-- If research is incomplete, note what's missing rather than filling gaps
-- Keep citations inline so readers can trace claims
+WRITER_SYSTEM_PROMPT = _WRITER_PERSONA if _WRITER_PERSONA else """You are a Writer Agent. Your role is to transform research notes into polished, readable prose.
 
-## Style Guidelines
-- Clear, direct prose
-- Active voice when possible
-- Short paragraphs for readability
-- Use natural headers that fit the content (e.g., "The Biblical Foundation" not "Section 1: Background")
-- Match the formality level to the request (article vs summary vs explanation)
+Write like a real person, not like an AI. Be direct. Lead with substance. No filler phrases, no generic analogies, no artificial warmth.
 
-## Output
-Write the requested content directly as finished prose.
-- Do NOT include template scaffolding like "Opening:", "Main Body:", "Conclusion:" as headers
-- Do NOT include word count targets or structural notes in the output
-- Do NOT wrap in JSON or markdown code blocks unless specifically asked
-- Do NOT include a Sources section - the system will append citations automatically
-
-The template structure guides your organization internally, but the output should read as polished, natural prose."""
+## Hard Rules
+- ONLY use information from the provided sources
+- NEVER invent facts or add from your own knowledge
+- Include inline citations: "According to [1]..." or "The text states [2]..."
+- Do NOT include structural scaffolding like "Opening:", "Main Body:", "Conclusion:"
+- Do NOT include word count targets or meta-commentary
+- Do NOT wrap in JSON or markdown code blocks
+- The reader should forget they're reading AI output"""
 
 
 class WriterAgent(BaseAgent):
@@ -370,21 +370,22 @@ Write the requested content following the template structure above. Include inli
         msg = message.lower()
         templates = WRITER_TEMPLATES.get("templates", {})
 
-        # Check for explicit template matches
+        # Check for explicit template matches (order matters - most specific first)
         if any(w in msg for w in ["torah portion", "parashah", "parsha"]):
             return "torah_portion"
-        elif any(w in msg for w in ["deep dive", "research piece", "scholarly"]):
+        elif any(w in msg for w in ["deep dive", "research piece", "scholarly article"]):
             return "deep_dive"
-        elif any(w in msg for w in ["sermon", "homily", "preach", "pulpit"]):
+        elif any(w in msg for w in ["sermon", "homily", "preach", "pulpit", "for sunday", "sunday message"]):
+            # Only sermon when explicitly requested
             return "sermon"
         elif any(w in msg for w in ["blog", "blog post"]):
             return "blog_post"
-        elif any(w in msg for w in ["summary", "summarize", "overview"]):
+        elif any(w in msg for w in ["summary", "summarize", "brief overview"]):
             return "summary"
-        elif any(w in msg for w in ["article", "teaching", "piece", "write about", "write on"]):
-            return "article"
         else:
-            return WRITER_TEMPLATES.get("default", "article")
+            # Default to article for: "teaching", "short teaching", "article", "piece",
+            # "write about", "write on", or anything else
+            return "article"
 
     def _get_template_guidance(self, template_name: str) -> str:
         """Get writing guidance from a template."""
