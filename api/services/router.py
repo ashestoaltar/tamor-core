@@ -498,6 +498,13 @@ class AgentRouter:
 
         from utils.db import get_db
 
+        # First: Reset any stale 'active' tasks back to 'pending'
+        # (handles abandoned conversations)
+        self._reset_stale_active_tasks(ctx.project_id)
+
+        # Second: Check for waiting_review tasks and capture user feedback
+        self._capture_review_feedback(ctx)
+
         # Find the next pending task
         conn = get_db()
         try:
@@ -540,15 +547,8 @@ class AgentRouter:
             agent_name = task["agent"]
             sequence_order = task["sequence_order"]
 
-            # Update status to 'active'
-            conn.execute(
-                "UPDATE pipeline_tasks SET status = 'active' WHERE id = ?",
-                (task_id,)
-            )
-            conn.commit()
-
-            # Get output from completed predecessor tasks (for context)
-            prior_context = self._get_completed_task_outputs(conn, ctx.project_id, sequence_order)
+            # Get output from completed/waiting_review predecessor tasks (for context)
+            prior_outputs = self._get_task_outputs_by_type(conn, ctx.project_id, sequence_order)
 
             conn.close()
 
@@ -560,8 +560,24 @@ class AgentRouter:
                 handled_by="pipeline_executor",
             )
 
+        # REVIEW TASKS: No agent call - present draft and ask for feedback
+        if task_type == "review":
+            return self._handle_review_task(
+                task_id, sequence_order, prior_outputs, trace
+            )
+
+        # Update status to 'active' (only for agent tasks)
+        self._update_task_status(task_id, "active")
+
+        # REVISE TASKS: Need draft + review feedback
+        if task_type == "revise":
+            return self._handle_revise_task(
+                ctx, task_id, task_description, sequence_order,
+                prior_outputs, trace
+            )
+
+        # RESEARCH/DRAFT TASKS: Normal agent execution
         # Build context for the agent
-        # Override user_message with the task description
         task_ctx = RequestContext(
             user_message=task_description,
             conversation_id=ctx.conversation_id,
@@ -573,22 +589,19 @@ class AgentRouter:
         )
 
         # Add prior task outputs to context if available
-        if prior_context:
-            task_ctx.project_files_context = f"## Prior Research/Draft Output\n{prior_context}"
+        if prior_outputs.get("research"):
+            task_ctx.project_files_context = f"## Research Notes\n{prior_outputs['research']}"
 
-        # Run retrieval for research/write tasks
-        if task_type in ["research", "draft", "revise"]:
-            task_ctx = self._run_retrieval(task_ctx, [task_type])
-            trace.retrieval_used = bool(task_ctx.retrieved_chunks)
-            trace.retrieval_count = len(task_ctx.retrieved_chunks)
+        # Run retrieval for research/draft tasks
+        task_ctx = self._run_retrieval(task_ctx, [task_type])
+        trace.retrieval_used = bool(task_ctx.retrieved_chunks)
+        trace.retrieval_count = len(task_ctx.retrieved_chunks)
 
         # Route to the appropriate agent
-        if agent_name == "researcher" or task_type == "research":
+        if task_type == "research":
             agent_sequence = ["researcher"]
-        elif agent_name == "writer" or task_type in ["draft", "revise"]:
+        else:  # draft
             agent_sequence = ["writer"]
-        else:
-            agent_sequence = ["researcher"]  # Default fallback
 
         trace.route_type = "pipeline_task"
         trace.intents_detected = [task_type]
@@ -598,14 +611,266 @@ class AgentRouter:
         # Execute the agent
         result = self._execute_pipeline(task_ctx, agent_sequence, trace)
 
+        # Format researcher output for storage and display
+        output_content = result.content
+        if task_type == "research" and isinstance(result.agent_outputs, list):
+            for output in result.agent_outputs:
+                if output.agent_name == "researcher" and isinstance(output.content, dict):
+                    # Store structured data, display formatted prose
+                    output_content = self._format_research_output(output)
+                    result.content = output_content
+                    break
+
         # Store output and update task status
-        self._complete_pipeline_task(task_id, result.content, task_type)
+        self._complete_pipeline_task(task_id, output_content, task_type)
 
         # Add step completion note to response
         step_note = f"\n\n---\n**Step {sequence_order} complete.** Type `/next-task` to continue."
         result.content = result.content + step_note
 
         return result
+
+    def _handle_review_task(
+        self, task_id: int, sequence_order: int,
+        prior_outputs: Dict[str, str], trace: RouteTrace
+    ) -> RouterResult:
+        """
+        Handle review task - present draft to user without calling any agent.
+        """
+        draft_content = prior_outputs.get("draft", "")
+
+        if not draft_content:
+            return RouterResult(
+                content="No draft found to review. The draft task may not have completed.",
+                handled_by="pipeline_executor",
+            )
+
+        # Update status to waiting_review
+        self._update_task_status(task_id, "waiting_review")
+
+        trace.route_type = "pipeline_task"
+        trace.intents_detected = ["review"]
+        trace.intent_source = "pipeline_task"
+        trace.agent_sequence = []  # No agents for review
+
+        # Present the draft and ask for feedback
+        content = f"""## Draft for Review
+
+{draft_content}
+
+---
+**Please review the draft above and provide your feedback.**
+
+What would you like changed, added, or removed? Your feedback will be used to revise the draft.
+
+*(After providing feedback, type `/next-task` to proceed with revisions.)*"""
+
+        return RouterResult(
+            content=content,
+            handled_by="pipeline_executor",
+        )
+
+    def _handle_revise_task(
+        self, ctx: RequestContext, task_id: int, task_description: str,
+        sequence_order: int, prior_outputs: Dict[str, str], trace: RouteTrace
+    ) -> RouterResult:
+        """
+        Handle revise task - inject draft + user feedback into Writer prompt.
+        """
+        draft_content = prior_outputs.get("draft", "")
+        review_feedback = prior_outputs.get("review", "")
+
+        # Get user feedback from conversation history (the message after the review was presented)
+        if not review_feedback and ctx.history:
+            # Look for user message after the review task
+            for msg in reversed(ctx.history):
+                if msg.get("role") == "user":
+                    content = msg.get("content", "").strip().lower()
+                    # Skip /next-task commands
+                    if content not in ["/next-task", "/next", "/continue", "next task"]:
+                        review_feedback = msg.get("content", "")
+                        break
+
+        if not draft_content:
+            return RouterResult(
+                content="No draft found to revise. Please ensure the draft step completed.",
+                handled_by="pipeline_executor",
+            )
+
+        # Build revision prompt with draft and feedback
+        revision_prompt = f"""Revise the following draft based on the user's feedback.
+
+## Original Draft
+{draft_content}
+
+## User Feedback
+{review_feedback if review_feedback else "No specific feedback provided. Polish and improve the draft."}
+
+## Task
+{task_description}
+
+Produce a revised version that addresses the feedback while maintaining the core content and citations."""
+
+        task_ctx = RequestContext(
+            user_message=revision_prompt,
+            conversation_id=ctx.conversation_id,
+            project_id=ctx.project_id,
+            user_id=ctx.user_id,
+            history=ctx.history,
+            memories=ctx.memories,
+            mode=ctx.mode,
+        )
+
+        # Run retrieval for additional context
+        task_ctx = self._run_retrieval(task_ctx, ["revise"])
+        trace.retrieval_used = bool(task_ctx.retrieved_chunks)
+        trace.retrieval_count = len(task_ctx.retrieved_chunks)
+
+        trace.route_type = "pipeline_task"
+        trace.intents_detected = ["revise"]
+        trace.intent_source = "pipeline_task"
+        trace.agent_sequence = ["writer"]
+
+        # Execute Writer
+        result = self._execute_pipeline(task_ctx, ["writer"], trace)
+
+        # Store output and mark complete
+        self._complete_pipeline_task(task_id, result.content, "revise")
+
+        # Add completion note
+        step_note = f"\n\n---\n**Step {sequence_order} complete.** Type `/next-task` to continue."
+        result.content = result.content + step_note
+
+        return result
+
+    def _get_task_outputs_by_type(
+        self, conn, project_id: int, current_order: int
+    ) -> Dict[str, str]:
+        """Get output summaries from prior tasks, organized by task type."""
+        try:
+            cur = conn.execute(
+                """
+                SELECT task_type, output_summary
+                FROM pipeline_tasks
+                WHERE project_id = ? AND sequence_order < ?
+                  AND status IN ('complete', 'waiting_review')
+                ORDER BY sequence_order DESC
+                """,
+                (project_id, current_order)
+            )
+            rows = cur.fetchall()
+
+            outputs = {}
+            for row in rows:
+                task_type = row["task_type"]
+                summary = row["output_summary"]
+                # Keep only the most recent of each type
+                if task_type not in outputs and summary:
+                    outputs[task_type] = summary
+
+            return outputs
+
+        except Exception as e:
+            logger.warning(f"Failed to get task outputs: {e}")
+            return {}
+
+    def _update_task_status(self, task_id: int, status: str) -> None:
+        """Update a pipeline task's status."""
+        from utils.db import get_db
+        try:
+            conn = get_db()
+            conn.execute(
+                "UPDATE pipeline_tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, task_id)
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Failed to update task status: {e}")
+
+    def _reset_stale_active_tasks(self, project_id: int) -> None:
+        """
+        Reset any 'active' tasks back to 'pending'.
+
+        This handles cases where a task was started but the conversation
+        was abandoned before completion.
+        """
+        from utils.db import get_db
+        try:
+            conn = get_db()
+            cur = conn.execute(
+                """
+                UPDATE pipeline_tasks
+                SET status = 'pending', updated_at = CURRENT_TIMESTAMP
+                WHERE project_id = ? AND status = 'active'
+                """,
+                (project_id,)
+            )
+            if cur.rowcount > 0:
+                logger.info(f"Reset {cur.rowcount} stale active tasks to pending")
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"Failed to reset stale tasks: {e}")
+
+    def _capture_review_feedback(self, ctx: RequestContext) -> None:
+        """
+        Check for waiting_review tasks and capture user feedback.
+
+        When user provides feedback after a review and types /next-task,
+        this stores their feedback in the review task and marks it complete.
+        """
+        if not ctx.project_id:
+            return
+
+        from utils.db import get_db
+
+        try:
+            conn = get_db()
+            cur = conn.execute(
+                """
+                SELECT id FROM pipeline_tasks
+                WHERE project_id = ? AND status = 'waiting_review'
+                ORDER BY sequence_order
+                LIMIT 1
+                """,
+                (ctx.project_id,)
+            )
+            row = cur.fetchone()
+
+            if not row:
+                conn.close()
+                return
+
+            review_task_id = row["id"]
+
+            # Get user feedback from conversation history
+            # Look for the last non-command user message
+            feedback = ""
+            if ctx.history:
+                for msg in reversed(ctx.history):
+                    if msg.get("role") == "user":
+                        content = msg.get("content", "").strip()
+                        # Skip /next-task commands
+                        if content.lower() not in ["/next-task", "/next", "/continue", "next task", "/nexttask"]:
+                            feedback = content
+                            break
+
+            # Store feedback and mark complete
+            conn.execute(
+                """
+                UPDATE pipeline_tasks
+                SET status = 'complete', output_summary = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (feedback or "No specific feedback provided.", review_task_id)
+            )
+            conn.commit()
+            conn.close()
+            logger.info(f"Captured review feedback for task {review_task_id}")
+
+        except Exception as e:
+            logger.warning(f"Failed to capture review feedback: {e}")
 
     def _get_completed_task_outputs(self, conn, project_id: int, current_order: int) -> str:
         """Get output summaries from completed predecessor tasks."""
