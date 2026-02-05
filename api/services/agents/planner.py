@@ -25,44 +25,65 @@ from utils.db import get_db
 logger = logging.getLogger(__name__)
 
 
-PLANNER_SYSTEM_PROMPT = """You are a Project Planner. Your role is to break down complex writing projects into clear, sequential tasks.
+PLANNER_SYSTEM_PROMPT = """You are a Project Planner. Your role is to break down complex writing projects into executable pipeline tasks.
 
 ## Your Responsibilities
 1. Analyze the user's writing request
-2. Identify what research is needed
-3. Plan the writing structure and approach
-4. Create a logical sequence of tasks
+2. If unclear, ask 1-3 clarifying questions (max)
+3. Once you have enough information, create a task pipeline
+4. NEVER write the actual content — only plan the steps
 
 ## Task Types You Can Plan
-- **research**: Gather information on a specific topic or question
-- **draft**: Write a section or complete piece based on research
-- **review**: Check a draft for accuracy, completeness, and style
-- **revise**: Improve a draft based on review feedback
+- **research**: Gather information on a specific topic → Researcher agent
+- **draft**: Write content based on research → Writer agent
+- **review**: Present draft for user feedback (no agent, just checkpoint)
+- **revise**: Incorporate user edits → Writer agent
 
-## Output Format
-Respond with a JSON object containing:
+## CRITICAL: Output Format
+You MUST respond with a JSON object. Do NOT write prose, outlines, or article drafts.
+
+If you need clarification:
 {
-    "project_summary": "Brief description of the overall project",
-    "clarifying_questions": ["Any questions needed before planning"],
-    "tasks": [
-        {
-            "task_type": "research|draft|review|revise",
-            "description": "What this task should accomplish",
-            "agent": "researcher|writer",
-            "depends_on": [0, 1],  // indices of tasks this depends on (empty for first)
-            "estimated_scope": "brief|moderate|extensive"
-        }
-    ],
-    "notes": "Any additional context or recommendations"
+    "project_summary": "Brief description",
+    "clarifying_questions": ["Question 1", "Question 2"],
+    "tasks": [],
+    "notes": ""
 }
 
+If you have enough information to plan (including when the user has answered your questions):
+{
+    "project_summary": "Brief description",
+    "clarifying_questions": [],
+    "tasks": [
+        {
+            "task_type": "research",
+            "description": "What this task should accomplish",
+            "agent": "researcher",
+            "depends_on": [],
+            "estimated_scope": "brief|moderate|extensive"
+        },
+        {
+            "task_type": "draft",
+            "description": "Write the article based on research",
+            "agent": "writer",
+            "depends_on": [0],
+            "estimated_scope": "moderate"
+        }
+    ],
+    "notes": "Any additional context"
+}
+
+## When to Plan vs When to Ask
+- If the conversation history shows you already asked questions AND the user answered them → CREATE TASKS NOW
+- If this is a fresh request with clear requirements → CREATE TASKS NOW
+- Only ask questions if genuinely unclear AND you haven't asked before
+
 ## Guidelines
-- Start with research tasks before writing tasks
-- Keep individual tasks focused and achievable
-- Include review tasks for quality control
-- If the request is unclear, ask clarifying questions instead of planning
-- For simple requests, a 2-3 task plan is sufficient
-- For complex projects, break into 5-8 tasks maximum"""
+- Research tasks first, then draft tasks
+- Include a review task for user feedback before final revision
+- 3-6 tasks is typical; max 8
+- Each task gets one agent (researcher OR writer)
+- NEVER output an article outline as prose — only JSON task objects"""
 
 
 class PlannerAgent(BaseAgent):
@@ -121,10 +142,25 @@ class PlannerAgent(BaseAgent):
             memory_context = self._format_memories(ctx.memories)
             system_prompt += f"\n\n## User Preferences\n{memory_context}"
 
+        # Build messages with conversation history
+        messages = [{"role": "system", "content": system_prompt}]
+
+        # Include relevant conversation history (helps Planner see answered questions)
+        if ctx.history:
+            for msg in ctx.history[-10:]:  # Last 10 messages max
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                if role in ["user", "assistant"] and content:
+                    messages.append({"role": role, "content": content})
+
+        # Current user message with planning instruction
         user_message = f"""## Planning Request
 {ctx.user_message}
 
-Create a project plan for this request. If clarification is needed, ask questions. Otherwise, provide a task breakdown."""
+If you have enough information (including from any previous conversation), output a JSON task plan.
+If genuinely unclear, ask clarifying questions. Do NOT output prose or article outlines."""
+
+        messages.append({"role": "user", "content": user_message})
 
         try:
             llm, model, provider_name = get_agent_llm("planner")
@@ -140,10 +176,7 @@ Create a project plan for this request. If clarification is needed, ask question
             logger.info(f"Planner using provider: {provider_name}, model: {model}")
 
             response = llm.chat_completion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
+                messages=messages,
                 model=model,
             )
 
@@ -243,35 +276,31 @@ Create a project plan for this request. If clarification is needed, ask question
 
         # Summary
         if plan_data.get("project_summary"):
-            lines.append(f"## Project: {plan_data['project_summary']}\n")
+            lines.append(f"Here's the plan for your {plan_data['project_summary']}:\n")
 
-        # Tasks
+        # Tasks - concise format matching user expectation
         tasks = plan_data.get("tasks", [])
         if tasks:
-            lines.append("### Task Plan\n")
             for i, task in enumerate(tasks, 1):
                 task_type = task.get("task_type", "unknown")
                 description = task.get("description", "")
                 agent = task.get("agent", "")
-                scope = task.get("estimated_scope", "")
 
-                lines.append(f"**{i}. [{task_type.upper()}]** {description}")
-                if agent:
-                    lines.append(f"   - Agent: {agent}")
-                if scope:
-                    lines.append(f"   - Scope: {scope}")
-                lines.append("")
+                # Format: "1. [RESEARCH] Description → Agent"
+                agent_arrow = f" → {agent.capitalize()}" if agent else ""
+                lines.append(f"{i}. [{task_type.upper()}] {description}{agent_arrow}")
+            lines.append("")
 
-        # Notes
+        # Notes (brief)
         if plan_data.get("notes"):
-            lines.append(f"### Notes\n{plan_data['notes']}")
+            lines.append(f"*{plan_data['notes']}*\n")
 
         # Status message - different based on whether tasks were saved
         if tasks:
-            lines.append("\n---")
             if tasks_saved:
-                lines.append("*Tasks saved. Use `/next-task` to begin execution.*")
+                lines.append("Tasks saved to pipeline. **Ready to start step 1?**")
             else:
+                lines.append("---")
                 lines.append("⚠️ **This plan needs a project to track progress.**")
                 lines.append("")
                 lines.append("Would you like to:")
