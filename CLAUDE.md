@@ -94,7 +94,98 @@ OLLAMA_MODEL=llama3.1:8b
 - Routing/classification
 - Offline fallback
 
+## Future Enhancements (Parked)
+
+**Planner Refactor: Single-Piece vs. Multi-Piece**
+See `Roadmap/planner-refactor-single-vs-multi.md` for full design.
+- Single articles route directly to Writer (no pipeline)
+- Planner orchestrates **between pieces** in a series, not within a single piece
+- `/next-task` advances between articles, not between research/draft/revise sub-steps
+
+**Project Type Default Templates**
+Add a `default_template` field to project types so Writer/Planner inherit the right template automatically:
+- Writing projects → `article`
+- Scripture Study → `torah_portion`
+- etc.
+
+This removes manual template detection guesswork when working within a project context.
+
+---
+
 ## Session Notes
+
+### 2026-02-04 (Library Harvest Session - IN PROGRESS)
+
+**Current Library Status:**
+- **Total files:** 4,499
+- **Unindexed:** 1,844 (searchable by filename, not content)
+- **Transcription pending:** 89 audio/video files
+- **Transcription completed:** 432
+
+**Bill Cloud (COMPLETE):**
+- Location: `/mnt/library/religious/billcloud/`
+- PDFs: 74 files (36 MB) ✓
+- MP3s: 310 files (9.4 GB) ✓
+- Ingested and queued for transcription ✓
+
+**Online Library of Liberty (COMPLETE):**
+- Location: `/mnt/library/oll/`
+- PDFs: 820 files
+- ePubs: 537 files
+- Total: ~4 GB
+- Manifests: `api/scripts/oll_discovery/oll_manifest_v2.json`
+- Download log: `/mnt/library/oll/download_log.json`
+
+**PENDING TASKS:**
+
+1. **Finish Transcription (~5.5 hours):**
+```bash
+cd ~/tamor-core/api && source venv/bin/activate
+python3 scripts/run_transcriptions.py --max-hours 6
+# Or unlimited: python3 scripts/run_transcriptions.py
+```
+
+2. **Index Remaining Files (~30 hours at 1 file/min):**
+```bash
+# Option A: Run overnight via API (slower but can run alongside other work)
+curl -b /tmp/tamor-cookies.txt -X POST "http://localhost:5055/api/library/index/all" \
+  -H "Content-Type: application/json" -d '{}'
+
+# Option B: Process in batches (10 files at a time)
+curl -b /tmp/tamor-cookies.txt -X POST "http://localhost:5055/api/library/index/process?count=10" \
+  -H "Content-Type: application/json"
+```
+
+3. **Check Progress:**
+```bash
+# Library status
+curl -s http://localhost:5055/api/system-status | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Library: {d.get(\"library_file_count\")} files')"
+
+# Unindexed count
+curl -s -b /tmp/tamor-cookies.txt http://localhost:5055/api/library/index/queue | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Unindexed: {d.get(\"unindexed\")}')"
+
+# Transcription queue
+curl -s -b /tmp/tamor-cookies.txt -X POST http://localhost:5055/api/library/transcription/queue-all \
+  -H "Content-Type: application/json" -d '{}' | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Queued: {d}')"
+```
+
+**Scripts Created This Session:**
+- `api/scripts/billcloud_discover_and_download.sh` - Bill Cloud discovery
+- `api/scripts/billcloud_torah_portions/download_to_nas.sh` - Bill Cloud download
+- `api/scripts/oll_discover.py` - OLL discovery (pass 1)
+- `api/scripts/oll_discover_pass2.py` - OLL multi-volume expansion
+- `api/scripts/oll_discover_pass3.py` - OLL Playwright collection crawl (limited success)
+- `api/scripts/oll_download.py` - OLL download to NAS
+- `api/scripts/run_transcriptions.py` - Whisper transcription with --max-hours flag
+
+**Transcription Performance:**
+- Whisper base model on CPU (Ryzen 5 5500U)
+- Average: ~3-4 min per file
+- MP3s faster than MP4s
+
+**Indexing Performance:**
+- ~1 file/minute with embedding generation
+- 1,844 files = ~30 hours total
 
 ### 2026-02-03 (Pronomian Library Expansion)
 
@@ -124,6 +215,63 @@ OLLAMA_MODEL=llama3.1:8b
 **Claude Code Permissions**
 - Configured `~/.claude/settings.json` and `.claude/settings.json`
 - All Bash, Edit, Write, WebFetch, WebSearch allowed without prompts
+
+**Bill Cloud (billcloud.com)**
+- Torah Portion study guides + Hebrew Basics courses
+- Discovery script: `api/scripts/billcloud_discover_and_download.sh`
+- Download script: `api/scripts/billcloud_torah_portions/download_to_nas.sh`
+- Location: `/mnt/library/religious/billcloud/`
+- **PDFs (74 files):** Complete Torah portions (B'reshiyt→V'zot HaBerachah) + Hebrew Basics I & II
+- **MP3s (332 files):** Torah portion teachings, War in Edom, Wheat and Tares, topical studies
+- **Filtered out:** 208 WooCommerce paid products (America's Controversy audiobook, Spoken Word Podcast editions)
+- **Ingest:** 8 new PDFs (66 were duplicates from other sources)
+- **Transcription:** MP3s queued for background Whisper processing (~250 hours audio, ~10 days on CPU)
+
+**To resume MP3 transcription queue:**
+```bash
+# Check download status
+ls /mnt/library/religious/billcloud/mp3/ | wc -l
+
+# After downloads complete, ingest MP3s
+curl -b /tmp/tamor-cookies.txt -X POST http://localhost:5055/api/library/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/mnt/library/religious/billcloud/mp3", "auto_index": false}'
+
+# Queue all audio for transcription
+curl -b /tmp/tamor-cookies.txt -X POST http://localhost:5055/api/library/transcription/queue-all
+
+# Run transcriptions (leave running in background/screen)
+cd ~/tamor-core/api && source venv/bin/activate
+python3 scripts/run_transcriptions.py
+```
+
+**Online Library of Liberty (oll.libertyfund.org)**
+- Discovery script: `api/scripts/oll_discover.py`
+- Download script: `api/scripts/oll_download.py`
+- Location: `/mnt/library/oll/`
+- Target collections: American Revolution, Founding Fathers, Natural Law, Church Fathers, Enlightenment, etc.
+- ~935 titles available (PDFs + ePubs)
+- Two-phase: discovery builds manifest, then download
+
+**OLL Workflow:**
+```bash
+cd ~/tamor-core/api && source venv/bin/activate
+
+# Phase 1: Discovery (~30 min)
+python3 scripts/oll_discover.py
+
+# Review manifest
+cat scripts/oll_discovery/oll_manifest.json | python3 -m json.tool | head -100
+
+# Phase 2: Download (with collection filter if desired)
+python3 scripts/oll_download.py --dry-run  # Preview first
+python3 scripts/oll_download.py            # Full download
+
+# Ingest to library
+curl -b /tmp/tamor-cookies.txt -X POST http://localhost:5055/api/library/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/mnt/library/oll", "auto_index": true}'
+```
 
 ### 2026-02-02 (Multi-Provider LLM & Library Integration)
 
