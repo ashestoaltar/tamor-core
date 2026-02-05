@@ -111,7 +111,7 @@ def run_interactive(agent, verbose: bool = False):
 
     while True:
         try:
-            user_input = get_multiline_input("You: ").strip()
+            user_input = get_multiline_input("\n► You: ").strip()
         except KeyboardInterrupt:
             print("\n")
             continue
@@ -142,7 +142,9 @@ def run_interactive(agent, verbose: bool = False):
 
         # Run the agent
         print()
-        print("Agent: ", end="", flush=True)
+        print("┌" + "─" * 58 + "┐")
+        print("│ Agent:                                                   │")
+        print("└" + "─" * 58 + "┘")
 
         try:
             response = agent.run(user_input)
@@ -156,6 +158,7 @@ def run_interactive(agent, verbose: bool = False):
                 traceback.print_exc()
 
         print()
+        print("─" * 60)
 
 
 def run_single_prompt(agent, prompt: str, verbose: bool = False):
