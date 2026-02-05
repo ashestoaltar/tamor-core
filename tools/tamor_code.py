@@ -47,6 +47,10 @@ import readline  # Enables command history in input()
 # Add api directory to Python path
 sys.path.insert(0, str(API_DIR))
 
+# Change to API directory so relative config paths work
+# (core/config.py loads config/personality.json relative to cwd)
+os.chdir(API_DIR)
+
 # Load environment variables
 from dotenv import load_dotenv
 load_dotenv(API_DIR / ".env")
