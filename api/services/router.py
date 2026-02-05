@@ -298,6 +298,19 @@ class AgentRouter:
                     handled_by="deterministic",
                 )
 
+            # Step 1.5: Check for active planning session
+            # If Planner asked questions or has pending tasks, route back to Planner
+            planning_mode = self._check_planning_mode(ctx)
+            if planning_mode:
+                trace.route_type = "agent_pipeline"
+                trace.intents_detected = ["plan"]
+                trace.intent_source = planning_mode  # "planner_continuation" or "active_pipeline"
+                trace.agent_sequence = ["planner"]
+                result = self._execute_pipeline(ctx, ["planner"], trace)
+                trace.timing_ms["total"] = int((time.time() - start_time) * 1000)
+                result.trace = trace if include_trace else None
+                return result
+
             # Step 2: Classify intent (heuristics first, then local LLM fallback)
             classify_start = time.time()
             intents = self._classify_intent(ctx.user_message, trace)
@@ -407,6 +420,51 @@ class AgentRouter:
             if re.search(pattern, msg, re.IGNORECASE):
                 # Return None to let existing handlers process
                 pass
+
+        return None
+
+    def _check_planning_mode(self, ctx: RequestContext) -> Optional[str]:
+        """
+        Check if we're in an active planning session.
+
+        Returns:
+            - "planner_continuation" if Planner just asked questions
+            - "active_pipeline" if project has pending pipeline tasks
+            - None if not in planning mode
+        """
+        # Check 1: Did the Planner just ask clarifying questions?
+        # Look for Planner signature in last assistant message
+        if ctx.history:
+            for msg in reversed(ctx.history):
+                if msg.get("role") == "assistant":
+                    content = msg.get("content", "")
+                    # Planner's question format: "I need some clarification" or numbered questions
+                    if "clarification" in content.lower() or "before I can create a plan" in content:
+                        return "planner_continuation"
+                    # Also check for plan output that's waiting for confirmation
+                    if "Ready to start step 1?" in content or "Tasks saved to pipeline" in content:
+                        return "planner_continuation"
+                    # Only check the last assistant message
+                    break
+
+        # Check 2: Does the project have active pipeline tasks?
+        if ctx.project_id:
+            try:
+                from utils.db import get_db
+                conn = get_db()
+                cur = conn.execute(
+                    """
+                    SELECT COUNT(*) FROM pipeline_tasks
+                    WHERE project_id = ? AND status IN ('pending', 'active')
+                    """,
+                    (ctx.project_id,)
+                )
+                count = cur.fetchone()[0]
+                conn.close()
+                if count > 0:
+                    return "active_pipeline"
+            except Exception as e:
+                logger.warning(f"Failed to check pipeline tasks: {e}")
 
         return None
 
