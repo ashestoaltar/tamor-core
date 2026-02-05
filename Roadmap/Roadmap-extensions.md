@@ -808,19 +808,22 @@ The Writer agent now has library access for grounded, cited content.
 
 ### M.2 Writer Templates
 
-**Status:** 🟢 Ready to Build
+**Status:** ✅ Complete
 **Impact:** Medium
 **Effort:** Low
+**Implemented:** 2026-02-04
 
 Per-project-type templates for recurring content formats.
 
 **Templates:**
-- `article` — Long-form (1,500-2,500 words)
-- `torah_portion` — Weekly parashah teaching (1,000-1,500 words)
-- `deep_dive` — Extended research piece (3,000-5,000 words)
-- `sermon` — Teaching for oral delivery (2,000-3,000 words)
+- ✅ `article` — Long-form (1,500-2,500 words)
+- ✅ `torah_portion` — Weekly parashah teaching (1,000-1,500 words)
+- ✅ `deep_dive` — Extended research piece (3,000-5,000 words)
+- ✅ `sermon` — Teaching for oral delivery (2,000-3,000 words)
+- ✅ `summary` — Brief overview (200-400 words)
+- ✅ `blog_post` — Casual web content (600-1,000 words)
 
-**Location:** `config/writer_templates.yml`
+**Location:** `api/config/writer_templates.yml`
 
 ### M.3 Planner Agent
 

@@ -1,0 +1,111 @@
+# Writer Templates Configuration
+# Per-project-type templates for recurring content formats
+#
+# Each template defines:
+#   - word_range: [min, max] word count guidance
+#   - structure: Required sections/outline
+#   - style: Tone and voice guidelines
+#   - citations: How to handle source attribution
+
+templates:
+  article:
+    description: "Long-form article for publication"
+    word_range: [1500, 2500]
+    structure:
+      - "Introduction: Hook and thesis (100-150 words)"
+      - "Background: Context and definitions (200-300 words)"
+      - "Main Body: 3-5 sections with evidence (800-1500 words)"
+      - "Conclusion: Summary and implications (150-200 words)"
+    style:
+      tone: "informative, engaging"
+      voice: "active, confident"
+      audience: "educated general reader"
+    citations:
+      style: "inline with footnotes for detail"
+      minimum: 3
+
+  torah_portion:
+    description: "Weekly parashah teaching"
+    word_range: [1000, 1500]
+    structure:
+      - "Opening: Portion name, reference, key verse (50-100 words)"
+      - "Overview: What happens in this portion (150-200 words)"
+      - "Deep Dive: 1-2 key themes with Hebrew word study (400-600 words)"
+      - "Application: How this applies today (200-300 words)"
+      - "Closing: Blessing or reflection (50-100 words)"
+    style:
+      tone: "teaching, reverent but accessible"
+      voice: "pastoral, grounded in text"
+      audience: "Torah-observant believers"
+    citations:
+      style: "Scripture references inline (Book chapter:verse)"
+      minimum: 5
+
+  deep_dive:
+    description: "Extended research piece for scholarly topics"
+    word_range: [3000, 5000]
+    structure:
+      - "Abstract: Summary of findings (150-200 words)"
+      - "Introduction: Problem statement and scope (300-400 words)"
+      - "Literature Review: What others have said (500-800 words)"
+      - "Analysis: Your examination of evidence (1000-2000 words)"
+      - "Discussion: Implications and connections (500-800 words)"
+      - "Conclusion: Summary and further questions (200-300 words)"
+    style:
+      tone: "scholarly, precise"
+      voice: "objective, evidence-based"
+      audience: "researchers and serious students"
+    citations:
+      style: "academic with full attribution"
+      minimum: 10
+
+  sermon:
+    description: "Teaching for oral delivery"
+    word_range: [2000, 3000]
+    structure:
+      - "Opening: Attention-getter and text introduction (150-200 words)"
+      - "Context: Historical and literary background (300-400 words)"
+      - "Exposition: Walk through the text (800-1200 words)"
+      - "Application: 3 practical takeaways (400-600 words)"
+      - "Conclusion: Call to action and closing (200-300 words)"
+    style:
+      tone: "warm, authoritative, encouraging"
+      voice: "conversational but grounded"
+      audience: "congregation/listeners"
+    citations:
+      style: "verbal attribution ('The apostle Paul writes...')"
+      minimum: 3
+
+  summary:
+    description: "Brief overview of a topic or document"
+    word_range: [200, 400]
+    structure:
+      - "Key Point: Main takeaway (1-2 sentences)"
+      - "Supporting Points: 3-5 bullets"
+      - "Conclusion: So what? (1-2 sentences)"
+    style:
+      tone: "concise, direct"
+      voice: "neutral, factual"
+      audience: "busy reader"
+    citations:
+      style: "inline references only"
+      minimum: 1
+
+  blog_post:
+    description: "Casual web content"
+    word_range: [600, 1000]
+    structure:
+      - "Hook: Engaging opening (50-100 words)"
+      - "Problem/Question: What we're addressing (100-150 words)"
+      - "Content: Main points with examples (300-500 words)"
+      - "Takeaway: What to do with this (100-150 words)"
+    style:
+      tone: "conversational, relatable"
+      voice: "personal, friendly"
+      audience: "general web reader"
+    citations:
+      style: "hyperlinks preferred"
+      minimum: 0
+
+# Default template when none specified
+default: article

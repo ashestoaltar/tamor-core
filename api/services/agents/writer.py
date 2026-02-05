@@ -14,7 +14,9 @@ Constraints:
 """
 
 import logging
+import os
 import time
+import yaml
 from typing import Any, Dict, List, Optional
 
 from .base import BaseAgent, AgentOutput, Citation, RequestContext
@@ -22,6 +24,24 @@ from services.llm_service import get_agent_llm
 from services.library.search_service import LibrarySearchService
 
 logger = logging.getLogger(__name__)
+
+# Load writer templates
+TEMPLATES_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+    "config",
+    "writer_templates.yml"
+)
+
+def _load_templates() -> Dict[str, Any]:
+    """Load writer templates from config file."""
+    try:
+        with open(TEMPLATES_PATH, "r") as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        logger.warning(f"Failed to load writer templates: {e}")
+        return {"templates": {}, "default": "article"}
+
+WRITER_TEMPLATES = _load_templates()
 
 
 WRITER_SYSTEM_PROMPT = """You are a Writer Agent. Your role is to transform research notes into polished, readable prose.
@@ -121,20 +141,20 @@ class WriterAgent(BaseAgent):
         if ctx.retrieved_chunks:
             sources_text = self._format_sources(ctx.retrieved_chunks)
 
-        # Determine output type from user message
-        output_type = self._detect_output_type(ctx.user_message)
+        # Determine output type and get template guidance
+        template_name = self._detect_output_type(ctx.user_message)
+        template_guidance = self._get_template_guidance(template_name)
 
         user_message = f"""## Writing Request
 {ctx.user_message}
 
-## Output Type
-{output_type}
+{template_guidance}
 
 {research_text}
 
 {sources_text}
 
-Write the requested content based on these notes and sources. Include inline citations [1], [2], etc."""
+Write the requested content following the template structure above. Include inline citations [1], [2], etc."""
 
         # Call LLM with agent-specific provider routing
         try:
@@ -341,23 +361,72 @@ Write the requested content based on these notes and sources. Include inline cit
         return "\n".join(lines)
 
     def _detect_output_type(self, message: str) -> str:
-        """Detect what kind of output the user wants."""
+        """Detect what kind of output the user wants and return template name."""
         msg = message.lower()
+        templates = WRITER_TEMPLATES.get("templates", {})
 
-        if any(w in msg for w in ["article", "blog", "post"]):
-            return "Article (800-1200 words, engaging, with introduction and conclusion)"
+        # Check for explicit template matches
+        if any(w in msg for w in ["torah portion", "parashah", "parsha"]):
+            return "torah_portion"
+        elif any(w in msg for w in ["deep dive", "research piece", "scholarly"]):
+            return "deep_dive"
+        elif any(w in msg for w in ["sermon", "teaching", "message"]):
+            return "sermon"
+        elif any(w in msg for w in ["blog", "blog post"]):
+            return "blog_post"
         elif any(w in msg for w in ["summary", "summarize", "overview"]):
-            return "Summary (200-400 words, key points only)"
-        elif any(w in msg for w in ["explain", "explanation"]):
-            return "Explanation (clear, educational, step-by-step if needed)"
-        elif any(w in msg for w in ["outline", "structure"]):
-            return "Outline (hierarchical structure with brief descriptions)"
-        elif any(w in msg for w in ["draft", "first draft"]):
-            return "Draft (complete but may need revision)"
-        elif any(w in msg for w in ["brief", "short", "quick"]):
-            return "Brief (100-200 words, essential points only)"
+            return "summary"
+        elif any(w in msg for w in ["article"]):
+            return "article"
         else:
-            return "Standard response (appropriate length for the request)"
+            return WRITER_TEMPLATES.get("default", "article")
+
+    def _get_template_guidance(self, template_name: str) -> str:
+        """Get writing guidance from a template."""
+        templates = WRITER_TEMPLATES.get("templates", {})
+        template = templates.get(template_name)
+
+        if not template:
+            return ""
+
+        lines = [f"## Writing Template: {template_name.replace('_', ' ').title()}"]
+        lines.append(f"*{template.get('description', '')}*\n")
+
+        # Word range
+        word_range = template.get("word_range", [])
+        if word_range:
+            lines.append(f"**Target Length:** {word_range[0]}-{word_range[1]} words\n")
+
+        # Structure
+        structure = template.get("structure", [])
+        if structure:
+            lines.append("**Required Structure:**")
+            for section in structure:
+                lines.append(f"- {section}")
+            lines.append("")
+
+        # Style
+        style = template.get("style", {})
+        if style:
+            lines.append("**Style Guidelines:**")
+            if style.get("tone"):
+                lines.append(f"- Tone: {style['tone']}")
+            if style.get("voice"):
+                lines.append(f"- Voice: {style['voice']}")
+            if style.get("audience"):
+                lines.append(f"- Audience: {style['audience']}")
+            lines.append("")
+
+        # Citations
+        citations = template.get("citations", {})
+        if citations:
+            lines.append("**Citation Style:**")
+            if citations.get("style"):
+                lines.append(f"- {citations['style']}")
+            if citations.get("minimum"):
+                lines.append(f"- Minimum citations: {citations['minimum']}")
+
+        return "\n".join(lines)
 
     def _extract_style_preferences(self, memories: List[Dict[str, Any]]) -> str:
         """Extract writing style preferences from user memories."""
