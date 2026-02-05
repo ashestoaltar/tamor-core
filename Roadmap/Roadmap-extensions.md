@@ -779,6 +779,205 @@ An item may be promoted to the authoritative roadmap only when:
 
 ---
 
+## M. Agent System Expansion: Planner & Writer
+
+**Status:** 🟢 Approved — Ready to Build
+**Maps To:** Phase 6.2 – Multi-Agent Support (Extension)
+**Created:** 2026-02-04
+
+### Purpose
+
+Extend the multi-agent system with:
+1. **Writer agent wired to library** — Currently exists but not connected to LibrarySearchService
+2. **Planner agent** — Orchestrates multi-step writing projects (research → draft → review → revise)
+
+### M.1 Writer Library Integration
+
+**Status:** 🟢 Ready to Build
+**Impact:** High
+**Effort:** Low (replicate Researcher pattern)
+
+The Writer agent exists in `modes.json` but is NOT connected to the global library. This must be fixed — the Writer needs library access for grounded, cited content.
+
+**Implementation:**
+- Connect Writer to `LibrarySearchService` (same pattern as Researcher)
+- Inject library chunks into Writer's prompt context
+- Enable source citations in prose output
+
+### M.2 Writer Templates
+
+**Status:** 🟢 Ready to Build
+**Impact:** Medium
+**Effort:** Low
+
+Per-project-type templates for recurring content formats.
+
+**Templates:**
+- `article` — Long-form (1,500-2,500 words)
+- `torah_portion` — Weekly parashah teaching (1,000-1,500 words)
+- `deep_dive` — Extended research piece (3,000-5,000 words)
+- `sermon` — Teaching for oral delivery (2,000-3,000 words)
+
+**Location:** `config/writer_templates.yml`
+
+### M.3 Planner Agent
+
+**Status:** 🟢 Ready to Build
+**Impact:** High
+**Effort:** Medium
+
+A project orchestrator that breaks complex writing projects into research and writing tasks.
+
+**Key Design Decisions:**
+1. **External loop, not recursive routing** — Planner creates `pipeline_tasks`, returns plan to user. User approves/triggers each step. Each task routes through normal `router.route()`.
+2. **Summary-based context passing** — Store research output as 500-1000 word `output_summary` plus `output_conversation_id` link. Writer receives summary, not full conversation history.
+3. **Conversational clarification** — Planner asks questions as its response. No special callback mechanism.
+4. **Planning mode detection** — Derived from `pipeline_tasks` state: if active project has tasks not all complete, conversation is in planning mode.
+
+**Provider:** Anthropic (Claude) — Planning is structured reasoning, not theological analysis.
+
+**Schema:**
+```sql
+CREATE TABLE IF NOT EXISTS pipeline_tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    task_type TEXT NOT NULL,          -- 'research', 'draft', 'review', 'revise'
+    task_description TEXT NOT NULL,
+    agent TEXT NOT NULL,              -- 'researcher', 'writer', 'planner'
+    status TEXT DEFAULT 'pending',    -- 'pending', 'active', 'waiting_review', 'complete'
+    input_context TEXT,               -- JSON: references to prior task outputs
+    output_summary TEXT,              -- Brief summary of what this task produced
+    output_conversation_id INTEGER,
+    sequence_order INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+```
+
+### M.4 Intent Routing Updates
+
+**Status:** 🟢 Ready to Build
+
+Route to Planner when:
+- Request mentions "article," "series," "teaching" (implies structured output)
+- Active pipeline exists in project
+- User explicitly says "plan this" or "start a pipeline"
+- Request implies multiple steps ("research X then write about Y")
+
+Route to Writer directly when:
+- Simple, bounded writing tasks ("write me a paragraph")
+- Rewording, editing, short-form content
+- No implied research need
+
+### Implementation Order
+
+1. Wire Writer to library (Phase A) — Prerequisite, standalone
+2. Update Writer persona and templates (Phase B)
+3. Add Planner agent and pipeline_tasks table (Phase C)
+4. Wire Planner task execution (Phase D)
+5. Wire Pipeline UI in right panel (Phase E)
+
+### Design Document
+
+Full specification: User's design document provided 2026-02-04 with Claude Code review feedback incorporated.
+
+---
+
+## N. Code Agent (Claude Code-like CLI Tool)
+
+**Status:** 🟢 Complete (Phases A-D)
+**Maps To:** New capability (CLI tool using LLM infrastructure)
+**Created:** 2026-02-04
+**Implemented:** 2026-02-04
+**Decision Document:** `docs/decisions/2026-02-04-code-agent.md`
+
+### Purpose
+
+A Claude Code-like interactive coding agent built into the Tamor ecosystem. CLI-first tool that provides a tool-use conversation loop for filesystem operations.
+
+### Scope
+
+**What it is:**
+- Standalone terminal application (`tools/tamor_code.py`)
+- Uses Tamor's LLM infrastructure (`llm_service.py`, `AGENT_PROVIDER_MAP`)
+- Interactive tool-use loop: read → edit → verify → repeat
+
+**What it is NOT:**
+- Not a web UI feature (CLI-first design)
+- Not a replacement for Claude Code (insurance policy + provider-agnostic)
+
+### Key Design Decisions
+
+1. **Extend LLMProvider ABC** — Add `supports_tool_use()` and `tool_use_completion()` methods
+2. **Shared HTTP retry utility** — `api/utils/http_retry.py` benefits all providers
+3. **Path sandboxing** — `PathSandbox` class restricts writes to working_dir, allows configurable read paths
+4. **Configurable iteration limit** — `--max-iterations` flag with 80% warning threshold
+5. **Provider: Anthropic (Claude)** — Best tool-use support via native API
+
+### Tools
+
+| Tool | Purpose |
+|------|---------|
+| `read_file` | Read file contents (line ranges supported) |
+| `write_file` | Create or overwrite files |
+| `patch_file` | Surgical string replacement (must be unique) |
+| `list_directory` | Directory listing with depth control |
+| `run_command` | Shell command execution |
+| `git_status/diff/commit` | Git integration |
+
+### Safety Mechanisms
+
+- Path sandboxing (writes restricted to working_dir)
+- `--allow-read` for read-only access to external paths
+- Git checkpoint on session start (auto-stash)
+- Confirmation gates for commits and dangerous commands
+- Iteration limit with warning at 80%
+- `/undo` command (soft-reset last commit)
+
+### Implementation Phases
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| A | LLM service extension (dataclasses, `tool_use_completion()`) | ✅ Complete |
+| B | Tools (`code_tools.py`, `PathSandbox`) | ✅ Complete |
+| C | Agent loop (`code_agent.py`) | ✅ Complete |
+| D | CLI (`tamor_code.py`) | ✅ Complete |
+| D.5 | Streaming output | ⏳ Future enhancement |
+| E | Polish (system prompt tuning, project context) | ⏳ Ongoing |
+
+### Files Created/Modified
+
+| File | Change |
+|------|--------|
+| `api/utils/http_retry.py` | NEW — Shared retry utility |
+| `api/services/llm_service.py` | Add dataclasses, ABC methods, Anthropic implementation |
+| `api/services/agents/code_tools.py` | NEW — Tool definitions and implementations |
+| `api/services/agents/code_agent.py` | NEW — Tool-use conversation loop |
+| `api/services/agents/__init__.py` | Export CodeAgent and related classes |
+| `tools/tamor_code.py` | NEW — CLI entry point |
+| `tools/tamor-code` | NEW — Shell wrapper script |
+| `api/tests/test_code_tools.py` | NEW — Tool unit tests |
+| `api/tests/test_code_agent.py` | NEW — Agent integration tests |
+| `Makefile` | Add `make code` target |
+
+### Design Document
+
+Full specification: `docs/decisions/2026-02-04-code-agent.md`
+
+---
+
+## Promotion Checklist
+
+An item may be promoted to the authoritative roadmap only when:
+
+- Phase alignment is clear
+- Dependencies are known
+- Scope is bounded
+- Rationale is documented
+
+---
+
 ## Notes
 
 This document is intentionally expansive.

@@ -44,11 +44,60 @@ Usage:
 import os
 import requests
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional, Tuple
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+# ---------------------------------------------------------------------------
+# Tool-use dataclasses (for Code Agent and future tool-use features)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ToolDefinition:
+    """A tool the LLM can invoke during tool-use completion."""
+    name: str
+    description: str
+    parameters: Dict[str, Any]  # JSON Schema for the tool's input
+
+
+@dataclass
+class ToolCall:
+    """A tool invocation requested by the LLM."""
+    id: str           # Unique ID for correlating with results
+    name: str         # Tool name (matches ToolDefinition.name)
+    arguments: Dict[str, Any]  # Parsed arguments
+
+
+@dataclass
+class ToolResult:
+    """Result of executing a tool call, sent back to the LLM."""
+    tool_call_id: str  # Must match the ToolCall.id
+    content: str       # String result of the tool execution
+    is_error: bool = False
+
+
+@dataclass
+class LLMToolResponse:
+    """
+    Structured response from a tool-use completion.
+
+    Unlike chat_completion() which returns a plain string,
+    this captures both text and tool-call requests.
+    """
+    text: Optional[str] = None
+    tool_calls: List[ToolCall] = field(default_factory=list)
+    stop_reason: str = "end_turn"  # "end_turn" | "tool_use" | "max_tokens"
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+    @property
+    def wants_tool_use(self) -> bool:
+        """True if the LLM wants to invoke tools before continuing."""
+        return len(self.tool_calls) > 0
 
 
 class LLMProvider(ABC):
@@ -78,6 +127,44 @@ class LLMProvider(ABC):
     def is_configured(self) -> bool:
         """Return True if this provider is properly configured."""
         pass
+
+    def supports_tool_use(self) -> bool:
+        """
+        Whether this provider supports tool-use completions.
+
+        Returns False by default. Providers that implement
+        tool_use_completion() should override this to return True.
+        """
+        return False
+
+    def tool_use_completion(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: List[ToolDefinition],
+        system: Optional[str] = None,
+        model: Optional[str] = None,
+        **kwargs,
+    ) -> LLMToolResponse:
+        """
+        Send a completion request with tool definitions.
+
+        Returns structured LLMToolResponse instead of plain string.
+        Only available on providers where supports_tool_use() is True.
+
+        Args:
+            messages: Conversation history (may include tool_result blocks)
+            tools: Available tools the LLM can invoke
+            system: System prompt (separated for Anthropic API compatibility)
+            model: Model override
+            **kwargs: Provider-specific params (temperature, max_tokens, etc.)
+
+        Raises:
+            NotImplementedError: If provider doesn't support tool use
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support tool use. "
+            f"Check supports_tool_use() before calling this method."
+        )
 
 
 class OpenAIProvider(LLMProvider):
@@ -330,6 +417,120 @@ class AnthropicProvider(LLMProvider):
             raise RuntimeError(f"Anthropic API error: {error_msg}")
         except requests.RequestException as e:
             raise RuntimeError(f"Anthropic request failed: {e}")
+
+    def supports_tool_use(self) -> bool:
+        """Anthropic Claude supports tool use natively."""
+        return True
+
+    def tool_use_completion(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: List[ToolDefinition],
+        system: Optional[str] = None,
+        model: Optional[str] = None,
+        **kwargs,
+    ) -> LLMToolResponse:
+        """
+        Anthropic tool-use completion via raw requests.
+
+        Handles the Anthropic-specific wire format:
+        - System prompt in top-level "system" param (not in messages)
+        - Tools as top-level "tools" array
+        - Response content is a list of blocks (text + tool_use)
+        - stop_reason "tool_use" means the model wants to call tools
+        """
+        if not self.is_configured():
+            raise RuntimeError("Anthropic API key not configured (ANTHROPIC_API_KEY)")
+
+        from utils.http_retry import post_with_retry
+
+        model = model or self.DEFAULT_MODEL
+
+        # Convert ToolDefinitions to Anthropic wire format
+        tools_payload = [
+            {
+                "name": t.name,
+                "description": t.description,
+                "input_schema": t.parameters,
+            }
+            for t in tools
+        ]
+
+        # If system prompt wasn't passed explicitly, extract from messages
+        # (same pattern as existing chat_completion)
+        if system is None:
+            filtered_messages = []
+            system_parts = []
+            for msg in messages:
+                if msg.get("role") == "system":
+                    system_parts.append(msg.get("content", ""))
+                else:
+                    filtered_messages.append(msg)
+            system = "\n\n".join(system_parts) if system_parts else None
+            messages = filtered_messages
+
+        # Build request payload
+        payload = {
+            "model": model,
+            "messages": messages,
+            "tools": tools_payload,
+            "max_tokens": kwargs.get("max_tokens", self.DEFAULT_MAX_TOKENS),
+        }
+
+        if system:
+            payload["system"] = system
+
+        # Pass through supported kwargs
+        for key in ("temperature", "top_p", "top_k", "stop_sequences"):
+            if key in kwargs:
+                payload[key] = kwargs[key]
+
+        headers = {
+            "x-api-key": self._api_key,
+            "anthropic-version": self.ANTHROPIC_VERSION,
+            "Content-Type": "application/json",
+        }
+
+        timeout = kwargs.get("timeout", self.DEFAULT_TIMEOUT)
+
+        # POST with retry (important for tool-use loops: 10-25 sequential calls)
+        response = post_with_retry(
+            url=self.ANTHROPIC_API_URL,
+            json=payload,
+            headers=headers,
+            timeout=timeout,
+        )
+
+        data = response.json()
+
+        # Parse response content blocks
+        content_blocks = data.get("content", [])
+        text_parts = []
+        tool_calls = []
+
+        for block in content_blocks:
+            block_type = block.get("type")
+
+            if block_type == "text":
+                text_parts.append(block.get("text", ""))
+
+            elif block_type == "tool_use":
+                tool_calls.append(ToolCall(
+                    id=block["id"],
+                    name=block["name"],
+                    arguments=block.get("input", {}),
+                ))
+
+        # Parse usage
+        usage = data.get("usage", {})
+
+        return LLMToolResponse(
+            text="\n".join(text_parts) if text_parts else None,
+            tool_calls=tool_calls,
+            stop_reason=data.get("stop_reason", "end_turn"),
+            input_tokens=usage.get("input_tokens", 0),
+            output_tokens=usage.get("output_tokens", 0),
+        )
 
 
 class OllamaProvider(LLMProvider):
@@ -631,6 +832,7 @@ AGENT_PROVIDER_MAP = {
     "writer": "xai",          # Theological writing → Grok
     "engineer": "anthropic",  # Coding tasks → Claude
     "archivist": "anthropic", # Memory commands → Claude (instruction-following)
+    "code": "anthropic",      # Code Agent (tool-use) → Claude
 }
 
 
@@ -724,8 +926,6 @@ def get_model_for_agent(agent_type: str) -> str:
 
     return get_model_name()  # OpenAI default
 
-
-from typing import Tuple
 
 def get_agent_llm(agent_type: str) -> Tuple[Optional[LLMProvider], str, str]:
     """

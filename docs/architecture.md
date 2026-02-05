@@ -293,4 +293,43 @@ Single database at: `api/memory/tamor.db`
 
 ---
 
-*Last updated: v1.48 (LLM Provider Architecture)*
+---
+
+## Planned Additions
+
+### Code Agent (CLI Tool)
+
+**Status:** ✅ Implemented (2026-02-04)
+
+A Claude Code-like interactive coding agent as a standalone CLI tool.
+
+- Extends `LLMProvider` ABC with `tool_use_completion()` method
+- Tool-use conversation loop for filesystem operations
+- 8 tools: read_file, write_file, patch_file, list_directory, run_command, git_status, git_diff, git_commit
+- Safety: path sandboxing (writes to working_dir, configurable read paths)
+- Entry point: `tools/tamor_code.py` (or `make code`)
+- Uses Anthropic (Claude) for best tool-use support
+
+**Decision document:** `docs/decisions/2026-02-04-code-agent.md`
+
+### Writer Library Integration
+
+**Status:** Planned
+
+The Writer agent needs connection to `LibrarySearchService` (same pattern as Researcher) for grounded, cited prose output.
+
+### Planner Agent
+
+**Status:** Planned
+
+A project orchestrator for multi-step writing projects:
+- Decomposes requests into research → draft → review → revise tasks
+- Tracks state via `pipeline_tasks` table
+- Coordinates between Researcher and Writer agents
+- Provider: Anthropic (Claude) for structured reasoning
+
+**Extensions document:** See `Roadmap-extensions.md` Section M
+
+---
+
+*Last updated: v1.50 (Code Agent + Planner/Writer plans)*

@@ -87,6 +87,7 @@ Welcome to Tamor's documentation. This index provides access to all documentatio
 
 - **[LLM Provider Swap](decisions/2026-02-02-llm-provider-swap.md)** — OpenAI → Grok + Claude decision rationale
 - **[LLM Comparison Results](decisions/llm_comparison_results.md)** — Raw test output from provider evaluation
+- **[Code Agent](decisions/2026-02-04-code-agent.md)** — Claude Code-like CLI tool design
 
 ---
 
@@ -106,7 +107,8 @@ Welcome to Tamor's documentation. This index provides access to all documentatio
 | GHM-Spec.md | ✅ Complete | v1.29 (Phase 8.2.7) |
 | When-GHM-Activates.md | ✅ Complete | v1.29 (Phase 8.2.7) |
 | Profile-System.md | ✅ Complete | v1.36 (Phase 8.2.7) |
-| INDEX.md | ✅ Complete | v1.33 (Phase 8.6) |
+| INDEX.md | ✅ Complete | v1.50 |
+| 2026-02-04-code-agent.md | ✅ Complete | v1.50 |
 
 ---
 

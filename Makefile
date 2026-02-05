@@ -1,4 +1,4 @@
-.PHONY: doctor doctor-db doctor-health doctor-ui audit audit-py audit-ui health-hw
+.PHONY: doctor doctor-db doctor-health doctor-ui audit audit-py audit-ui health-hw code
 
 doctor: doctor-db doctor-health doctor-ui
 	@echo "Doctor: OK"
@@ -40,3 +40,6 @@ doctor-ui:
 			echo "[SKIP] ui/ directory not found"; \
 		fi'
 
+# Tamor Code - Interactive coding assistant
+code:
+	@tools/tamor-code

@@ -1,0 +1,6 @@
+#!/bin/bash
+# Convenience wrapper for tamor_code.py
+# Add to PATH or symlink to /usr/local/bin/tamor-code
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/tamor_code.py" "$@"
