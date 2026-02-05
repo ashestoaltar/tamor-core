@@ -793,16 +793,18 @@ Extend the multi-agent system with:
 
 ### M.1 Writer Library Integration
 
-**Status:** 🟢 Ready to Build
+**Status:** ✅ Complete
 **Impact:** High
 **Effort:** Low (replicate Researcher pattern)
+**Implemented:** 2026-02-04
 
-The Writer agent exists in `modes.json` but is NOT connected to the global library. This must be fixed — the Writer needs library access for grounded, cited content.
+The Writer agent now has library access for grounded, cited content.
 
 **Implementation:**
-- Connect Writer to `LibrarySearchService` (same pattern as Researcher)
-- Inject library chunks into Writer's prompt context
-- Enable source citations in prose output
+- ✅ Connected Writer to `LibrarySearchService`
+- ✅ Library chunks injected into Writer's prompt context
+- ✅ Source citations enabled in prose output
+- ✅ Fallback search when no prior Researcher output exists
 
 ### M.2 Writer Templates
 

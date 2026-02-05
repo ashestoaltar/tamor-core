@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from .base import BaseAgent, AgentOutput, Citation, RequestContext
 from services.llm_service import get_agent_llm
+from services.library.search_service import LibrarySearchService
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,11 @@ class WriterAgent(BaseAgent):
         # Format research notes for the writer
         research_text = self._format_research(research_data)
 
+        # Include full library sources if available (for better context)
+        sources_text = ""
+        if ctx.retrieved_chunks:
+            sources_text = self._format_sources(ctx.retrieved_chunks)
+
         # Determine output type from user message
         output_type = self._detect_output_type(ctx.user_message)
 
@@ -126,7 +132,9 @@ class WriterAgent(BaseAgent):
 
 {research_text}
 
-Write the requested content based on these research notes. Include inline citations [1], [2], etc."""
+{sources_text}
+
+Write the requested content based on these notes and sources. Include inline citations [1], [2], etc."""
 
         # Call LLM with agent-specific provider routing
         try:
@@ -188,7 +196,7 @@ Write the requested content based on these research notes. Include inline citati
     def _get_research_data(
         self, ctx: RequestContext, input_payload: Optional[Dict]
     ) -> Optional[Dict[str, Any]]:
-        """Extract research data from prior outputs or input payload."""
+        """Extract research data from prior outputs, input payload, or library search."""
         # Check input payload first
         if input_payload and "research" in input_payload:
             return input_payload["research"]
@@ -200,20 +208,84 @@ Write the requested content based on these research notes. Include inline citati
 
         # Fallback: check for raw retrieved chunks (no researcher ran)
         if ctx.retrieved_chunks:
-            return {
-                "summary": "Direct sources provided (no prior research analysis)",
-                "key_findings": [
-                    {"finding": c.get("content", "")[:200], "source": f"[{i}]", "confidence": "medium"}
-                    for i, c in enumerate(ctx.retrieved_chunks[:5], 1)
-                ],
-                "themes": [],
-                "contradictions": [],
-                "gaps": [],
-                "open_questions": [],
-                "recommended_structure": [],
-            }
+            return self._chunks_to_research_data(ctx.retrieved_chunks)
+
+        # Final fallback: search library directly
+        library_chunks = self._search_library(ctx.user_message)
+        if library_chunks:
+            # Store in context for citation building later
+            ctx.retrieved_chunks = library_chunks
+            return self._chunks_to_research_data(library_chunks)
 
         return None
+
+    def _chunks_to_research_data(self, chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Convert raw chunks to research data format."""
+        return {
+            "summary": "Sources from library (no prior research analysis)",
+            "key_findings": [
+                {"finding": c.get("content", "")[:200], "source": f"[{i}]", "confidence": "medium"}
+                for i, c in enumerate(chunks[:5], 1)
+            ],
+            "themes": [],
+            "contradictions": [],
+            "gaps": [],
+            "open_questions": [],
+            "recommended_structure": [],
+        }
+
+    def _search_library(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Search the global library for relevant content."""
+        try:
+            search_service = LibrarySearchService()
+            results = search_service.search(
+                query=query,
+                scope="library",
+                limit=limit,
+                min_score=0.3,
+            )
+            # Convert SearchResult objects to dicts
+            return [
+                {
+                    "library_file_id": r.library_file_id,
+                    "file_id": r.library_file_id,
+                    "filename": r.filename,
+                    "chunk_index": r.chunk_index,
+                    "content": r.content,
+                    "score": r.score,
+                    "page": r.page,
+                }
+                for r in results
+            ]
+        except Exception as e:
+            logger.warning(f"Writer library search failed: {e}")
+            return []
+
+    def _format_sources(self, chunks: List[Dict[str, Any]]) -> str:
+        """Format library/retrieved chunks as numbered sources."""
+        if not chunks:
+            return ""
+
+        lines = ["## Source Materials\n"]
+        for i, chunk in enumerate(chunks, 1):
+            filename = chunk.get("filename", "unknown")
+            content = chunk.get("content", "")
+            page = chunk.get("page")
+            score = chunk.get("score")
+
+            header = f"[{i}] {filename}"
+            if page:
+                header += f" (page {page})"
+            if score:
+                header += f" [relevance: {score:.2f}]"
+
+            # Truncate very long chunks
+            if len(content) > 1500:
+                content = content[:1500] + "...[truncated]"
+
+            lines.append(f"{header}\n{content}\n")
+
+        return "\n".join(lines)
 
     def _format_research(self, research: Dict[str, Any]) -> str:
         """Format research data for the writer prompt."""
