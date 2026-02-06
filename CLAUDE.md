@@ -114,13 +114,45 @@ This removes manual template detection guesswork when working within a project c
 
 ## Session Notes
 
-### 2026-02-04 (Library Harvest Session - IN PROGRESS)
+### 2026-02-05 (Agent Pipeline & Library Processing)
 
-**Current Library Status:**
-- **Total files:** 4,499
-- **Unindexed:** 1,844 (searchable by filename, not content)
-- **Transcription pending:** 89 audio/video files
-- **Transcription completed:** 432
+**Planner/Writer/Pipeline System - COMPLETE**
+- Planner creates pipeline_tasks, asks clarifying questions, routes correctly
+- `/next-task` executes research → draft → review → revise
+- Review presents drafts, captures feedback, handles "approve as-is"
+- Context threads between tasks (research → draft → revise)
+- Writer respects length constraints, produces clean prose
+- Planning mode detection routes back to Planner after clarifying questions
+- Future refactor doc saved: `Roadmap/planner-refactor-single-vs-multi.md`
+
+**Transcription - COMPLETE**
+- 441 files transcribed successfully
+- 80 "failures" were macOS `._` metadata files (not real audio)
+
+**Indexing - IN PROGRESS (1,599 remaining)**
+- Current: 3,140 indexed / 4,739 total
+- **KNOWN ISSUE:** `/api/library/index/all` times out after ~5 min (Gunicorn 300s timeout)
+- **FIX:** Use loop script instead of single API call:
+```bash
+# Run overnight - loops until queue empty
+while true; do
+  result=$(curl -s -b /tmp/tamor-cookies.txt -X POST "http://localhost:5055/api/library/index/next" -H "Content-Type: application/json" -d '{"count": 50}')
+  remaining=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('remaining', 0))")
+  echo "$(date): Remaining: $remaining"
+  if [ "$remaining" -eq 0 ]; then echo "Done!"; break; fi
+  sleep 1
+done
+```
+
+---
+
+### 2026-02-04 (Library Harvest Session - COMPLETE)
+
+**Final Library Status:**
+- **Total files:** 4,739
+- **Indexed:** 3,140
+- **Unindexed:** 1,599 (searchable by filename, not content)
+- **Transcription:** 441 complete
 
 **Bill Cloud (COMPLETE):**
 - Location: `/mnt/library/religious/billcloud/`
