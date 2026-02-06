@@ -977,6 +977,353 @@ Full specification: `docs/decisions/2026-02-04-code-agent.md`
 
 ---
 
+## O. Library Maintenance
+
+### 25. Library Health Check & Path Reconciliation
+**Status:** 🟡 Parked
+**Maps To:** Phase 7.2 – Library Ingest Pipeline / Phase 8 – Trust, Restraint, and Completion
+**Created:** 2026-02-04
+
+**Purpose:** Detect and repair broken file paths in the library when files are renamed or moved on the NAS, without requiring re-indexing.
+
+**Core Insight:** `file_hash` (SHA-256) is the true identity of a file. The path is just a locator. Since chunks and embeddings are linked by `library_file_id` (not by path), updating the stored path on an existing record preserves all indexed data and project references with zero re-indexing cost.
+
+**Proposed Features:**
+
+1. **Orphan Detection** — Compare `stored_path` against filesystem; identify records whose files no longer exist at the recorded path.
+2. **Hash-Based Reconciliation** — For each orphaned record, scan the library mount for files matching the same `file_hash`. If found at a new path, update `stored_path` and `filename`.
+3. **Health Report** — Summary: total files vs. on-disk, orphaned records, relocated files, new files.
+4. **Auto-Repair Mode** — Optional flag for unambiguous matches (one orphan → one hash match). Ambiguous cases flagged for manual review.
+5. **Dry Run** — Preview reconciliation before committing changes.
+
+**Implementation Scope:**
+
+| Component | File | Change |
+|-----------|------|--------|
+| Health check service | `api/services/library/health_service.py` | New service: scan, detect orphans, match by hash, report |
+| Path update method | `api/services/library/library_service.py` | `update_path(file_id, new_path)` — updates `stored_path` and `filename` |
+| API endpoints | `api/routes/library_api.py` | `GET /api/library/health` (report), `POST /api/library/health/reconcile` (repair) |
+| UI | Library manage view | Health status indicator, reconciliation action button |
+
+**Edge Cases:**
+- File content changed AND moved → hash won't match; treated as orphan + new file (correct — old index is stale)
+- Duplicate content at multiple paths → hash matches multiple files; flag for manual decision
+- File deleted entirely → orphan with no match; offer to remove record or keep as "missing"
+
+**Dependencies:** Phase 7.1 Library Schema (complete), Phase 7.2 Ingest Pipeline (complete), `LibraryStorageService.compute_file_hash()` (complete), `LibraryScannerService` directory walking (complete).
+
+**Effort Estimate:** Small-medium. Most infrastructure exists.
+
+**Open Questions (to resolve before building):**
+
+1. **Scan performance** — Walking the full NAS mount to build a hash→path map could be slow at scale. Optimization: only hash new/unrecognized files on disk; orphan matching uses existing stored hashes. Worth confirming this is sufficient.
+
+2. **Missing vs. deleted file state** — When an orphan has no hash match, the design offers "remove record" or "keep as missing." Consider adding a `status` column to `library_files` (e.g., `active`/`missing`/`archived`) so missing files stop appearing in searches but records aren't destroyed. Avoids a destructive binary choice.
+
+3. **Trigger mechanism** — Scoped as manual/batch. Is that sufficient long-term, or should it run on startup or on a schedule? Single-user context suggests manual is fine, but worth confirming.
+
+4. **UI priority** — The health report is useful, but a CLI/API-first approach (run the check, review JSON, approve repairs) may be enough initially. UI could come later if the workflow proves valuable.
+
+---
+
+## P. Output & Publishing
+
+### 26. Teaching Video Pipeline
+**Status:** 🟡 Parked (Vision Captured)
+**Maps To:** Future phase (Phase 9.x or "Output & Publishing" phase)
+**Created:** 2026-02-05
+
+**Purpose:** Automated pipeline that transforms a topic into a downloadable teaching video (MP4): library-grounded research → structured slide content → AI-generated illustrations → local TTS narration → video composition. A 5–7 slide teaching, roughly 3–5 minutes, with every claim traceable to a library source.
+
+**Origin:** Competitive analysis of 119 Ministries' AI Assistant (119assistant.ai). They announced auto-generated teaching videos as a coming feature. Tamor's version differs fundamentally: grounded in library sources with citations, custom AI illustrations, local narration, and epistemic honesty preserved — not a black-box GPT wrapper.
+
+**The Six-Stage Pipeline:**
+
+| Stage | Description | Tool | Status |
+|-------|-------------|------|--------|
+| 1. Research | Researcher agent queries Global Library | Existing Researcher + Library | ✅ Built |
+| 2. Structure | Writer produces structured slide YAML (title, points, notes, image prompts, citations per slide) | Writer agent with new output format | 🔶 New output mode |
+| 3. Illustration | Custom AI image per slide via Grok Imagine | xAI `grok-imagine-image` API | 🔶 New method on existing provider |
+| 4. Slide Composition | Layer text content over illustrations → PNG | HTML templates + Playwright screenshot | 🔶 New component |
+| 5. Narration | Piper TTS reads speaker notes per slide | Existing `tts_service.py` | ✅ Built |
+| 6. Video Assembly | Combine slide images + audio → MP4 | FFmpeg or MoviePy | 🔶 Glue code |
+
+**Structured Output Format (Stage 2):**
+Writer produces YAML with per-slide: `type` (title/content/scripture/summary), `heading`, `points`, `notes` (narration script), `image_prompt`, `sources` (chunk_id + source name). This is the linchpin — everything downstream depends on this format being right.
+
+**Grok Imagine Integration:**
+- Image generation: `grok-imagine-image` — text-to-image, 16:9 aspect ratio, ~$0.02–0.05/image
+- Video generation: `grok-imagine-video` — optional animated title cards only (not for teaching content)
+- Add `generate_image()` method to existing xAI provider in `llm_service.py`
+
+**Cost Per Teaching:** Under $1 (7 images ~$0.35, Writer generation ~$0.10, TTS free, FFmpeg free).
+
+**Prerequisites (do NOT start pipeline work until these are met):**
+- 2–3 full teachings written through Tamor's existing Writer workflow
+- Clear sense of what good structured output looks like from real experience
+- Library content sufficiently rich for grounded research
+- Writer agent tested and tuned through real content production
+
+**Natural Sequence:**
+1. **Now → April 2026:** Foundation work (library expansion, real research/writing workflows, Writer tuning)
+2. **April → May 2026:** Writer structured output mode + Grok Imagine wiring (2–3 sessions)
+3. **Late May → June 2026:** Slide composition + video assembly + pipeline template (3 sessions)
+4. **June → July 2026:** Polish (templates, transitions, thumbnails, voice selection)
+
+**Actual pipeline-specific development: 4–6 focused sessions.** The first 2–3 months are prerequisite work you'd be doing anyway.
+
+**Open Questions & Design Notes:**
+
+1. **Stage 2 is the linchpin.** The structured YAML from Writer determines image prompt quality, narration pacing, and citation integrity. Don't codify the schema until you've written enough real teachings to know what good output looks like.
+
+2. **Slide composition: prefer HTML templates → Playwright screenshot.** Most flexible for layout iteration (CSS not code), easiest for typography, Playwright already known in this project (OLL scraping). python-pptx is clunky for custom design; Pillow is pixel-pushing pain for text layout.
+
+3. **Missing: human review gate before render.** Pipeline should have an explicit `waiting_review` step after Stage 2 (structured output) and optionally after Stage 3 (generated images) before committing to narration and video assembly. The `pipeline_tasks` system already supports `waiting_review` status — use it. Don't spend image generation credits on content the user hasn't approved.
+
+4. **Image generation should be provider-abstract.** Grok Imagine pricing could change. The `generate_image()` method should be on the provider ABC, not xAI-specific, so local Stable Diffusion could be swapped in later.
+
+5. **Verse pop-ups → in-video Scripture treatment.** The `scripture` slide type already has full verse text and citations. Consider a distinctive visual treatment for Scripture slides (different layout, typography, background) as a natural Stage 4 enhancement.
+
+6. **119 Ministries Competitive Analysis** — Full comparison saved in vision document. Key takeaway: 119 proved the market for AI-assisted Torah-positive Bible study tools. Their weakness is depth (polished ChatGPT wrapper with good UX). Tamor is a research instrument. Features worth adapting are mostly presentation-layer (verse pop-ups, mode descriptions, YHWH rendering option). Core architectural difference is philosophical and shouldn't change.
+
+**Features Worth Adapting from 119 (separate from video pipeline):**
+
+| Feature | Effort | Notes |
+|---------|--------|-------|
+| Inline verse pop-ups (click/hover Scripture refs → SWORD/Sefaria preview) | Medium | Natural fit for chat panel |
+| Mode descriptions in UI ("What this mode does / Best for / Not for") | Low | Phase 3.4 candidate |
+| YHWH rendering option (LORD→YHWH in reference text) | Low | Display preference |
+| Prompt templates library (reusable research prompts) | Low-Medium | Extensions candidate |
+| "Test everything" footer on scholarly responses | Low | Personality config |
+
+**Full Vision Document:** `Roadmap/teaching-video-pipeline-vision.md`
+
+**Dependencies:** Phase 7 Global Library (complete), Phase 6.2 Multi-Agent (complete), Piper TTS (complete), xAI provider (complete), Pipeline service (complete). New: xAI SDK image generation, slide composition tooling, FFmpeg.
+
+**Effort Estimate:** Medium overall, but spread across months with prerequisite work front-loaded.
+
+---
+
+### 27. Inline Scripture Pop-ups
+**Status:** 🟡 Parked
+**Maps To:** Phase 3.4 – Interface Restoration / Chat UI
+**Created:** 2026-02-05
+**Origin:** 119 Ministries competitive analysis
+
+**Purpose:** Click or hover on Scripture references in chat responses to see inline verse preview via SWORD/Sefaria integration.
+
+**Implementation:** Detect Scripture reference patterns in rendered chat messages (e.g., "Genesis 1:1", "Col 2:16-17"), wrap in interactive elements, fetch verse text from existing SWORD module integration on hover/click.
+
+**Dependencies:** SWORD modules installed (KJV, ASV, YLT, OSHB, LXX, SBLGNT, TR — all complete). Sefaria API integration (existing).
+
+**Effort:** Medium. Reference detection regex + UI component + SWORD/Sefaria fetch.
+
+---
+
+## Q. Digital Library Expansion
+
+### 28. Ebook Acquisition Pipeline
+**Status:** 🟢 Approved
+**Maps To:** Phase 7 – Global Library System (post-completion enhancement)
+**Created:** 2026-02-05
+
+**Purpose:** Automated pipeline from book purchase to indexed library: Kindle/EPUB → Calibre (DRM removal + conversion) → NAS inbox → auto-ingest → Tamor library.
+
+**Pipeline:**
+```
+Purchase → Calibre (DRM removal + EPUB conversion) → NAS Inbox → Auto-Ingest → Tamor Library
+```
+
+**Calibre Setup (one-time):**
+- Install: `sudo apt install calibre`
+- Library location: `/mnt/library/calibre/` (NAS-backed)
+- DeDRM plugin from noDRM/DeDRM_tools for Kindle DRM removal
+- Auto-convert to EPUB on add
+
+**Acquisition Priority:**
+1. Internet Archive (free, IA Harvester already built)
+2. DRM-free EPUB (publisher direct, Google Play) → drop straight to NAS
+3. Kindle purchase → Calibre + DeDRM conversion
+
+**NAS Inbox Watcher (new service):**
+- Monitor `/mnt/library/ebook-inbox/` for new files
+- Extract metadata (author, title) from EPUB
+- Route to destination folder based on publisher/source rules
+- Auto-ingest into Tamor library, auto-assign to collection
+- Config-driven publisher → folder → collection mapping
+
+**File:** `api/services/library/inbox_watcher.py`
+**Config:** `config/library_inbox.yml`
+
+```yaml
+inbox_path: /mnt/library/ebook-inbox/
+scan_interval_seconds: 300
+supported_extensions: [.epub, .pdf, .mobi]
+publisher_rules:
+  - match_field: publisher
+    pattern: "Pronomian Publishing"
+    destination: books/pronomian-publishing
+    collection: "Pronomian Publishing"
+  - match_field: publisher
+    pattern: "First Fruits of Zion"
+    destination: books/ffoz
+    collection: "First Fruits of Zion"
+default_destination: books/uncategorized
+auto_index: true
+delete_from_inbox: true
+```
+
+**Open Questions & Design Notes:**
+
+1. **Cron over watchdog for MVP.** The `watchdog` library adds a dependency for something a 5-minute cron job handles just as well. `watchdog` is appropriate when you need sub-second response to filesystem events; for an ebook inbox that gets a new file once a week, cron is simpler, more predictable, and already available. Start with cron, graduate to watchdog only if scan overhead becomes a problem.
+
+2. **DeDRM is personal-use only.** Noted in spec, reiterating: this is for personally purchased content in a single-user research library. The tooling should not be designed for or exposed as a sharing pipeline.
+
+**Dependencies:** Phase 7 Global Library (complete), Library Collections (complete), EPUB parsing (complete).
+
+**Effort:** Low-medium. Calibre setup is manual one-time. Inbox watcher is a small service.
+
+---
+
+### 29. Calibre Content Server Integration
+**Status:** 🟢 Approved
+**Maps To:** Phase 7 – Global Library System (reading layer)
+**Created:** 2026-02-05
+
+**Purpose:** Use Calibre's built-in web content server for full-fidelity EPUB reading. Don't reinvent the wheel — EPUB rendering is a solved problem.
+
+**Setup:**
+- `calibre-server /mnt/library/calibre/ --port 8180 --enable-local-write`
+- Run as systemd service (`calibre-server.service`)
+- Accessible locally and on LAN (mobile reading)
+
+**Tamor Integration:**
+- "Read in Calibre" button on EPUB files in Library UI → opens Calibre reader in new tab
+- Match between Tamor's `library_files` and Calibre's `metadata.db` (SQLite at library root)
+
+**Design Principle:** Tamor's existing extracted-text reader stays for quick reference, TTS, and bookmarking. Calibre is for reading a full book cover-to-cover with proper rendering.
+
+**Open Questions & Design Notes:**
+
+1. **Calibre ↔ Tamor matching.** Matching by filename or title could be fragile (titles get truncated, filenames get cleaned up). Consider matching by file hash, or storing Calibre's `book_id` as a foreign reference in `library_files.metadata` JSON. Hash is more robust; Calibre book_id is simpler but couples the systems.
+
+**Dependencies:** Calibre installed, NAS library mount.
+
+**Effort:** Low. Calibre does the heavy lifting. Tamor just adds a button.
+
+---
+
+### 30. Library Audio Player
+**Status:** 🟢 Approved
+**Maps To:** Phase 5.5 – Integrated Reader (companion feature)
+**Created:** 2026-02-05
+
+**Purpose:** In-Tamor audio playback for MP3 files with synchronized Whisper transcript display, timestamp navigation, and persistent mini player.
+
+**Features:**
+- Playback controls: play/pause, seek, skip ±15s, speed (0.5x–2x)
+- Transcript sync: highlight current Whisper segment as audio plays
+- Timestamp nav: click transcript line → jump to that point
+- Playlist/queue: play files in sequence (sermon series)
+- Resume: remember position per file (reuse `reading_sessions` with content_type='audio')
+- Mini player: collapsible bar persists while navigating other tabs
+
+**Backend:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/library/<id>/audio` | GET | Stream audio (Range header support) |
+| `/api/library/<id>/transcript` | GET | Whisper transcript with timestamps |
+| `/api/audio/session` | POST | Get/create playback session |
+| `/api/audio/session/<id>/position` | POST | Update position |
+| `/api/audio/queue` | GET/POST | Playback queue |
+
+**Frontend:**
+- `AudioPlayer.jsx` — main player component
+- `TranscriptSync.jsx` — scrolling transcript with highlight
+- `MiniPlayer.jsx` — collapsed persistent player
+- `AudioPlayerContext.jsx` — global state across tab switches
+
+**Open Questions & Design Notes:**
+
+1. **Mini player is polish, not MVP.** The persistent mini player with global AudioPlayerContext is the most complex UI piece here. Consider building the full player first (opens in a panel, stops if you navigate away) and adding persistence as a follow-up. The transcript sync and playback controls are the high-value features; the mini player is a UX nicety.
+
+2. **Audio range requests.** Flask's `send_file()` handles Range headers but can be unreliable for large files under Gunicorn. If audio files are large (25+ MB MP3s), test thoroughly. If issues arise, consider serving audio directly from nginx via `X-Accel-Redirect`, or serving from the NAS via a static file route.
+
+3. **Audio player is separate from Reader.** The existing Reader handles text content with optional Piper TTS. The audio player handles original audio files with Whisper transcripts. They serve different purposes and should remain separate components.
+
+**Dependencies:** Phase 5.5 Reader (complete), Whisper transcription (complete, 441 files done), `reading_sessions` table (complete).
+
+**Effort:** Medium. The player itself is straightforward; transcript sync requires careful timing logic; mini player adds UI complexity.
+
+---
+
+### 31. Active Reading Context ("Ask About This")
+**Status:** 🟢 Approved
+**Maps To:** Phase 6.2 – Multi-Agent Support (context enhancement)
+**Created:** 2026-02-05
+
+**Purpose:** Bridge between reading/listening and AI chat. Set a library item as active context so Tamor prioritizes it when answering questions — no need to say "in the book I'm reading..."
+
+**How It Works:**
+- Toggle "Set as Active" on any library item
+- Tamor injects that item's chunks as prioritized context in chat
+- System prompt note: "The user is currently reading/listening to: [title]. Prioritize this source."
+- Visual indicator in chat header showing what's active
+- Auto-set when opening audio player; manual clear or clear on inactivity
+
+**API:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/context/active` | GET | Get current active context |
+| `/api/context/active` | POST | Set active context `{content_type, content_id}` |
+| `/api/context/active` | DELETE | Clear active context |
+
+**Chat Integration:** In `chat_api.py`, check for active context → fetch chunks from that library file → inject as prioritized block before general library results.
+
+**Open Questions & Design Notes:**
+
+1. **"Clear after inactivity" needs a definition.** Timer-based (30 min)? Session-based (clear on new login)? Or just manual-only for MVP? Recommend manual-only initially — auto-clear risks surprising the user by losing context mid-study. Add timer-based clearing later if manual feels burdensome.
+
+2. **This is the highest value-to-effort ratio item in this spec.** The API is 3 endpoints. The chat integration is a small addition to the existing context assembly. The UI is a toggle button and a badge. If you build nothing else from this spec, build this.
+
+**Dependencies:** Library search service (complete), chat context injection pattern (complete).
+
+**Effort:** Low. 3 API endpoints, minor chat_api change, toggle button + badge in UI.
+
+---
+
+### Implementation Order
+
+**Phase A — Foundation (do first):**
+1. Calibre installation and configuration (manual, one-time)
+2. Calibre content server as systemd service
+3. NAS folder structure for books (`/mnt/library/books/`)
+
+**Phase B — Automation:**
+4. Inbox watcher service (start with cron)
+5. Publisher detection and auto-collection assignment
+6. "Read in Calibre" button in Library UI
+
+**Phase C — Audio Player:**
+7. Audio streaming endpoint with range support
+8. AudioPlayer component with playback controls
+9. TranscriptSync component
+10. Playback session tracking
+11. *(Later)* AudioPlayerContext + MiniPlayer for persistence
+
+**Phase D — Context Bridge:**
+12. Active context API endpoints
+13. Chat integration (context injection)
+14. UI indicators (active reading badge, set-as-active buttons)
+
+> **Note:** Phase D (Active Reading Context) could be built independently of Phases A–C. It's low-effort and high-value. Consider building it first if the reading/listening infrastructure isn't ready yet.
+
+**Full Spec Document:** `Roadmap/digital-library-expansion-spec.md`
+
+---
+
 ## Promotion Checklist
 
 An item may be promoted to the authoritative roadmap only when:

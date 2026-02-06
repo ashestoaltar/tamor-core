@@ -15,6 +15,7 @@ from typing import Any, Callable, Dict, List, Optional
 from utils.db import get_db
 
 from .chunk_service import LibraryChunkService
+from .collection_service import LibraryCollectionService
 from .library_service import LibraryService
 from .ocr_service import LibraryOCRService
 from .scanner_service import LibraryScannerService, ScannedFile
@@ -60,14 +61,33 @@ class IngestProgress:
 class LibraryIngestService:
     """Service for batch importing files into the library."""
 
+    # Source-based collection rules: path prefix → collection name
+    # Collection must already exist in the database.
+    SOURCE_COLLECTION_RULES = [
+        ("religious/119/", "119 Ministries"),
+        ("religious/billcloud", "Bill Cloud"),
+        ("religious/wildbranch", "WildBranch Ministries"),
+        ("religious/barkingfox", "Barking Fox (Albert McCarn)"),
+        ("religious/davidwilber", "David Wilber"),
+        ("religious/torahmatters", "Torah Matters"),
+        ("religious/torahapologetics", "Torah Apologetics (Jonathan Brown)"),
+        ("religious/gods-purpose", "Gods Purpose for America"),
+        ("oll/", "Online Library of Liberty"),
+        ("internet_archive", "Internet Archive"),
+    ]
+
     def __init__(self):
         self.library = LibraryService()
         self.scanner = LibraryScannerService()
         self.chunker = LibraryChunkService()
         self.ocr = LibraryOCRService()
+        self.collections = LibraryCollectionService()
 
         # Track active ingest operations
         self._active_ingests: Dict[str, IngestProgress] = {}
+
+        # Cache collection name → id lookups
+        self._collection_id_cache: Dict[str, Optional[int]] = {}
 
     def ingest_file(
         self,
@@ -99,6 +119,10 @@ class LibraryIngestService:
                 metadata=file_metadata,
                 check_duplicate=True,
             )
+
+            # Auto-assign to source collection
+            if result["status"] == "created":
+                self._auto_assign_collections(result["id"], scanned_file.relative_path)
 
             # Auto-index if requested and file was created
             if auto_index and result["status"] == "created":
@@ -327,3 +351,29 @@ class LibraryIngestService:
                     result["unchanged"] += 1
 
         return result
+
+    # =========================================================================
+    # COLLECTION AUTO-ASSIGNMENT
+    # =========================================================================
+
+    def _get_collection_id(self, name: str) -> Optional[int]:
+        """Look up collection ID by name, with caching."""
+        if name not in self._collection_id_cache:
+            conn = get_db()
+            row = conn.execute(
+                "SELECT id FROM library_collections WHERE name = ?", (name,)
+            ).fetchone()
+            self._collection_id_cache[name] = row["id"] if row else None
+        return self._collection_id_cache[name]
+
+    def _auto_assign_collections(self, file_id: int, stored_path: str) -> None:
+        """
+        Auto-assign a newly ingested file to source-based collections
+        based on its stored path.
+        """
+        for prefix, collection_name in self.SOURCE_COLLECTION_RULES:
+            if stored_path.startswith(prefix):
+                collection_id = self._get_collection_id(collection_name)
+                if collection_id:
+                    self.collections.add_file(collection_id, file_id)
+                break  # First match wins (most specific prefix listed first)

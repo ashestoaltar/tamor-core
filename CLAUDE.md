@@ -114,6 +114,63 @@ This removes manual template detection guesswork when working within a project c
 
 ## Session Notes
 
+### 2026-02-05 (Roadmap Planning & Library Collections)
+
+**Roadmap Extensions — Three Specs Captured & Reviewed**
+- Reviewed 119 Ministries AI Assistant competitive analysis
+- Captured three major vision documents with design notes and open questions
+- All parked with clear prerequisites and build-order recommendations
+
+**Spec 1: Library Health Check & Path Reconciliation (Item #25, Parked)**
+- Hash-based identity: `file_hash` is the true ID, path is just a locator
+- Orphan detection, hash reconciliation, health report, auto-repair mode
+- Open questions: scan performance, missing vs deleted state, trigger mechanism
+- Full spec: `Roadmap/Roadmap-extensions.md` Section O
+
+**Spec 2: Teaching Video Pipeline (Item #26, Parked)**
+- Six-stage pipeline: Research → Structure → Illustration → Composition → Narration → Assembly
+- Grok Imagine API for per-slide illustrations (~$1/teaching)
+- Stage 2 (Writer structured YAML output) is the linchpin — don't codify until 2-3 real teachings done
+- Design notes: HTML+Playwright for slides, human review gate before render, provider-abstract image generation
+- Full vision: `Roadmap/teaching-video-pipeline-vision.md`
+- Extension entries: Items #26 (pipeline) and #27 (inline Scripture pop-ups)
+
+**Spec 3: Digital Library Expansion (Items #28-31, Approved)**
+- #28: Ebook Acquisition Pipeline (Calibre + DeDRM + NAS inbox watcher)
+- #29: Calibre Content Server (systemd service, "Read in Calibre" button)
+- #30: Library Audio Player (MP3 playback + Whisper transcript sync + mini player)
+- #31: Active Reading Context ("Ask About This" — highest value-to-effort item)
+- Full spec: `Roadmap/digital-library-expansion-spec.md`
+
+**Recommended Build Order (from review):**
+1. Active Reading Context (#31) — 1 session, immediate value
+2. Calibre setup + content server (#28/#29) — evening + half session
+3. Library Audio Player core (#30) — 2 sessions
+4. Teaching Video Pipeline (#26) — April-July per spec timeline
+5. Health Check (#25) — when NAS reorg actually happens
+
+**Library Collections — COMPLETE**
+- Created 10 source-based collections from folder structure (4,739 files organized)
+- Created 10 topic-based collections cutting across sources (1,100 files cross-referenced)
+- Source collections: 119 Ministries, OLL, Bill Cloud, WildBranch, Barking Fox, David Wilber, Torah Matters, Internet Archive, Gods Purpose for America, Torah Apologetics
+- Topic collections: Torah Portions (252), Hebrew Language & Word Studies (322), Hebrew Mind vs Greek Mind (19), Church Fathers & Patristics (17), Reformation (11), Founding Era & American Revolution (74), Natural Law & Political Philosophy (58), Economics (246), Classical Antiquity (62), Jewish-Christian Origins (39)
+- Wired auto-assignment into ingest pipeline: new files automatically assigned to source collection on ingest
+- Code change: `api/services/library/ingest_service.py` — `SOURCE_COLLECTION_RULES` + `_auto_assign_collections()`
+- Topic collections still require manual assignment or future semantic auto-suggest
+
+**Library Organization Philosophy**
+- Don't reorganize physical files/folders — fix the metadata layer instead
+- Folder structure (source-based) is stable and adequate as physical locator
+- Collections provide the virtual taxonomy (many-to-many, non-destructive)
+- Future: metadata enrichment pass (extract author/title from EPUB headers), semantic topic auto-suggest after full indexing
+
+**Pending from Previous Session:**
+- 5 academic PDFs + 6 MP3s in `~/Documents/Research materials/Books/` ready to ingest
+- Indexing: ~1,588 files remaining (~27 hours)
+- Will grow Jewish-Christian Origins collection when books ingested
+
+---
+
 ### 2026-02-05 (Agent Pipeline & Library Processing)
 
 **Planner/Writer/Pipeline System - COMPLETE**
@@ -129,8 +186,8 @@ This removes manual template detection guesswork when working within a project c
 - 441 files transcribed successfully
 - 80 "failures" were macOS `._` metadata files (not real audio)
 
-**Indexing - IN PROGRESS (1,599 remaining)**
-- Current: 3,140 indexed / 4,739 total
+**Indexing - IN PROGRESS (1,588 remaining)**
+- Current: 3,151 indexed / 4,739 total
 - **KNOWN ISSUE:** `/api/library/index/all` times out after ~5 min (Gunicorn 300s timeout)
 - **FIX:** Use loop script instead of single API call:
 ```bash
