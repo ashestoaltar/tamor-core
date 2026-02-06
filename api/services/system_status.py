@@ -104,8 +104,8 @@ def get_system_status() -> SystemStatus:
 
     # Check embeddings
     try:
-        from services.embedding_service import get_embedding_model
-        get_embedding_model()
+        from core.config import model as embedding_model
+        embedding_model.encode(["test"])
         status.embeddings_available = True
     except Exception:
         status.embeddings_available = False

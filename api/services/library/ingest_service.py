@@ -72,6 +72,7 @@ class LibraryIngestService:
         ("religious/torahmatters", "Torah Matters"),
         ("religious/torahapologetics", "Torah Apologetics (Jonathan Brown)"),
         ("religious/gods-purpose", "Gods Purpose for America"),
+        ("religious/jewish-christian-origins", "Jewish-Christian Origins"),
         ("oll/", "Online Library of Liberty"),
         ("internet_archive", "Internet Archive"),
     ]

@@ -2,17 +2,32 @@
 """
 Run transcription queue with progress display.
 Output shows progress bar and time estimates.
+
+Usage:
+    python3 run_transcriptions.py                  # Run until queue empty
+    python3 run_transcriptions.py --max-hours 8    # Run for max 8 hours
+    python3 run_transcriptions.py --max-count 50   # Process max 50 files
+    python3 run_transcriptions.py --max-hours 6 --max-count 100  # Either limit
 """
 
 import sys
 import os
 import time
+import argparse
 
 # Add api to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.library import TranscriptionWorker, TranscriptionQueueService
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Process transcription queue')
+    parser.add_argument('--max-hours', type=float, default=0,
+                        help='Maximum hours to run (0 = unlimited)')
+    parser.add_argument('--max-count', type=int, default=0,
+                        help='Maximum files to process (0 = unlimited)')
+    return parser.parse_args()
 
 def format_time(seconds):
     """Format seconds as h:mm:ss or m:ss"""
@@ -34,9 +49,13 @@ def progress_bar(current, total, width=40):
 
 def log(msg):
     """Print and flush immediately"""
-    log(msg, flush=True)
+    print(msg, flush=True)
 
 def main():
+    args = parse_args()
+    max_seconds = args.max_hours * 3600 if args.max_hours > 0 else float('inf')
+    max_count = args.max_count if args.max_count > 0 else float('inf')
+
     worker = TranscriptionWorker()
     queue = TranscriptionQueueService()
 
@@ -45,16 +64,32 @@ def main():
     total = stats['pending'] + stats['processing']
     completed_start = stats['completed']
 
-    log(f"\n=== Transcription Queue Processing ===")
-    log(f"Total to process: {total}")
-    log(f"Already completed: {completed_start}")
-    log()
+    print(f"\n=== Transcription Queue Processing ===")
+    print(f"Total to process: {total}")
+    print(f"Already completed: {completed_start}")
+    if args.max_hours > 0:
+        print(f"Time limit: {args.max_hours} hours")
+    if args.max_count > 0:
+        print(f"Count limit: {args.max_count} files")
+    print()
 
     times = []  # Track processing times for ETA
     processed = 0
     start_time = time.time()
+    stop_reason = "queue empty"
 
     while True:
+        # Check time limit
+        elapsed = time.time() - start_time
+        if elapsed >= max_seconds:
+            stop_reason = f"time limit ({args.max_hours}h)"
+            break
+
+        # Check count limit
+        if processed >= max_count:
+            stop_reason = f"count limit ({args.max_count})"
+            break
+
         item = queue.get_next_pending()
         if not item:
             break
@@ -63,7 +98,7 @@ def main():
         filename = item['filename']
 
         # Show current file
-        log(f"\n[{processed + 1}/{total}] Processing: {filename}")
+        print(f"\n[{processed + 1}/{total}] Processing: {filename}")
 
         result = worker.process_queue_item(item)
         item_time = time.time() - item_start
@@ -71,34 +106,43 @@ def main():
         processed += 1
 
         if result['success']:
-            log(f"    Done in {format_time(item_time)}")
+            print(f"    Done in {format_time(item_time)}")
 
             # Calculate ETA
             avg_time = sum(times) / len(times)
-            remaining = total - processed
+            remaining = min(total - processed, max_count - processed) if max_count < float('inf') else total - processed
             eta = avg_time * remaining
+
+            # Check if we'll hit time limit before count
+            time_remaining = max_seconds - (time.time() - start_time)
+            if time_remaining < eta and max_seconds < float('inf'):
+                eta = time_remaining
+                remaining = int(time_remaining / avg_time)
 
             # Show progress
             elapsed = time.time() - start_time
-            log(f"    {progress_bar(processed, total)}")
-            log(f"    Elapsed: {format_time(elapsed)} | ETA: {format_time(eta)} | Avg: {format_time(avg_time)}/file")
+            print(f"    {progress_bar(processed, total)}")
+            print(f"    Elapsed: {format_time(elapsed)} | ETA: {format_time(eta)} | Avg: {format_time(avg_time)}/file")
         else:
-            log(f"    FAILED: {result.get('error', 'unknown')}")
+            print(f"    FAILED: {result.get('error', 'unknown')}")
 
     # Final summary
     total_time = time.time() - start_time
-    log(f"\n=== Complete ===")
-    log(f"Processed: {processed} files")
-    log(f"Total time: {format_time(total_time)}")
+    print(f"\n=== Stopped: {stop_reason} ===")
+    print(f"Processed: {processed} files")
+    print(f"Total time: {format_time(total_time)}")
     if times:
-        log(f"Average time per file: {format_time(sum(times)/len(times))}")
+        print(f"Average time per file: {format_time(sum(times)/len(times))}")
 
     # Final queue stats
     stats = queue.get_queue_stats()
-    log(f"\nQueue status:")
-    log(f"  Completed: {stats['completed']}")
-    log(f"  Failed: {stats['failed']}")
-    log(f"  Pending: {stats['pending']}")
+    print(f"\nQueue status:")
+    print(f"  Completed: {stats['completed']}")
+    print(f"  Failed: {stats['failed']}")
+    print(f"  Pending: {stats['pending']}")
+
+    if stats['pending'] > 0:
+        print(f"\nTo continue: python3 scripts/run_transcriptions.py")
 
 if __name__ == '__main__':
     main()
