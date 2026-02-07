@@ -71,8 +71,11 @@ class LibraryIngestService:
         ("religious/davidwilber", "David Wilber"),
         ("religious/torahmatters", "Torah Matters"),
         ("religious/torahapologetics", "Torah Apologetics (Jonathan Brown)"),
+        ("religious/torahresource", "TorahResource"),
+        ("religious/lionlamb", "Lion & Lamb"),
         ("religious/gods-purpose", "Gods Purpose for America"),
         ("religious/jewish-christian-origins", "Jewish-Christian Origins"),
+        ("harvest/torah-class", "Torah Class"),
         ("oll/", "Online Library of Liberty"),
         ("internet_archive", "Internet Archive"),
     ]

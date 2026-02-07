@@ -114,6 +114,67 @@ This removes manual template detection guesswork when working within a project c
 
 ## Session Notes
 
+### 2026-02-07 (TorahResource + YAVOH Scrapers)
+
+**Two New Scrapers Built & Run**
+- `harvest/scrapers/torah_resource.py` — torahresource.com (Tim Hegg)
+  - Sitemap-based discovery: 170 articles + 151 commentaries
+  - Downloads PDFs from S3, extracts text with pypdf
+  - Results: 163 articles + 19 commentaries downloaded (132 commentaries had broken `parashah-000.pdf` links on site)
+- `harvest/scrapers/yavoh.py` — yavohmagazine.com (Monte Judah / Lion & Lamb)
+  - Pagination crawl discovery: 119 articles (Squarespace)
+  - HTML article extraction with boilerplate stripping
+  - Fixed: Squarespace `blog-item-content-wrapper` for body text, JSON-LD for dates, `blog-author-name` for clean author
+  - Results: 115 articles downloaded, 1 error
+
+**Scraper Runner**
+- `harvest/scrapers/run_all.py` — runs all scrapers sequential or concurrent
+- Adding new scrapers: append to `SCRAPERS` list
+
+**Full Pipeline Run**
+- Scraped: 37 min (TorahResource + YAVOH)
+- Processed: 23 min (300 items chunked + embedded, 0 errors)
+- Imported: instant (298 imported via API, 2 dupes skipped)
+- All ran alongside existing indexer without interference
+
+**Collection Auto-Assignment**
+- Added rules to `ingest_service.py`: `religious/torahresource` → TorahResource, `religious/lionlamb` → Lion & Lamb
+
+**Library Status**
+- 5,060 files, 4,719 indexed (93%), 341 remaining
+- 992,532 chunks (approaching 1M)
+- 24 collections (14 source-based, 10 topic-based)
+
+**Known Issues / TODOs**
+- TorahResource commentaries: most pages have placeholder `parashah-000.pdf` download link — only ~19 have correct URLs
+- YAVOH: only 119 articles found — investigate deeper crawling for older content
+- TorahResource articles: 6 had no PDF URL on page, 1 was 404
+
+### 2026-02-06 (Harvest Cluster Deployment & First Scraper)
+
+**Cluster Fully Operational**
+- processor-1 (192.168.68.68): PN51, Ryzen 5 5500U, 62GB RAM, embeddings verified byte-identical
+- scraper (192.168.68.234): PN50, Ryzen 3 4300U, 30GB RAM, scraping packages installed
+- Monitor dashboard: `bash harvest/monitor.sh`
+- Both machines: Ubuntu, Python 3.9 venvs, NAS mounted, Cardano remnants purged
+
+**Server Crash Fix**
+- `harvest_api.py` had `from routes.auth import ensure_user` (wrong) — should be `from utils.auth`
+- Server crash-looped 678 times before fix
+- Multiple stacked curl index processes caused repeated gunicorn worker exhaustion
+- Switched to direct Python indexing script (`/tmp/direct_index.py`) — bypasses 300s timeout
+
+**Library Indexing**
+- 3,512 / 4,757 indexed (74%), running via direct Python script
+- Parallel OT was 6,915 chunks — caused every API-based approach to timeout
+
+**First Scraper: Torah Class**
+- `harvest/scrapers/torah_class.py` — discovery + download modes
+- Metadata schema: `harvest/config/metadata_schema.md`
+- Fields: ministry name, teacher, content_type, topics, date, theological_stream, scripture_refs
+- Hebrew term strategy: use existing corrections for audio, defer transliteration standardization
+- Test: 5 Genesis lessons through full pipeline
+
 ### 2026-02-05 (Roadmap Planning & Library Collections)
 
 **Roadmap Extensions — Three Specs Captured & Reviewed**
