@@ -78,6 +78,7 @@ class LibraryIngestService:
         ("harvest/torah-class", "Torah Class"),
         ("oll/", "Online Library of Liberty"),
         ("internet_archive", "Internet Archive"),
+        ("founders-online", "Founders Online"),
     ]
 
     def __init__(self):

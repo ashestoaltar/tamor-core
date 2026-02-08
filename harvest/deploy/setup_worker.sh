@@ -67,15 +67,13 @@ echo ""
 echo "=== Installing Python packages ==="
 pip install --upgrade pip -q
 
-if [ "$ROLE" = "processor" ]; then
-    pip install -q sentence-transformers numpy faster-whisper pyyaml
-else
-    pip install -q requests beautifulsoup4 lxml pyyaml
-fi
+# Both roles need sentence-transformers for embedding work
+pip install -q sentence-transformers numpy pyyaml
 
-# Network workers also need yt-dlp
-if [ "$ROLE" = "network" ]; then
-    pip install -q yt-dlp
+if [ "$ROLE" = "processor" ]; then
+    pip install -q faster-whisper
+else
+    pip install -q requests beautifulsoup4 lxml pypdf yt-dlp
 fi
 
 # 5. Deploy harvest toolkit
@@ -94,8 +92,9 @@ if [ "$ROLE" = "processor" ]; then
     echo "=== Pre-downloading embedding model ==="
     python3 -c "
 from sentence_transformers import SentenceTransformer
-print('Downloading all-MiniLM-L6-v2...')
-model = SentenceTransformer('all-MiniLM-L6-v2')
+print('Downloading BAAI/bge-m3...')
+model = SentenceTransformer('BAAI/bge-m3')
+model.max_seq_length = 512
 result = model.encode(['test'])
 print(f'Model loaded. Embedding dim: {result.shape[1]}')
 print('Model cached for future use.')

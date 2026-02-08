@@ -1,6 +1,6 @@
 # Harvest Scrapers
 
-Scripts that discover and download content from ministry websites, producing raw JSON files for the harvest pipeline.
+Scripts that discover and download content from source websites, producing raw JSON files for the harvest pipeline.
 
 ## Pipeline Flow
 
@@ -53,7 +53,7 @@ This lets you review the manifest before downloading and resume from failures.
 
 ### 3. Rate Limiting
 
-**Minimum 1.5 seconds between requests.** These are ministry websites, not CDNs. Be polite.
+**Minimum 1.5 seconds between requests** for ministry websites. Government APIs (e.g., Founders Online) may allow higher rates — check their docs and stay under the stated limit.
 
 ### 4. Naming Conventions
 
@@ -91,6 +91,7 @@ sqlite3 api/memory/tamor.db "SELECT filename, metadata_json FROM library_files W
 | `torah_class.py` | torahclass.com | Verse-by-verse Bible study transcripts (PDF) | ~700 lessons |
 | `torah_resource.py` | torahresource.com | Tim Hegg articles + Torah commentaries (PDF from S3) | 170 articles, 151 commentaries |
 | `yavoh.py` | yavohmagazine.com | Monte Judah messianic teachings (HTML from Squarespace) | 119 articles |
+| `founders_online.py` | founders.archives.gov | Founding Fathers' writings via JSON API (National Archives) | ~184K documents |
 
 ## Running All Scrapers
 

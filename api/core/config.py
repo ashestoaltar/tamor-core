@@ -47,6 +47,7 @@ else:
 
 # ---- EMBEDDING MODEL ----
 model = SentenceTransformer(EMBEDDING_MODEL)
+model.max_seq_length = 512
 
 # ---- MEMORY DB INIT ----
 def init_memory_db() -> None:

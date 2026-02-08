@@ -58,6 +58,13 @@ SCRAPERS = [
         "download_args": ["--download", "--all"],
         "description": "YAVOH Magazine (Monte Judah) — messianic teachings",
     },
+    {
+        "name": "founders_online",
+        "script": "founders_online.py",
+        "discover_args": ["--discover"],
+        "download_args": ["--download", "--all", "--resume"],
+        "description": "Founders Online (National Archives) — ~184K founding-era documents via API",
+    },
 ]
 
 

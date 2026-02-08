@@ -7,7 +7,7 @@ harvesting cluster into Tamor's library.
 
 from flask import Blueprint, jsonify, request
 
-from routes.auth import ensure_user
+from utils.auth import ensure_user
 from services.library.harvest_import_service import HarvestImportService
 
 harvest_bp = Blueprint("harvest", __name__)
