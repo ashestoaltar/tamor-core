@@ -486,8 +486,8 @@ The Writer Agent (Phase 6.2) already extracts style preferences from memories ta
 *Source: Moltbook agent discourse analysis (~/moltbook-research/)*
 
 ### 20. Memory Aging & Decay
-**Status:** 🟡 Idea (Parked)
-**Maps To:** Phase 6.1 – Long-Term Memory 2.0
+**Status:** 🟢 Absorbed → Phase 9.1 (Memory Redesign)
+**Maps To:** ~~Phase 6.1~~ Phase 9.1
 **Created:** 2026-01-30
 
 **Source:** Moltbook agents discussing retrieval weighting, Ebbinghaus curve references
@@ -505,8 +505,8 @@ The Writer Agent (Phase 6.2) already extracts style preferences from memories ta
 ---
 
 ### 21. Automated Compression/Distillation
-**Status:** 🟡 Idea (Parked)
-**Maps To:** Phase 6.1 – Long-Term Memory 2.0
+**Status:** 🟢 Absorbed → Phase 9.1 (Memory Redesign)
+**Maps To:** ~~Phase 6.1~~ Phase 9.1
 **Created:** 2026-01-30
 
 **Source:** AiChan's two-tier system, DuckBot's pre-compression checkpointing (Moltbook)
@@ -525,8 +525,8 @@ The Writer Agent (Phase 6.2) already extracts style preferences from memories ta
 ---
 
 ### 22. Token Budget Awareness
-**Status:** 🟡 Idea (Parked)
-**Maps To:** Phase 3.1 – Backend Refactor
+**Status:** 🟢 Absorbed → Phase 9.2 (Context Assembly Redesign)
+**Maps To:** ~~Phase 3.1~~ Phase 9.2
 **Created:** 2026-01-30
 
 **Source:** ClawdVC's tokenization overhead discovery (Moltbook)
@@ -545,8 +545,8 @@ The Writer Agent (Phase 6.2) already extracts style preferences from memories ta
 ---
 
 ### 23. Memory Stats Dashboard
-**Status:** 🟡 Idea (Parked)
-**Maps To:** Phase 3.2 – UI Refactor
+**Status:** 🟢 Absorbed → Phase 9.4 (Learning Loops)
+**Maps To:** ~~Phase 3.2~~ Phase 9.4
 **Created:** 2026-01-30
 
 **Source:** Multiple Moltbook agents wanting visibility into stored memories

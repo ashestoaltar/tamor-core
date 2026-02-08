@@ -49,6 +49,7 @@ Configured in `config/epistemic_rules.yml`.
 - UI does not invent state — all truth comes from API
 - Tasks require explicit user approval before execution
 - Epistemic honesty: surface uncertainty, name interpretive lenses
+- **"I don't know" over fabrication**: Tamor must never fill knowledge gaps with plausible-sounding invention. Saying "I don't know" or "I'm not sure, but..." is always preferable to a confident falsehood. This is a foundational design principle, not a suggestion.
 - SQLite by design (single-user, zero config)
 
 ## Running
@@ -113,6 +114,52 @@ This removes manual template detection guesswork when working within a project c
 ---
 
 ## Session Notes
+
+### 2026-02-07 (BGE-M3 Migration + Founders Online Harvest Plan)
+
+**BGE-M3 Embedding Migration — In Progress**
+- Migrating from `all-MiniLM-L6-v2` (384-dim, English-only) to `BAAI/bge-m3` (1024-dim, multilingual)
+- GPU worker running on Windows PC (192.168.68.127, GTX 1660 SUPER) encoding 1.1M chunks
+- Monitor: `bash harvest/scripts/reembed_gpu_monitor.sh --loop`
+- Scripts: `harvest/scripts/reembed_export.py`, `reembed_gpu_worker.py`, `reembed_merge.py`
+- After GPU completes: SCP binary to NAS, run merge, update config, restart API
+- Rollback: restore `tamor.db.backup-pre-bge-m3`, revert `.env` + `harvest_config.py`
+
+**Founders Online Harvest — Ready to Run**
+- `harvest/scrapers/founders_online.py` — National Archives API harvester
+- ~184K documents from 7 Founding Fathers (Washington, Adams, Franklin, Hamilton, Jay, Jefferson, Madison)
+- Two-phase: `--discover` downloads 54MB metadata index, `--download --all --resume` fetches full text
+- Output: `/mnt/library/harvest/raw/founders-online/{Project}/*.json` (harvest schema)
+- Rate: 5 req/sec default (~10 hours), max 10 req/sec per their API docs
+- No pip dependencies needed (stdlib only: urllib, json, pathlib)
+- Collection auto-assign rule added to ingest_service.py: `founders-online` → `Founders Online`
+- Added to `run_all.py` SCRAPERS list
+- License: CC-BY-NC (UVA Press); underlying documents public domain
+
+**Founders Online Workflow:**
+```bash
+# 1. Discover (downloads 54MB metadata, builds manifest)
+python3 harvest/scrapers/founders_online.py --discover
+
+# 2. Preview
+python3 harvest/scrapers/founders_online.py --download --all --dry-run
+
+# 3. Harvest (run in screen, ~10 hours)
+screen -S founders-harvest
+python3 harvest/scrapers/founders_online.py --download --all --resume
+
+# 4. Process (on processor-1)
+python3 processor/process_raw.py --source founders-online
+
+# 5. Import to Tamor
+curl -b /tmp/tamor-cookies.txt -X POST http://localhost:5055/api/harvest/import-all
+```
+
+**Source Catalog Notes (Pending)**
+- Shalom Macon (Rabbi Damian Eisner): Messianic Jewish, FFOZ-affiliated, YouTube + podcast. Pending harvest.
+- UNLEARN the Lies (Lex Meyer): Torah-positive teaching, YouTube + podcast. Pending harvest.
+- Jacob's Tent (Bill Cloud's congregation): Primary weekly content channel. Update existing Bill Cloud entry.
+- Glenn Beck / George AI: SKIP — paywall content, same sources available free via Founders Online + OLL.
 
 ### 2026-02-07 (TorahResource + YAVOH Scrapers)
 

@@ -1,18 +1,24 @@
 """
-Memory Service - Governed Memory System (Phase 6.1)
+Memory Service - Tiered Memory System (Phase 9.1)
 
-Provides memory management with governance controls:
-- Add, update, delete memories
-- Pin/unpin memories with limits
-- Semantic search
-- Memory injection into chat context
-- User settings for auto-save governance
+Redesigned from flat pinned/unpinned to tiered architecture:
+- Core: always loaded (identity, values, fundamental preferences) ~5-10 items
+- Long-term: searchable, subject to decay (knowledge, preferences, project facts)
+- Episodic: session summaries, fade over time
+- Working: ephemeral, current session only (not persisted)
+
+Key changes from Phase 6.1:
+- Tier-based retrieval replaces pinned-first logic
+- last_accessed tracking for memory aging
+- Confidence scoring for retrieval ranking
+- Entity relationships for connected retrieval
 """
 
 import json
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+import math
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -22,14 +28,25 @@ from utils.db import get_db
 
 logger = logging.getLogger(__name__)
 
-# Default categories for auto-save
+# Valid memory tiers
+VALID_TIERS = ("core", "long_term", "episodic")
+
+# Default categories for auto-save (kept for backwards compatibility)
 DEFAULT_AUTO_CATEGORIES = ["identity", "preference", "project", "theology", "engineering"]
 
-# Maximum memories to inject into chat context
-MAX_CONTEXT_MEMORIES = 5
+# Context injection limits
+MAX_CORE_MEMORIES = 10       # Max core memories to inject (all of them, typically 5-10)
+MAX_CONTEXT_MEMORIES = 15    # Total max including core + long_term + episodic
+MAX_LONG_TERM_MEMORIES = 8   # Max long-term memories per request
+MAX_EPISODIC_MEMORIES = 3    # Max episodic memories per request
 
-# Relevance threshold for including memories in context
-RELEVANCE_THRESHOLD = 0.65
+# Relevance thresholds (applied to decayed scores)
+RELEVANCE_THRESHOLD_LONG_TERM = 0.20   # Low threshold — decay and confidence do the ranking
+RELEVANCE_THRESHOLD_EPISODIC = 0.15
+
+# Decay parameters
+EPISODIC_HALF_LIFE_DAYS = 14   # Episodic memories lose half their relevance boost every 14 days
+LONG_TERM_HALF_LIFE_DAYS = 180 # Long-term memories decay very slowly (6 months half-life)
 
 
 def _get_memory_db():
@@ -38,6 +55,26 @@ def _get_memory_db():
     conn = sqlite3.connect(MEMORY_DB)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _memory_row_to_dict(row) -> Dict[str, Any]:
+    """Convert a database row to a memory dict."""
+    return {
+        "id": row["id"],
+        "user_id": row["user_id"],
+        "category": row["category"],
+        "content": row["content"],
+        "source": row["source"] or "auto",
+        "memory_tier": row["memory_tier"] or "long_term",
+        "confidence": row["confidence"] or 0.5,
+        "access_count": row["access_count"] or 0,
+        "last_accessed": row["last_accessed"],
+        "summary": row["summary"],
+        "created_at": row["timestamp"],
+        "updated_at": row["updated_at"],
+        # Backwards compatibility
+        "is_pinned": row["memory_tier"] == "core",
+    }
 
 
 # -----------------------------------------------------------------------------
@@ -49,6 +86,8 @@ def add_memory(
     category: str = "general",
     user_id: Optional[int] = None,
     source: str = "manual",
+    memory_tier: str = "long_term",
+    confidence: float = 0.5,
     is_pinned: bool = False,
     conversation_id: Optional[int] = None,
     message_id: Optional[int] = None,
@@ -61,7 +100,9 @@ def add_memory(
         category: Category for classification
         user_id: Owner user ID
         source: 'manual' or 'auto'
-        is_pinned: Whether to pin immediately
+        memory_tier: 'core', 'long_term', or 'episodic'
+        confidence: 0.0-1.0 confidence score
+        is_pinned: Legacy — if True, sets tier to 'core'
         conversation_id: Associated conversation
         message_id: Associated message
 
@@ -71,13 +112,20 @@ def add_memory(
     if not content or not content.strip():
         return None
 
-    # Check pin limit if pinning
+    # Legacy support: is_pinned=True → core tier
     if is_pinned:
-        settings = get_settings(user_id)
-        max_pinned = settings.get("max_pinned_memories", 10)
-        current_pinned = count_pinned_memories(user_id)
-        if current_pinned >= max_pinned:
-            is_pinned = False  # Don't pin if at limit
+        memory_tier = "core"
+
+    # Validate tier
+    if memory_tier not in VALID_TIERS:
+        memory_tier = "long_term"
+
+    # Enforce core tier limit
+    if memory_tier == "core":
+        core_count = _count_tier_memories(user_id, "core")
+        if core_count >= MAX_CORE_MEMORIES:
+            logger.warning(f"Core tier full ({core_count}), storing as long_term instead")
+            memory_tier = "long_term"
 
     emb = embed(content)
     now = datetime.utcnow().isoformat()
@@ -90,14 +138,16 @@ def add_memory(
             """
             INSERT INTO memories
             (user_id, conversation_id, message_id, category, content, embedding,
-             source, is_pinned, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             source, is_pinned, memory_tier, confidence, last_accessed, access_count, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
             """,
             (user_id, conversation_id, message_id, category, content, emb,
-             source, 1 if is_pinned else 0, now),
+             source, 1 if memory_tier == "core" else 0,
+             memory_tier, confidence, now, now),
         )
         memory_id = cursor.lastrowid
         conn.commit()
+        logger.info(f"Stored memory {memory_id} [{memory_tier}/{category}] confidence={confidence:.2f}")
         return memory_id
     except Exception as e:
         logger.error(f"Failed to add memory: {e}")
@@ -110,6 +160,9 @@ def update_memory(
     memory_id: int,
     content: Optional[str] = None,
     category: Optional[str] = None,
+    memory_tier: Optional[str] = None,
+    confidence: Optional[float] = None,
+    summary: Optional[str] = None,
     is_pinned: Optional[bool] = None,
     user_id: Optional[int] = None,
 ) -> bool:
@@ -120,7 +173,10 @@ def update_memory(
         memory_id: ID of memory to update
         content: New content (re-embeds if changed)
         category: New category
-        is_pinned: New pinned status
+        memory_tier: New tier ('core', 'long_term', 'episodic')
+        confidence: New confidence score
+        summary: Compressed summary (for consolidation)
+        is_pinned: Legacy — maps to tier change
         user_id: User ID for ownership check
 
     Returns:
@@ -154,27 +210,28 @@ def update_memory(
             updates.append("category = ?")
             params.append(category)
 
-        if is_pinned is not None:
-            # Check pin limit before pinning
-            if is_pinned:
-                settings = get_settings(user_id)
-                max_pinned = settings.get("max_pinned_memories", 10)
-                current_pinned = count_pinned_memories(user_id)
+        if memory_tier is not None and memory_tier in VALID_TIERS:
+            updates.append("memory_tier = ?")
+            params.append(memory_tier)
+            # Keep is_pinned in sync for backwards compatibility
+            updates.append("is_pinned = ?")
+            params.append(1 if memory_tier == "core" else 0)
 
-                # Check if this memory is already pinned
-                cursor.execute("SELECT is_pinned FROM memories WHERE id = ?", (memory_id,))
-                row = cursor.fetchone()
-                already_pinned = row and row[0] == 1
+        if confidence is not None:
+            updates.append("confidence = ?")
+            params.append(max(0.0, min(1.0, confidence)))
 
-                if not already_pinned and current_pinned >= max_pinned:
-                    # At limit, can't pin more
-                    pass
-                else:
-                    updates.append("is_pinned = ?")
-                    params.append(1)
-            else:
-                updates.append("is_pinned = ?")
-                params.append(0)
+        if summary is not None:
+            updates.append("summary = ?")
+            params.append(summary)
+
+        # Legacy is_pinned support
+        if is_pinned is not None and memory_tier is None:
+            new_tier = "core" if is_pinned else "long_term"
+            updates.append("memory_tier = ?")
+            params.append(new_tier)
+            updates.append("is_pinned = ?")
+            params.append(1 if is_pinned else 0)
 
         if not updates:
             return True  # Nothing to update
@@ -197,20 +254,14 @@ def update_memory(
 
 
 def delete_memory(memory_id: int, user_id: Optional[int] = None) -> bool:
-    """
-    Delete a memory.
-
-    Args:
-        memory_id: ID of memory to delete
-        user_id: User ID for ownership check
-
-    Returns:
-        True if deleted, False otherwise
-    """
+    """Delete a memory and its entity links."""
     conn = _get_memory_db()
     cursor = conn.cursor()
 
     try:
+        # Delete entity links first
+        cursor.execute("DELETE FROM memory_entity_links WHERE memory_id = ?", (memory_id,))
+
         if user_id is not None:
             cursor.execute(
                 "DELETE FROM memories WHERE id = ? AND (user_id = ? OR user_id IS NULL)",
@@ -237,7 +288,8 @@ def get_memory(memory_id: int) -> Optional[Dict[str, Any]]:
         cursor.execute(
             """
             SELECT id, user_id, category, content, source, is_pinned,
-                   timestamp, updated_at, consent_at
+                   memory_tier, confidence, access_count, last_accessed,
+                   summary, timestamp, updated_at, consent_at
             FROM memories WHERE id = ?
             """,
             (memory_id,)
@@ -246,81 +298,88 @@ def get_memory(memory_id: int) -> Optional[Dict[str, Any]]:
         if not row:
             return None
 
-        return {
-            "id": row["id"],
-            "user_id": row["user_id"],
-            "category": row["category"],
-            "content": row["content"],
-            "source": row["source"] or "auto",
-            "is_pinned": bool(row["is_pinned"]),
-            "created_at": row["timestamp"],
-            "updated_at": row["updated_at"],
-            "consent_at": row["consent_at"],
-        }
+        return _memory_row_to_dict(row)
     finally:
         conn.close()
 
 
 # -----------------------------------------------------------------------------
-# Pin/Unpin Operations
+# Tier Operations (replaces Pin/Unpin)
 # -----------------------------------------------------------------------------
 
-def pin_memory(memory_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
-    """
-    Pin a memory.
-
-    Returns:
-        Dict with 'success' and optional 'error' message
-    """
-    settings = get_settings(user_id)
-    max_pinned = settings.get("max_pinned_memories", 10)
-    current_pinned = count_pinned_memories(user_id)
-
-    # Check if already pinned
-    memory = get_memory(memory_id)
-    if not memory:
-        return {"success": False, "error": "Memory not found"}
-
-    if memory.get("is_pinned"):
-        return {"success": True}  # Already pinned
-
-    if current_pinned >= max_pinned:
+def promote_to_core(memory_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
+    """Promote a memory to core tier."""
+    core_count = _count_tier_memories(user_id, "core")
+    if core_count >= MAX_CORE_MEMORIES:
         return {
             "success": False,
-            "error": f"Pin limit reached ({max_pinned}). Unpin another memory first."
+            "error": f"Core tier full ({core_count}/{MAX_CORE_MEMORIES}). Demote another memory first."
         }
 
-    success = update_memory(memory_id, is_pinned=True, user_id=user_id)
+    success = update_memory(memory_id, memory_tier="core", confidence=0.9, user_id=user_id)
     return {"success": success}
+
+
+def demote_from_core(memory_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
+    """Demote a memory from core to long_term."""
+    success = update_memory(memory_id, memory_tier="long_term", user_id=user_id)
+    return {"success": success}
+
+
+def set_memory_tier(memory_id: int, tier: str, user_id: Optional[int] = None) -> Dict[str, Any]:
+    """Set a memory's tier explicitly."""
+    if tier not in VALID_TIERS:
+        return {"success": False, "error": f"Invalid tier: {tier}. Must be one of {VALID_TIERS}"}
+
+    if tier == "core":
+        return promote_to_core(memory_id, user_id)
+
+    success = update_memory(memory_id, memory_tier=tier, user_id=user_id)
+    return {"success": success}
+
+
+# Legacy pin/unpin support (maps to tier operations)
+def pin_memory(memory_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
+    """Legacy: Pin a memory (promotes to core tier)."""
+    return promote_to_core(memory_id, user_id)
 
 
 def unpin_memory(memory_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
-    """Unpin a memory."""
-    success = update_memory(memory_id, is_pinned=False, user_id=user_id)
-    return {"success": success}
+    """Legacy: Unpin a memory (demotes from core tier)."""
+    return demote_from_core(memory_id, user_id)
 
 
 def count_pinned_memories(user_id: Optional[int] = None) -> int:
-    """Count currently pinned memories for a user."""
+    """Legacy: Count pinned (core tier) memories."""
+    return _count_tier_memories(user_id, "core")
+
+
+def get_pinned_memories(user_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    """Legacy: Get pinned (core tier) memories."""
+    return get_tier_memories(user_id, "core")
+
+
+def _count_tier_memories(user_id: Optional[int], tier: str) -> int:
+    """Count memories in a specific tier."""
     conn = _get_memory_db()
     cursor = conn.cursor()
 
     try:
         if user_id is not None:
             cursor.execute(
-                "SELECT COUNT(*) FROM memories WHERE is_pinned = 1 AND (user_id = ? OR user_id IS NULL)",
-                (user_id,)
+                "SELECT COUNT(*) FROM memories WHERE memory_tier = ? AND (user_id = ? OR user_id IS NULL)",
+                (tier, user_id)
             )
         else:
-            cursor.execute("SELECT COUNT(*) FROM memories WHERE is_pinned = 1")
+            cursor.execute("SELECT COUNT(*) FROM memories WHERE memory_tier = ?", (tier,))
 
         return cursor.fetchone()[0]
     finally:
         conn.close()
 
 
-def get_pinned_memories(user_id: Optional[int] = None) -> List[Dict[str, Any]]:
-    """Get all pinned memories for a user."""
+def get_tier_memories(user_id: Optional[int], tier: str) -> List[Dict[str, Any]]:
+    """Get all memories in a specific tier."""
     conn = _get_memory_db()
     cursor = conn.cursor()
 
@@ -329,38 +388,28 @@ def get_pinned_memories(user_id: Optional[int] = None) -> List[Dict[str, Any]]:
             cursor.execute(
                 """
                 SELECT id, user_id, category, content, source, is_pinned,
-                       timestamp, updated_at
+                       memory_tier, confidence, access_count, last_accessed,
+                       summary, timestamp, updated_at
                 FROM memories
-                WHERE is_pinned = 1 AND (user_id = ? OR user_id IS NULL)
-                ORDER BY timestamp DESC
+                WHERE memory_tier = ? AND (user_id = ? OR user_id IS NULL)
+                ORDER BY confidence DESC, timestamp DESC
                 """,
-                (user_id,)
+                (tier, user_id)
             )
         else:
             cursor.execute(
                 """
                 SELECT id, user_id, category, content, source, is_pinned,
-                       timestamp, updated_at
+                       memory_tier, confidence, access_count, last_accessed,
+                       summary, timestamp, updated_at
                 FROM memories
-                WHERE is_pinned = 1
-                ORDER BY timestamp DESC
-                """
+                WHERE memory_tier = ?
+                ORDER BY confidence DESC, timestamp DESC
+                """,
+                (tier,)
             )
 
-        rows = cursor.fetchall()
-        return [
-            {
-                "id": r["id"],
-                "user_id": r["user_id"],
-                "category": r["category"],
-                "content": r["content"],
-                "source": r["source"] or "auto",
-                "is_pinned": True,
-                "created_at": r["timestamp"],
-                "updated_at": r["updated_at"],
-            }
-            for r in rows
-        ]
+        return [_memory_row_to_dict(r) for r in cursor.fetchall()]
     finally:
         conn.close()
 
@@ -373,6 +422,7 @@ def list_memories(
     user_id: Optional[int] = None,
     category: Optional[str] = None,
     source: Optional[str] = None,
+    tier: Optional[str] = None,
     pinned_only: bool = False,
     query: Optional[str] = None,
     limit: int = 200,
@@ -382,14 +432,12 @@ def list_memories(
 
     Args:
         user_id: Filter by user
-        category: Filter by category ('all' or None means no filter)
-        source: Filter by source ('auto', 'manual', or None for all)
-        pinned_only: Only return pinned memories
+        category: Filter by category
+        source: Filter by source ('auto', 'manual')
+        tier: Filter by tier ('core', 'long_term', 'episodic')
+        pinned_only: Legacy — filter to core tier
         query: Text search filter
         limit: Maximum results
-
-    Returns:
-        List of memory dicts
     """
     conn = _get_memory_db()
     cursor = conn.cursor()
@@ -397,7 +445,8 @@ def list_memories(
     try:
         sql = """
             SELECT id, user_id, category, content, source, is_pinned,
-                   timestamp, updated_at
+                   memory_tier, confidence, access_count, last_accessed,
+                   summary, timestamp, updated_at
             FROM memories
         """
         params = []
@@ -415,8 +464,12 @@ def list_memories(
             filters.append("source = ?")
             params.append(source)
 
+        if tier and tier in VALID_TIERS:
+            filters.append("memory_tier = ?")
+            params.append(tier)
+
         if pinned_only:
-            filters.append("is_pinned = 1")
+            filters.append("memory_tier = 'core'")
 
         if query:
             filters.append("content LIKE ?")
@@ -425,25 +478,11 @@ def list_memories(
         if filters:
             sql += " WHERE " + " AND ".join(filters)
 
-        sql += " ORDER BY is_pinned DESC, timestamp DESC LIMIT ?"
+        sql += " ORDER BY CASE memory_tier WHEN 'core' THEN 0 WHEN 'long_term' THEN 1 WHEN 'episodic' THEN 2 END, confidence DESC, timestamp DESC LIMIT ?"
         params.append(limit)
 
         cursor.execute(sql, params)
-        rows = cursor.fetchall()
-
-        return [
-            {
-                "id": r["id"],
-                "user_id": r["user_id"],
-                "category": r["category"],
-                "content": r["content"],
-                "source": r["source"] or "auto",
-                "is_pinned": bool(r["is_pinned"]),
-                "created_at": r["timestamp"],
-                "updated_at": r["updated_at"],
-            }
-            for r in rows
-        ]
+        return [_memory_row_to_dict(r) for r in cursor.fetchall()]
     finally:
         conn.close()
 
@@ -456,10 +495,10 @@ def search_memories(
     """
     Semantic search for memories.
 
-    Returns memories with relevance scores.
+    Returns memories with relevance scores, weighted by recency and confidence.
     """
     # Use core search function which handles embedding
-    results = core_search_memories(query, limit=limit * 2)  # Get more, filter by user
+    results = core_search_memories(query, limit=limit * 3)  # Over-fetch, then rank
 
     conn = _get_memory_db()
     cursor = conn.cursor()
@@ -467,11 +506,11 @@ def search_memories(
     try:
         output = []
         for score, mid, content in results:
-            # Get full memory info
             cursor.execute(
                 """
                 SELECT id, user_id, category, content, source, is_pinned,
-                       timestamp, updated_at
+                       memory_tier, confidence, access_count, last_accessed,
+                       summary, timestamp, updated_at
                 FROM memories WHERE id = ?
                 """,
                 (mid,)
@@ -480,33 +519,61 @@ def search_memories(
             if not row:
                 continue
 
-            # Filter by user if specified
+            # Filter by user
             if user_id is not None:
                 if row["user_id"] is not None and row["user_id"] != user_id:
                     continue
 
-            output.append({
-                "id": row["id"],
-                "user_id": row["user_id"],
-                "category": row["category"],
-                "content": row["content"],
-                "source": row["source"] or "auto",
-                "is_pinned": bool(row["is_pinned"]),
-                "created_at": row["timestamp"],
-                "updated_at": row["updated_at"],
-                "score": score,
-            })
+            mem = _memory_row_to_dict(row)
+            # Apply recency decay to score
+            mem["raw_score"] = score
+            mem["score"] = _apply_decay(score, row["memory_tier"], row["last_accessed"], row["confidence"])
+            output.append(mem)
 
-            if len(output) >= limit:
-                break
-
-        return output
+        # Re-sort by decayed score
+        output.sort(key=lambda m: m["score"], reverse=True)
+        return output[:limit]
     finally:
         conn.close()
 
 
+def _apply_decay(
+    raw_score: float,
+    tier: str,
+    last_accessed: Optional[str],
+    confidence: Optional[float],
+) -> float:
+    """
+    Apply recency decay and confidence weighting to a relevance score.
+
+    Core memories: no decay (always full weight)
+    Long-term: slow decay based on LONG_TERM_HALF_LIFE_DAYS
+    Episodic: faster decay based on EPISODIC_HALF_LIFE_DAYS
+    """
+    if tier == "core":
+        return raw_score  # Core memories are always fully relevant
+
+    # Calculate age in days
+    age_days = 0.0
+    if last_accessed:
+        try:
+            last = datetime.fromisoformat(last_accessed)
+            age_days = (datetime.utcnow() - last).total_seconds() / 86400
+        except (ValueError, TypeError):
+            age_days = 30.0  # Default to 30 days if unparseable
+
+    # Exponential decay
+    half_life = EPISODIC_HALF_LIFE_DAYS if tier == "episodic" else LONG_TERM_HALF_LIFE_DAYS
+    recency_factor = math.pow(0.5, age_days / half_life)
+
+    # Confidence boost (0.5 default → 1.0x, 0.9 high → 1.4x, 0.3 low → 0.6x)
+    confidence_factor = 0.4 + (confidence or 0.5) * 1.2
+
+    return raw_score * recency_factor * confidence_factor
+
+
 # -----------------------------------------------------------------------------
-# Chat Context Integration
+# Chat Context Integration — THE CORE CHANGE
 # -----------------------------------------------------------------------------
 
 def get_memories_for_context(
@@ -515,91 +582,274 @@ def get_memories_for_context(
     max_memories: int = MAX_CONTEXT_MEMORIES,
 ) -> List[Dict[str, Any]]:
     """
-    Get memories to inject into chat context.
+    Get memories to inject into chat context using tiered retrieval.
 
     Strategy:
-    1. Always include pinned memories (up to limit)
-    2. Fill remaining with semantically relevant memories
+    1. ALWAYS load all core memories (identity, values — always relevant)
+    2. Search for relevant long-term memories (weighted by recency + confidence)
+    3. Search for relevant episodic memories (recent session context)
+    4. Track access for decay system
 
     Args:
         user_message: Current user message for semantic matching
         user_id: User ID for filtering
-        max_memories: Maximum memories to return
+        max_memories: Maximum total memories to return
 
     Returns:
         List of memory dicts to inject into context
     """
     memories = []
+    included_ids = set()
 
-    # 1. Get pinned memories first
-    pinned = get_pinned_memories(user_id)
-    memories.extend(pinned[:max_memories])
+    # --- Tier 1: Core memories (always loaded) ---
+    core = get_tier_memories(user_id, "core")
+    for mem in core[:MAX_CORE_MEMORIES]:
+        mem["_injection_reason"] = "core"
+        memories.append(mem)
+        included_ids.add(mem["id"])
 
-    remaining_slots = max_memories - len(memories)
+    remaining = max_memories - len(memories)
+    if remaining <= 0 or not user_message:
+        _record_access(included_ids)
+        return memories
 
-    if remaining_slots > 0 and user_message:
-        # 2. Search for relevant memories
-        search_results = search_memories(user_message, user_id, limit=remaining_slots + 5)
+    # --- Tier 2: Long-term memories (relevance + decay weighted) ---
+    long_term_results = search_memories(user_message, user_id, limit=MAX_LONG_TERM_MEMORIES + 5)
+    lt_added = 0
+    for mem in long_term_results:
+        if mem["id"] in included_ids:
+            continue
+        if mem.get("memory_tier") != "long_term":
+            continue
+        if mem.get("score", 0) < RELEVANCE_THRESHOLD_LONG_TERM:
+            continue
 
-        # Get IDs already included
-        included_ids = {m["id"] for m in memories}
+        mem["_injection_reason"] = "relevant"
+        memories.append(mem)
+        included_ids.add(mem["id"])
+        lt_added += 1
 
-        for result in search_results:
-            if result["id"] in included_ids:
-                continue
+        if lt_added >= MAX_LONG_TERM_MEMORIES or len(memories) >= max_memories:
+            break
 
-            # Only include if above relevance threshold
-            if result.get("score", 0) >= RELEVANCE_THRESHOLD:
-                memories.append(result)
-                if len(memories) >= max_memories:
-                    break
+    remaining = max_memories - len(memories)
+    if remaining <= 0:
+        _record_access(included_ids)
+        return memories
+
+    # --- Tier 3: Episodic memories (recent session context) ---
+    episodic_results = search_memories(user_message, user_id, limit=MAX_EPISODIC_MEMORIES + 3)
+    ep_added = 0
+    for mem in episodic_results:
+        if mem["id"] in included_ids:
+            continue
+        if mem.get("memory_tier") != "episodic":
+            continue
+        if mem.get("score", 0) < RELEVANCE_THRESHOLD_EPISODIC:
+            continue
+
+        mem["_injection_reason"] = "episodic"
+        memories.append(mem)
+        included_ids.add(mem["id"])
+        ep_added += 1
+
+        if ep_added >= MAX_EPISODIC_MEMORIES or len(memories) >= max_memories:
+            break
+
+    # Record access for all retrieved memories
+    _record_access(included_ids)
 
     return memories
+
+
+def _record_access(memory_ids: set):
+    """Update last_accessed and access_count for retrieved memories."""
+    if not memory_ids:
+        return
+
+    conn = _get_memory_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+
+    try:
+        for mid in memory_ids:
+            cursor.execute(
+                "UPDATE memories SET last_accessed = ?, access_count = access_count + 1 WHERE id = ?",
+                (now, mid)
+            )
+        conn.commit()
+    except Exception as e:
+        logger.error(f"Failed to record memory access: {e}")
+    finally:
+        conn.close()
 
 
 def format_memories_for_prompt(memories: List[Dict[str, Any]]) -> str:
     """
     Format memories for injection into system prompt.
 
-    Args:
-        memories: List of memory dicts
-
-    Returns:
-        Formatted string for system prompt, or empty string if no memories
+    Organizes by tier for clarity.
     """
     if not memories:
         return ""
 
-    lines = ["## User Memories\n"]
-    lines.append("The following are relevant memories about the user:\n")
+    core_mems = [m for m in memories if m.get("memory_tier") == "core" or m.get("_injection_reason") == "core"]
+    other_mems = [m for m in memories if m not in core_mems]
 
-    for mem in memories:
-        category = mem.get("category", "general")
-        content = mem.get("content", "")
-        is_pinned = mem.get("is_pinned", False)
+    lines = ["## What You Know About the User\n"]
 
-        prefix = "[Pinned] " if is_pinned else ""
-        lines.append(f"- {prefix}[{category}] {content}")
+    if core_mems:
+        lines.append("**Always remember:**")
+        for mem in core_mems:
+            lines.append(f"- {mem['content']}")
+        lines.append("")
 
-    lines.append("\nUse these memories to personalize your responses when relevant.")
+    if other_mems:
+        lines.append("**Relevant context:**")
+        for mem in other_mems:
+            category = mem.get("category", "general")
+            lines.append(f"- [{category}] {mem['content']}")
 
     return "\n".join(lines)
 
 
 # -----------------------------------------------------------------------------
-# Settings Management
+# Memory Stats
+# -----------------------------------------------------------------------------
+
+def get_memory_stats(user_id: Optional[int] = None) -> Dict[str, Any]:
+    """Get memory statistics by tier."""
+    conn = _get_memory_db()
+    cursor = conn.cursor()
+
+    try:
+        user_filter = "AND (user_id = ? OR user_id IS NULL)" if user_id else ""
+        params = (user_id,) if user_id else ()
+
+        stats = {}
+        for tier in VALID_TIERS:
+            cursor.execute(
+                f"SELECT COUNT(*), ROUND(AVG(confidence), 2), ROUND(AVG(access_count), 1) "
+                f"FROM memories WHERE memory_tier = ? {user_filter}",
+                (tier, *params)
+            )
+            row = cursor.fetchone()
+            stats[tier] = {
+                "count": row[0],
+                "avg_confidence": row[1] or 0,
+                "avg_access_count": row[2] or 0,
+            }
+
+        cursor.execute(f"SELECT COUNT(*) FROM memories WHERE 1=1 {user_filter}", params)
+        stats["total"] = cursor.fetchone()[0]
+
+        cursor.execute(f"SELECT COUNT(DISTINCT entity_id) FROM memory_entity_links")
+        stats["entities"] = cursor.fetchone()[0]
+
+        return stats
+    finally:
+        conn.close()
+
+
+# -----------------------------------------------------------------------------
+# Entity Management
+# -----------------------------------------------------------------------------
+
+def add_entity(name: str, entity_type: str) -> Optional[int]:
+    """Add or get an entity. Returns entity ID."""
+    conn = _get_memory_db()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            "INSERT OR IGNORE INTO memory_entities (name, entity_type) VALUES (?, ?)",
+            (name, entity_type)
+        )
+        conn.commit()
+
+        cursor.execute(
+            "SELECT id FROM memory_entities WHERE name = ? AND entity_type = ?",
+            (name, entity_type)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else None
+    except Exception as e:
+        logger.error(f"Failed to add entity: {e}")
+        return None
+    finally:
+        conn.close()
+
+
+def link_memory_to_entity(
+    memory_id: int, entity_id: int, relationship: str = "about"
+) -> bool:
+    """Link a memory to an entity."""
+    conn = _get_memory_db()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            "INSERT OR IGNORE INTO memory_entity_links (memory_id, entity_id, relationship) VALUES (?, ?, ?)",
+            (memory_id, entity_id, relationship)
+        )
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to link memory {memory_id} to entity {entity_id}: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def get_connected_memories(entity_name: str, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    """Get all memories connected to an entity by name."""
+    conn = _get_memory_db()
+    cursor = conn.cursor()
+
+    try:
+        user_filter = "AND (m.user_id = ? OR m.user_id IS NULL)" if user_id else ""
+        params = [f"%{entity_name}%"]
+        if user_id:
+            params.append(user_id)
+
+        cursor.execute(
+            f"""
+            SELECT DISTINCT m.id, m.user_id, m.category, m.content, m.source, m.is_pinned,
+                   m.memory_tier, m.confidence, m.access_count, m.last_accessed,
+                   m.summary, m.timestamp, m.updated_at,
+                   e.name as entity_name, l.relationship
+            FROM memories m
+            JOIN memory_entity_links l ON m.id = l.memory_id
+            JOIN memory_entities e ON l.entity_id = e.id
+            WHERE e.name LIKE ? {user_filter}
+            ORDER BY m.memory_tier, m.confidence DESC
+            """,
+            params
+        )
+
+        results = []
+        for row in cursor.fetchall():
+            mem = _memory_row_to_dict(row)
+            mem["entity_name"] = row["entity_name"]
+            mem["relationship"] = row["relationship"]
+            results.append(mem)
+
+        return results
+    finally:
+        conn.close()
+
+
+# -----------------------------------------------------------------------------
+# Settings Management (kept for backwards compatibility)
 # -----------------------------------------------------------------------------
 
 def get_settings(user_id: Optional[int] = None) -> Dict[str, Any]:
-    """
-    Get memory settings for a user.
-
-    Returns default settings if none exist.
-    """
+    """Get memory settings for a user."""
     defaults = {
         "auto_save_enabled": True,
         "auto_save_categories": DEFAULT_AUTO_CATEGORIES,
-        "max_pinned_memories": 10,
+        "max_pinned_memories": MAX_CORE_MEMORIES,
+        "max_core_memories": MAX_CORE_MEMORIES,
     }
 
     if user_id is None:
@@ -610,11 +860,7 @@ def get_settings(user_id: Optional[int] = None) -> Dict[str, Any]:
 
     try:
         cursor.execute(
-            """
-            SELECT auto_save_enabled, auto_save_categories, max_pinned_memories
-            FROM memory_settings
-            WHERE user_id = ?
-            """,
+            "SELECT auto_save_enabled, auto_save_categories, max_pinned_memories FROM memory_settings WHERE user_id = ?",
             (user_id,)
         )
         row = cursor.fetchone()
@@ -632,7 +878,8 @@ def get_settings(user_id: Optional[int] = None) -> Dict[str, Any]:
         return {
             "auto_save_enabled": bool(row["auto_save_enabled"]),
             "auto_save_categories": categories,
-            "max_pinned_memories": row["max_pinned_memories"] or 10,
+            "max_pinned_memories": row["max_pinned_memories"] or MAX_CORE_MEMORIES,
+            "max_core_memories": row["max_pinned_memories"] or MAX_CORE_MEMORIES,
         }
     finally:
         conn.close()
@@ -644,26 +891,16 @@ def update_settings(
     auto_save_categories: Optional[List[str]] = None,
     max_pinned_memories: Optional[int] = None,
 ) -> bool:
-    """
-    Update memory settings for a user.
-
-    Creates settings record if it doesn't exist.
-    """
+    """Update memory settings for a user."""
     conn = _get_memory_db()
     cursor = conn.cursor()
 
     try:
-        # Check if settings exist
-        cursor.execute(
-            "SELECT id FROM memory_settings WHERE user_id = ?",
-            (user_id,)
-        )
+        cursor.execute("SELECT id FROM memory_settings WHERE user_id = ?", (user_id,))
         exists = cursor.fetchone() is not None
-
         now = datetime.utcnow().isoformat()
 
         if exists:
-            # Update existing
             updates = []
             params = []
 
@@ -683,13 +920,11 @@ def update_settings(
                 updates.append("updated_at = ?")
                 params.append(now)
                 params.append(user_id)
-
                 cursor.execute(
                     f"UPDATE memory_settings SET {', '.join(updates)} WHERE user_id = ?",
                     params
                 )
         else:
-            # Insert new
             cursor.execute(
                 """
                 INSERT INTO memory_settings
@@ -700,9 +935,8 @@ def update_settings(
                     user_id,
                     1 if (auto_save_enabled is None or auto_save_enabled) else 0,
                     json.dumps(auto_save_categories or DEFAULT_AUTO_CATEGORIES),
-                    max_pinned_memories or 10,
-                    now,
-                    now,
+                    max_pinned_memories or MAX_CORE_MEMORIES,
+                    now, now,
                 )
             )
 
@@ -716,23 +950,11 @@ def update_settings(
 
 
 def should_auto_save(category: str, user_id: Optional[int] = None) -> bool:
-    """
-    Check if a category is allowed for auto-save based on user settings.
-
-    Args:
-        category: The memory category
-        user_id: User ID for settings lookup
-
-    Returns:
-        True if auto-save is allowed for this category
-    """
+    """Check if a category is allowed for auto-save."""
     settings = get_settings(user_id)
-
     if not settings.get("auto_save_enabled", True):
         return False
-
-    allowed_categories = settings.get("auto_save_categories", DEFAULT_AUTO_CATEGORIES)
-    return category in allowed_categories
+    return category in settings.get("auto_save_categories", DEFAULT_AUTO_CATEGORIES)
 
 
 # -----------------------------------------------------------------------------
@@ -754,13 +976,10 @@ def get_categories() -> List[str]:
 
 
 # -----------------------------------------------------------------------------
-# Helper for getting service instance
+# Helper
 # -----------------------------------------------------------------------------
-
-_memory_service_instance = None
 
 def get_memory_service():
     """Get memory service singleton (module itself acts as service)."""
-    # This module acts as the service - return module reference
     import services.memory_service as svc
     return svc

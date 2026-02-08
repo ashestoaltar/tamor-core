@@ -1,8 +1,9 @@
 # routes/memory_api.py
 """
-Memory API - Governed Memory System (Phase 6.1)
+Memory API - Tiered Memory System (Phase 9.1)
 
-Endpoints for managing user memories with governance controls.
+Endpoints for managing tiered memories with governance controls.
+Backwards-compatible with Phase 6.1 pin/unpin endpoints.
 """
 from flask import Blueprint, jsonify, request, session
 
@@ -25,17 +26,19 @@ def get_personality():
 @memory_bp.post("/memory/add")
 @require_login
 def add_memory():
-    """Add a manual memory."""
+    """Add a memory."""
     import json as json_mod
     data = request.json or {}
-    # Handle case where JSON might be double-encoded as string
     if isinstance(data, str):
         try:
             data = json_mod.loads(data)
         except (json_mod.JSONDecodeError, TypeError):
             data = {}
+
     content = data.get("content")
     category = data.get("category", "general")
+    memory_tier = data.get("tier", data.get("memory_tier", "long_term"))
+    confidence = data.get("confidence", 0.5)
     is_pinned = data.get("is_pinned", False)
 
     if not content:
@@ -48,6 +51,8 @@ def add_memory():
         category=category,
         user_id=user_id,
         source="manual",
+        memory_tier=memory_tier,
+        confidence=confidence,
         is_pinned=is_pinned,
     )
 
@@ -64,6 +69,7 @@ def list_memories():
     user_id = get_current_user_id()
     category = request.args.get("category")
     source = request.args.get("source")
+    tier = request.args.get("tier")
     pinned_only = request.args.get("pinned_only", "").lower() == "true"
     query = request.args.get("q")
     limit = int(request.args.get("limit", 200))
@@ -72,6 +78,7 @@ def list_memories():
         user_id=user_id,
         category=category,
         source=source,
+        tier=tier,
         pinned_only=pinned_only,
         query=query,
         limit=limit,
@@ -88,7 +95,6 @@ def get_memory(memory_id):
     if not memory:
         return jsonify({"error": "Memory not found"}), 404
 
-    # Check ownership
     user_id = get_current_user_id()
     if memory.get("user_id") and memory["user_id"] != user_id:
         return jsonify({"error": "Access denied"}), 403
@@ -103,15 +109,14 @@ def update_memory(memory_id):
     data = request.json or {}
     user_id = get_current_user_id()
 
-    content = data.get("content")
-    category = data.get("category")
-    is_pinned = data.get("is_pinned")
-
     success = mem_svc.update_memory(
         memory_id=memory_id,
-        content=content,
-        category=category,
-        is_pinned=is_pinned,
+        content=data.get("content"),
+        category=data.get("category"),
+        memory_tier=data.get("tier", data.get("memory_tier")),
+        confidence=data.get("confidence"),
+        summary=data.get("summary"),
+        is_pinned=data.get("is_pinned"),
         user_id=user_id,
     )
 
@@ -126,7 +131,6 @@ def update_memory(memory_id):
 def delete_memory(memory_id):
     """Delete a memory."""
     user_id = get_current_user_id()
-
     success = mem_svc.delete_memory(memory_id, user_id=user_id)
 
     if success:
@@ -136,13 +140,34 @@ def delete_memory(memory_id):
 
 
 # -----------------------------------------------------------------------------
-# Pin/Unpin
+# Tier Operations
 # -----------------------------------------------------------------------------
+
+@memory_bp.post("/memory/<int:memory_id>/tier")
+@require_login
+def set_tier(memory_id):
+    """Set a memory's tier."""
+    data = request.json or {}
+    tier = data.get("tier")
+
+    if not tier:
+        return jsonify({"error": "tier is required"}), 400
+
+    user_id = get_current_user_id()
+    result = mem_svc.set_memory_tier(memory_id, tier, user_id=user_id)
+
+    if result.get("success"):
+        return jsonify({"status": "updated", "id": memory_id, "tier": tier})
+    else:
+        return jsonify({"error": result.get("error", "Failed to set tier")}), 400
+
+
+# Legacy pin/unpin (map to tier operations)
 
 @memory_bp.post("/memory/<int:memory_id>/pin")
 @require_login
 def pin_memory(memory_id):
-    """Pin a memory."""
+    """Pin a memory (promotes to core tier)."""
     user_id = get_current_user_id()
     result = mem_svc.pin_memory(memory_id, user_id=user_id)
 
@@ -155,7 +180,7 @@ def pin_memory(memory_id):
 @memory_bp.post("/memory/<int:memory_id>/unpin")
 @require_login
 def unpin_memory(memory_id):
-    """Unpin a memory."""
+    """Unpin a memory (demotes from core tier)."""
     user_id = get_current_user_id()
     result = mem_svc.unpin_memory(memory_id, user_id=user_id)
 
@@ -168,7 +193,7 @@ def unpin_memory(memory_id):
 @memory_bp.get("/memory/pinned")
 @require_login
 def get_pinned_memories():
-    """Get all pinned memories."""
+    """Get all core tier memories (legacy: pinned)."""
     user_id = get_current_user_id()
     memories = mem_svc.get_pinned_memories(user_id=user_id)
     return jsonify(memories)
@@ -181,7 +206,7 @@ def get_pinned_memories():
 @memory_bp.post("/memory/search")
 @require_login
 def search_memories():
-    """Semantic search for memories."""
+    """Semantic search for memories with decay-weighted scoring."""
     data = request.json or {}
     query = data.get("query", "")
     limit = data.get("limit", 10)
@@ -193,6 +218,19 @@ def search_memories():
     results = mem_svc.search_memories(query, user_id=user_id, limit=limit)
 
     return jsonify(results)
+
+
+# -----------------------------------------------------------------------------
+# Stats
+# -----------------------------------------------------------------------------
+
+@memory_bp.get("/memory/stats")
+@require_login
+def get_stats():
+    """Get memory statistics by tier."""
+    user_id = get_current_user_id()
+    stats = mem_svc.get_memory_stats(user_id)
+    return jsonify(stats)
 
 
 # -----------------------------------------------------------------------------
@@ -215,15 +253,11 @@ def update_settings():
     data = request.json or {}
     user_id = get_current_user_id()
 
-    auto_save_enabled = data.get("auto_save_enabled")
-    auto_save_categories = data.get("auto_save_categories")
-    max_pinned_memories = data.get("max_pinned_memories")
-
     success = mem_svc.update_settings(
         user_id=user_id,
-        auto_save_enabled=auto_save_enabled,
-        auto_save_categories=auto_save_categories,
-        max_pinned_memories=max_pinned_memories,
+        auto_save_enabled=data.get("auto_save_enabled"),
+        auto_save_categories=data.get("auto_save_categories"),
+        max_pinned_memories=data.get("max_pinned_memories"),
     )
 
     if success:
@@ -245,14 +279,15 @@ def get_categories():
 
 
 # -----------------------------------------------------------------------------
-# Legacy Auto-Memory Endpoint (for backwards compatibility)
+# Legacy Auto-Memory Endpoint
 # -----------------------------------------------------------------------------
 
 @memory_bp.post("/memory/auto")
 def auto_memory_ingest():
     """
     Auto-memory ingestion endpoint.
-    Now uses governance settings to determine if storage is allowed.
+    Legacy — kept for backwards compatibility.
+    New flow uses the archivist agent's LLM analysis.
     """
     from core.memory_core import auto_store_memory_if_relevant
 
@@ -264,7 +299,6 @@ def auto_memory_ingest():
     if not text:
         return jsonify({"stored": False, "reason": "empty"}), 200
 
-    # Get user_id if available
     user_id = get_current_user_id() if session.get("user_id") else None
 
     category = auto_store_memory_if_relevant(text, mode, source, user_id=user_id)

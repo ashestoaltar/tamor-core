@@ -1252,6 +1252,98 @@ The original roadmap separated "Deterministic vs Probabilistic Transparency" (UI
 
 That's Tamor's voice. Phase 8 succeeds when the system consistently embodies this.
 
+---
+
+## Phase 9 — Intelligence Redesign: Tamor Learns to Grow
+
+**Theme:** Tamor's core intelligence systems — memory, context, personality, and learning — evolve from static v1 implementations to adaptive systems that deepen with use.
+
+**Philosophy:** Phases 1–7 built Tamor's mind. Phase 8 defined its soul. Phase 9 teaches it to grow.
+
+**Full Vision Document:** [`phase-9-intelligence-redesign.md`](phase-9-intelligence-redesign.md)
+
+---
+
+### Why Phase 9 Exists
+
+After hundreds of conversations, thousands of library files, and months of use, Tamor knows its user deeply — but none of that knowledge shapes how it behaves, retrieves, or reasons. The core systems work but were designed without the ability to evolve:
+
+- Memory is a flat bag of regex-classified text with no aging, no relationships, no consolidation
+- Context assembly is dumb concatenation with no token budgeting or relevance ranking
+- Personality is a static YAML file untouched by accumulated knowledge
+- Nothing learns — routing, retrieval, and source ranking never improve with use
+- Each conversation starts nearly from scratch
+
+Phase 9 addresses all of this.
+
+---
+
+### 9.1 Memory Redesign — Tiered, LLM-Managed, Relational
+
+**The single highest-impact change.** Foundation for everything else.
+
+- **Tiered architecture**: Core (always loaded, ~10 items) → Long-term (searchable, subject to decay) → Episodic (session summaries, fade over time) → Working (current session, ephemeral)
+- **LLM-managed storage**: Replace regex auto-classifier with post-conversation Archivist pass — the LLM decides what to remember, update, consolidate, or discard
+- **Memory relationships**: Entity-relationship tagging for connected retrieval ("Chuck → builds → Tamor → uses → Flask")
+- **Aging & decay**: `last_accessed` tracking, recency-weighted retrieval, periodic consolidation of redundant memories
+- **Migration path**: Additive columns on existing table, backfill existing memories, old classifier as fallback
+
+### 9.2 Context Assembly Redesign — Token-Budget-Aware, Relevance-Ranked
+
+- **Token budget system**: Define total budget, allocate fixed portions for identity/persona/core-memories, dynamically fill remainder by relevance
+- **Relevance-ranked injection**: Score all injectable context (memories, library, scripture, project files) against current query, fill budget from most to least relevant
+- **Conversation compression**: Recent messages verbatim, older messages LLM-summarized, ancient messages dropped
+- **Source attribution**: Every injected piece carries metadata for auditability and learning
+
+### 9.3 Personality Evolution — Memory-Informed Identity
+
+- **Fixed core**: Name, Hebrew roots, directives, ethical boundaries, epistemic rules — authored, not learned
+- **Adaptive expression**: Vocabulary depth, response style preferences, domain familiarity, source preferences — derived from memory
+- **Dynamic persona enrichment**: Mode personas stay as baseline, get enriched with user-specific knowledge at prompt-build time
+- **Guardrail**: Adaptation never overrides ethical boundaries or epistemic constraints
+
+### 9.4 Learning Loops — The System Gets Better
+
+- **Memory utility tracking**: Which memories were retrieved and useful vs. retrieved and ignored
+- **Source quality signals**: Which library chunks got cited vs. discarded
+- **Routing accuracy**: Track mode auto-detection mismatches when user manually switches
+- **Gap detection**: Queries with consistently poor results signal missing content
+- **Principle**: All learning is inspectable. No hidden optimization.
+
+### 9.5 Agent Collaboration (Conditional)
+
+- **Only if needed**: Evaluate after 9.1–9.4 are stable
+- **Potential**: Agent-to-agent requests, dynamic re-routing, parallel execution
+- **Decision criteria**: Build only when specific workflows are documented as blocked
+
+---
+
+### Implementation Order
+
+| Order | Component | Dependencies |
+|-------|-----------|-------------|
+| 1 | 9.1 Memory Redesign | None |
+| 2 | 9.2 Context Assembly | 9.1 |
+| 3 | 9.3 Personality Evolution | 9.1, 9.2 |
+| 4 | 9.4 Learning Loops | 9.1, 9.2, 9.3 |
+| 5 | 9.5 Agent Collaboration | 9.1, 9.2 (conditional) |
+
+### Absorbed Extensions
+
+Roadmap-extensions items #20 (Memory Aging), #21 (Compression), #22 (Token Budget), #23 (Memory Stats Dashboard) are subsumed into Phase 9 and no longer tracked separately.
+
+---
+
+### Phase 9 Success Criteria
+
+1. Tamor remembers what matters and forgets what doesn't — without being told
+2. Context injection is always relevant, never overflows, and adapts to the question
+3. After 100 conversations, responses feel notably more personalized than after 10
+4. The user never has to re-explain something Tamor should already know
+5. "Why do you know this?" always has a clear, inspectable answer
+
+---
+
 Governance Rules
 
 This roadmap is authoritative
@@ -1269,6 +1361,15 @@ Bounded scope
 Dependency awareness
 
 Roadmap Change Log
+v1.50 – 2026-02-07
+
+Phase 9 — Intelligence Redesign:
+- Added Phase 9 with 5 components: Memory Redesign, Context Assembly, Personality Evolution, Learning Loops, Agent Collaboration
+- Vision document: `Roadmap/phase-9-intelligence-redesign.md`
+- Absorbed extensions #20 (Memory Aging), #21 (Compression), #22 (Token Budget), #23 (Memory Stats Dashboard) into Phase 9
+- Implementation order: Memory → Context → Personality → Learning → Agents (conditional)
+- Starting with 9.1 Memory Redesign as foundation for all other components
+
 v1.48 – 2026-02-02
 
 LLM Provider Architecture Decision:
